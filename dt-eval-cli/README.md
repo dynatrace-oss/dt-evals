@@ -42,8 +42,7 @@ npx dt-eval-cli deploy aws
 |---------|-----------------|
 | `dt-eval-cli` | Continuous evaluation runs against production GenAI traces in Dynatrace |
 | `dt-eval-lib` | TypeScript library for judge-based evals inside tests, scripts, and app code |
-| `dt-eval-engine` | Core Go runtime for deployed eval workers and serverless runners, including AWS Lambda, Google Cloud Run, Azure Funtions or Docker |
-
+| `dt-eval-engine` | Core runtime for deployed eval workers and serverless runners |
 
 ## What It Does
 
