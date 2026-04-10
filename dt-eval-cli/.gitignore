@@ -1,0 +1,16 @@
+# Claude Code project memory (local only)
+.claude/
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment variables
+.env
+.env.*
+
+# Project-specific eval configs (contain credentials — use example.dt-eval.yaml as a template)
+*.dt-eval.yaml
+!example.dt-eval.yaml
