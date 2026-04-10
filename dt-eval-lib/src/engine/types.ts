@@ -1,22 +1,26 @@
 import type { Score } from "../scoring/types";
 
 /** Provider selection */
-export type Provider = "openai" | "anthropic";
+export type Provider = "openai" | "anthropic" | "vertex";
 
 /** Provider-related configuration */
 export interface ProviderOptions {
   /** Which LLM provider to use */
   provider: Provider;
-  /** API key — falls back to OPENAI_API_KEY / ANTHROPIC_API_KEY env vars */
+  /** API key — falls back to OPENAI_API_KEY / ANTHROPIC_API_KEY / GOOGLE_API_KEY env vars */
   apiKey?: string;
   /** Base URL for the provider API — falls back to OPENAI_BASE_URL / ANTHROPIC_BASE_URL env vars */
   baseUrl?: string;
-  /** Model override — defaults to gpt-5.1 / claude-sonnet-4-20250514 */
+  /** Model override — defaults to gpt-5.1 / claude-sonnet-4-20250514 / gemini-2.5-flash */
   model?: string;
   /** Request timeout in ms — default 30000 */
   timeout?: number;
   /** Max retries on transient errors — default 2 */
   maxRetries?: number;
+  /** GCP project ID — required for Vertex AI (ADC) mode. Falls back to GOOGLE_CLOUD_PROJECT env var */
+  project?: string;
+  /** GCP location — required for Vertex AI (ADC) mode. Falls back to GOOGLE_CLOUD_LOCATION env var */
+  location?: string;
 }
 
 /** Scoring-related configuration */

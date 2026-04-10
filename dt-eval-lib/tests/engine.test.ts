@@ -23,11 +23,22 @@ vi.mock("@anthropic-ai/sdk", () => {
   };
 });
 
+vi.mock("@google/genai", () => {
+  return {
+    GoogleGenAI: vi.fn().mockImplementation(() => ({
+      models: {
+        generateContent: vi.fn(),
+      },
+    })),
+  };
+});
+
 import { evaluate } from "../src/engine/index";
 import { AnthropicProvider } from "../src/engine/providers/anthropic";
 import { createProvider } from "../src/engine/providers/index";
 import { OpenAIProvider } from "../src/engine/providers/openai";
 import type { LLMJudgeResponse, LLMProvider } from "../src/engine/providers/types";
+import { VertexProvider } from "../src/engine/providers/vertex";
 import type { EvalConfig, EvalInput, ProviderOptions } from "../src/engine/types";
 import {
   EvalConfigError,
@@ -493,5 +504,172 @@ describe("provider factory", () => {
       if (origUrl !== undefined) process.env.ANTHROPIC_BASE_URL = origUrl;
       else delete process.env.ANTHROPIC_BASE_URL;
     }
+  });
+});
+
+describe("provider factory — vertex", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("creates Vertex provider when provider is 'vertex' with apiKey", async () => {
+    const provider = await createProvider({
+      provider: "vertex",
+      apiKey: "test-key",
+      timeout: 30000,
+      maxRetries: 2,
+    });
+    expect(provider).toBeInstanceOf(VertexProvider);
+  });
+
+  it("creates Vertex provider with project + location (ADC mode)", async () => {
+    const provider = await createProvider({
+      provider: "vertex",
+      project: "my-project",
+      location: "us-central1",
+      timeout: 30000,
+      maxRetries: 2,
+    });
+    expect(provider).toBeInstanceOf(VertexProvider);
+  });
+
+  it("falls back to GOOGLE_API_KEY env var", async () => {
+    const origKey = process.env.GOOGLE_API_KEY;
+    process.env.GOOGLE_API_KEY = "env-google-key";
+    try {
+      const provider = await createProvider({
+        provider: "vertex",
+        timeout: 30000,
+        maxRetries: 2,
+      });
+      expect(provider).toBeInstanceOf(VertexProvider);
+    } finally {
+      if (origKey !== undefined) process.env.GOOGLE_API_KEY = origKey;
+      else delete process.env.GOOGLE_API_KEY;
+    }
+  });
+
+  it("falls back to GOOGLE_CLOUD_PROJECT + GOOGLE_CLOUD_LOCATION env vars", async () => {
+    const origProject = process.env.GOOGLE_CLOUD_PROJECT;
+    const origLocation = process.env.GOOGLE_CLOUD_LOCATION;
+    process.env.GOOGLE_CLOUD_PROJECT = "env-project";
+    process.env.GOOGLE_CLOUD_LOCATION = "us-east1";
+    try {
+      const provider = await createProvider({
+        provider: "vertex",
+        timeout: 30000,
+        maxRetries: 2,
+      });
+      expect(provider).toBeInstanceOf(VertexProvider);
+    } finally {
+      if (origProject !== undefined) process.env.GOOGLE_CLOUD_PROJECT = origProject;
+      else delete process.env.GOOGLE_CLOUD_PROJECT;
+      if (origLocation !== undefined) process.env.GOOGLE_CLOUD_LOCATION = origLocation;
+      else delete process.env.GOOGLE_CLOUD_LOCATION;
+    }
+  });
+
+  it("throws EvalConfigError when no credentials are provided for vertex", async () => {
+    const origKey = process.env.GOOGLE_API_KEY;
+    const origProject = process.env.GOOGLE_CLOUD_PROJECT;
+    const origLocation = process.env.GOOGLE_CLOUD_LOCATION;
+    delete process.env.GOOGLE_API_KEY;
+    delete process.env.GOOGLE_CLOUD_PROJECT;
+    delete process.env.GOOGLE_CLOUD_LOCATION;
+    try {
+      await expect(
+        createProvider({
+          provider: "vertex",
+          timeout: 30000,
+          maxRetries: 2,
+        }),
+      ).rejects.toBeInstanceOf(EvalConfigError);
+    } finally {
+      if (origKey !== undefined) process.env.GOOGLE_API_KEY = origKey;
+      if (origProject !== undefined) process.env.GOOGLE_CLOUD_PROJECT = origProject;
+      if (origLocation !== undefined) process.env.GOOGLE_CLOUD_LOCATION = origLocation;
+    }
+  });
+
+  it("throws EvalConfigError when only project is provided (missing location)", async () => {
+    const origKey = process.env.GOOGLE_API_KEY;
+    const origLocation = process.env.GOOGLE_CLOUD_LOCATION;
+    delete process.env.GOOGLE_API_KEY;
+    delete process.env.GOOGLE_CLOUD_LOCATION;
+    try {
+      await expect(
+        createProvider({
+          provider: "vertex",
+          project: "my-project",
+          timeout: 30000,
+          maxRetries: 2,
+        }),
+      ).rejects.toBeInstanceOf(EvalConfigError);
+    } finally {
+      if (origKey !== undefined) process.env.GOOGLE_API_KEY = origKey;
+      if (origLocation !== undefined) process.env.GOOGLE_CLOUD_LOCATION = origLocation;
+    }
+  });
+
+  it("throws EvalConfigError when only location is provided (missing project)", async () => {
+    const origKey = process.env.GOOGLE_API_KEY;
+    const origProject = process.env.GOOGLE_CLOUD_PROJECT;
+    delete process.env.GOOGLE_API_KEY;
+    delete process.env.GOOGLE_CLOUD_PROJECT;
+    try {
+      await expect(
+        createProvider({
+          provider: "vertex",
+          location: "us-central1",
+          timeout: 30000,
+          maxRetries: 2,
+        }),
+      ).rejects.toBeInstanceOf(EvalConfigError);
+    } finally {
+      if (origKey !== undefined) process.env.GOOGLE_API_KEY = origKey;
+      if (origProject !== undefined) process.env.GOOGLE_CLOUD_PROJECT = origProject;
+    }
+  });
+
+  it("uses custom model when specified", async () => {
+    const provider = await createProvider({
+      provider: "vertex",
+      apiKey: "test-key",
+      model: "gemini-2.5-pro",
+      timeout: 30000,
+      maxRetries: 2,
+    });
+    expect(provider).toBeInstanceOf(VertexProvider);
+  });
+});
+
+describe("evaluate() — vertex provider", () => {
+  beforeEach(() => {
+    vi.mocked(createProvider).mockResolvedValue(
+      mockProvider({ scoreValue: 1, summary: "Good output", reasoning: "Output is correct" }),
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("evaluates with vertex provider", async () => {
+    const result = await evaluate(BuiltInMetric.Toxicity, baseInput, {
+      provider: { provider: "vertex", apiKey: "test-key" },
+    });
+    expect(result).toBeDefined();
+    expect(result.score).toBeDefined();
+    expect(result.explanation).toBeDefined();
+  });
+
+  it("returns correct EvalResult shape with vertex provider", async () => {
+    const result = await evaluate(BuiltInMetric.Toxicity, baseInput, {
+      provider: { provider: "vertex", apiKey: "test-key" },
+    });
+    expect(result).toEqual({
+      score: { value: 1, label: "pass" },
+      explanation: { summary: "Good output", reasoning: "Output is correct" },
+    });
   });
 });

@@ -65,18 +65,26 @@ console.log(result.explanation); // { summary: "...", reasoning: "..." }
 
 ## Providers
 
-Supports **OpenAI** and **Anthropic**. Configure via API key in code or environment variable.
+Supports **OpenAI**, **Anthropic**, and **Vertex AI (Google Gemini)**. Configure via API key or GCP credentials in code or environment variables.
 
 ### Environment Variables
 
 ```bash
-# API Keys
+# OpenAI
 export OPENAI_API_KEY="sk-..."
-export ANTHROPIC_API_KEY="sk-ant-..."
+export OPENAI_BASE_URL="https://your-proxy.example.com/v1"  # optional
 
-# Custom Base URLs (optional — for proxies, self-hosted, or compatible APIs)
-export OPENAI_BASE_URL="https://your-proxy.example.com/v1"
-export ANTHROPIC_BASE_URL="https://your-proxy.example.com"
+# Anthropic
+export ANTHROPIC_API_KEY="sk-ant-..."
+export ANTHROPIC_BASE_URL="https://your-proxy.example.com"  # optional
+
+# Vertex AI — Option A: GCP Application Default Credentials (recommended for production)
+export GOOGLE_CLOUD_PROJECT="my-gcp-project"
+export GOOGLE_CLOUD_LOCATION="us-central1"
+# Requires: gcloud auth application-default login
+
+# Vertex AI — Option B: Gemini Developer API key (simpler for development)
+export GOOGLE_API_KEY="AIza..."
 ```
 
 Or use a `.env` file (not committed to git):
@@ -86,7 +94,44 @@ OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 OPENAI_BASE_URL=https://your-proxy.example.com/v1
 ANTHROPIC_BASE_URL=https://your-proxy.example.com
+GOOGLE_CLOUD_PROJECT=my-gcp-project
+GOOGLE_CLOUD_LOCATION=us-central1
+GOOGLE_API_KEY=AIza...
 ```
+
+### Vertex AI Setup
+
+**Option A — Vertex AI with Application Default Credentials (ADC):**
+
+1. Install the [gcloud CLI](https://cloud.google.com/sdk/docs/install)
+2. Run `gcloud auth application-default login`
+3. Set `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION` env vars (or pass `project` / `location` in provider config)
+
+```ts
+await evaluate(BuiltInMetric.Toxicity, input, {
+  provider: {
+    provider: "vertex",
+    project: "my-gcp-project",
+    location: "us-central1",
+  },
+});
+```
+
+**Option B — Gemini Developer API key:**
+
+1. Get an API key from [Google AI Studio](https://aistudio.google.com/apikey)
+2. Set `GOOGLE_API_KEY` env var (or pass `apiKey` in provider config)
+
+```ts
+await evaluate(BuiltInMetric.Toxicity, input, {
+  provider: {
+    provider: "vertex",
+    apiKey: "AIza...",
+  },
+});
+```
+
+> **Note:** The `@google/genai` SDK requires Node.js ≥ 20.
 
 When calling `evaluate()`, the library resolves config in this order:
 1. Explicit value in `provider` options (e.g., `provider.apiKey`, `provider.baseUrl`)
@@ -135,12 +180,14 @@ import type { EvalConfig } from "dt-eval-lib";
 
 const config: EvalConfig = {
   provider: {
-    provider: "openai",          // "openai" | "anthropic"
+    provider: "openai",          // "openai" | "anthropic" | "vertex"
     apiKey: "sk-...",            // optional if env var is set
-    baseUrl: "https://...",      // optional
-    model: "gpt-5.1",           // optional — defaults to gpt-5.1 / claude-sonnet-4-20250514
+    baseUrl: "https://...",      // optional (openai/anthropic only)
+    model: "gpt-5.1",           // optional — defaults to gpt-5.1 / claude-sonnet-4-20250514 / gemini-2.5-flash
     timeout: 30000,              // optional — request timeout in ms (default 30000)
     maxRetries: 2,               // optional — retries on transient errors (default 2)
+    project: "my-gcp-project",   // optional — GCP project (vertex only, ADC mode)
+    location: "us-central1",     // optional — GCP location (vertex only, ADC mode)
   },
   scoring: {
     thresholdOverride: 0.8,      // optional — override the metric's default threshold
