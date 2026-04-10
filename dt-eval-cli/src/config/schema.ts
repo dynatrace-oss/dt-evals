@@ -8,12 +8,14 @@ export interface DynatraceConfig {
 }
 
 export interface JudgeConfig {
-  provider: 'openai' | 'anthropic';
+  provider: 'openai' | 'anthropic' | 'azure-openai' | 'gemini' | 'bedrock';
   apiKey?: string;
   baseUrl?: string;
   model?: string;
   timeout?: number;
   maxRetries?: number;
+  /** AWS region for Bedrock; Azure OpenAI deployment endpoint base region */
+  region?: string;
 }
 
 export interface ScopeConfig {

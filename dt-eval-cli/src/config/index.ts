@@ -90,7 +90,7 @@ function applyEnvVars(config: DtEvalConfig): DtEvalConfig {
     result.dynatrace.dtctlContext = process.env['DT_DTCTL_CONTEXT'];
   }
   if (process.env['JUDGE_PROVIDER']) {
-    result.judge.provider = process.env['JUDGE_PROVIDER'] as 'openai' | 'anthropic';
+    result.judge.provider = process.env['JUDGE_PROVIDER'] as JudgeConfig['provider'];
   }
   if (process.env['JUDGE_MODEL']) {
     result.judge.model = process.env['JUDGE_MODEL'];
@@ -99,11 +99,18 @@ function applyEnvVars(config: DtEvalConfig): DtEvalConfig {
   const provider = result.judge.provider;
   if (provider === 'openai') {
     if (process.env['OPENAI_API_KEY']) result.judge.apiKey = process.env['OPENAI_API_KEY'];
-    else if (process.env['AZURE_OPENAI_KEY']) result.judge.apiKey = process.env['AZURE_OPENAI_KEY'];
+    if (process.env['OPENAI_BASE_URL']) result.judge.baseUrl = process.env['OPENAI_BASE_URL'];
+  } else if (provider === 'anthropic') {
+    if (process.env['ANTHROPIC_API_KEY']) result.judge.apiKey = process.env['ANTHROPIC_API_KEY'];
+    if (process.env['ANTHROPIC_BASE_URL']) result.judge.baseUrl = process.env['ANTHROPIC_BASE_URL'];
+  } else if (provider === 'azure-openai') {
+    if (process.env['AZURE_OPENAI_API_KEY']) result.judge.apiKey = process.env['AZURE_OPENAI_API_KEY'];
     if (process.env['AZURE_OPENAI_ENDPOINT']) result.judge.baseUrl = process.env['AZURE_OPENAI_ENDPOINT'];
-    else if (process.env['OPENAI_BASE_URL']) result.judge.baseUrl = process.env['OPENAI_BASE_URL'];
-  } else if (provider === 'anthropic' && process.env['ANTHROPIC_API_KEY']) {
-    result.judge.apiKey = process.env['ANTHROPIC_API_KEY'];
+  } else if (provider === 'gemini') {
+    if (process.env['GEMINI_API_KEY']) result.judge.apiKey = process.env['GEMINI_API_KEY'];
+    else if (process.env['GOOGLE_API_KEY']) result.judge.apiKey = process.env['GOOGLE_API_KEY'];
+  } else if (provider === 'bedrock') {
+    if (process.env['AWS_REGION']) result.judge.region = process.env['AWS_REGION'];
   }
 
   return result;
@@ -168,8 +175,8 @@ export function validateConfig(config: DtEvalConfig): void {
 
   if (!config.judge?.provider) {
     issues.push('judge.provider is required');
-  } else if (!['openai', 'anthropic'].includes(config.judge.provider)) {
-    issues.push(`judge.provider must be one of: openai, anthropic (got "${config.judge.provider}")`);
+  } else if (!['openai', 'anthropic', 'azure-openai', 'gemini', 'bedrock'].includes(config.judge.provider)) {
+    issues.push(`judge.provider must be one of: openai, anthropic, azure-openai, gemini, bedrock (got "${config.judge.provider}")`);
   }
 
   if (!config.scope?.since) {

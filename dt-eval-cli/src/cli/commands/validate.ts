@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import { loadConfig, validateConfig } from '../../config/index.js';
+import { DEFAULT_JUDGE_MODELS } from '../../config/defaults.js';
 import { DynatraceClient } from '../../dt/client.js';
 import { listPrompts } from 'dt-eval-lib';
 import { logger } from '../../logger/index.js';
@@ -14,12 +15,17 @@ async function testDynatraceConnection(environmentUrl: string, apiToken: string)
   }
 }
 
-async function testAiProvider(provider: string, apiKey?: string, model?: string): Promise<{ ok: boolean; model?: string }> {
+async function testAiProvider(
+  provider: string,
+  apiKey?: string,
+  model?: string,
+  options?: { baseUrl?: string; region?: string },
+): Promise<{ ok: boolean; model?: string }> {
+  const resolvedModel = model ?? DEFAULT_JUDGE_MODELS[provider] ?? 'unknown';
   try {
     if (provider === 'openai') {
       const key = apiKey ?? process.env['OPENAI_API_KEY'];
       if (!key) return { ok: false };
-      const resolvedModel = model ?? 'gpt-4o';
       const response = await fetch('https://api.openai.com/v1/models', {
         headers: { Authorization: `Bearer ${key}` },
         signal: AbortSignal.timeout(8000),
@@ -28,7 +34,6 @@ async function testAiProvider(provider: string, apiKey?: string, model?: string)
     } else if (provider === 'anthropic') {
       const key = apiKey ?? process.env['ANTHROPIC_API_KEY'];
       if (!key) return { ok: false };
-      const resolvedModel = model ?? 'claude-sonnet-4-6';
       const response = await fetch('https://api.anthropic.com/v1/models', {
         headers: {
           'x-api-key': key,
@@ -37,6 +42,32 @@ async function testAiProvider(provider: string, apiKey?: string, model?: string)
         signal: AbortSignal.timeout(8000),
       });
       return { ok: response.ok, model: resolvedModel };
+    } else if (provider === 'azure-openai') {
+      const key = apiKey ?? process.env['AZURE_OPENAI_API_KEY'];
+      const endpoint = options?.baseUrl ?? process.env['AZURE_OPENAI_ENDPOINT'];
+      if (!key || !endpoint) return { ok: false };
+      // Probe the Azure OpenAI models list endpoint
+      const url = `${endpoint.replace(/\/$/, '')}/openai/models?api-version=2024-02-01`;
+      const response = await fetch(url, {
+        headers: { 'api-key': key },
+        signal: AbortSignal.timeout(8000),
+      });
+      return { ok: response.ok, model: resolvedModel };
+    } else if (provider === 'gemini') {
+      const key = apiKey ?? process.env['GEMINI_API_KEY'] ?? process.env['GOOGLE_API_KEY'];
+      if (!key) return { ok: false };
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`,
+        { signal: AbortSignal.timeout(8000) },
+      );
+      return { ok: response.ok, model: resolvedModel };
+    } else if (provider === 'bedrock') {
+      // Cannot probe Bedrock without the SDK + signing — just check AWS env vars are set
+      const hasCredentials =
+        !!(process.env['AWS_ACCESS_KEY_ID'] && process.env['AWS_SECRET_ACCESS_KEY']) ||
+        !!(process.env['AWS_ROLE_ARN']) ||
+        !!(options?.region ?? process.env['AWS_REGION']);
+      return { ok: hasCredentials, model: resolvedModel };
     }
     return { ok: false };
   } catch {
@@ -88,6 +119,7 @@ export function createValidateCommand(): Command {
       config.judge.provider,
       config.judge.apiKey,
       config.judge.model,
+      { baseUrl: config.judge.baseUrl, region: config.judge.region },
     );
     if (aiOk) {
       logger.success(`Evaluator provider reachable  (${config.judge.provider}, model: ${aiModel ?? 'unknown'})`);

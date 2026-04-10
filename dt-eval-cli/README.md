@@ -8,11 +8,9 @@
 
 `dt-eval-cli` is for teams shipping chat, RAG, copilots, and agent workflows who want evals to run on real traffic, not just curated test sets.
 
-<img width="686" height="512" alt="image" src="https://github.com/user-attachments/assets/0e09197f-2ebc-4ecb-9e3a-dcd9ab1cb22f" />
+Today, the CLI uses Dynatrace as both the trace source and the evaluation result store. It pulls gen_ai.* spans from your live environment, masks sensitive data in memory, scores real production interactions with an LLM judge, detects score drift over time, and writes structured evaluation results back to Dynatrace as business events.
 
-Today, the CLI uses Dynatrace as both the trace source and the evaluation result store. It pulls gen_ai.* spans from your live environment, masks sensitive data in memory, scores real production interactions with an LLM judge, detects score drift over time, and writes structured evaluation results back to Dynatrace as business events. 
-
-That means when a score drops or an outlier appears, you do not just see that quality regressed, you can trace it back through the full AI execution path: prompts, retrieval context, model calls, tool usage, latency, failures, and service dependencies. 
+That means when a score drops or an outlier appears, you do not just see that quality regressed, you can trace it back through the full AI execution path: prompts, retrieval context, model calls, tool usage, latency, failures, and service dependencies.
 
 In practice, this gives AI engineers a closed loop for evaluation, observability, alerting, anomaly detection, and remediation on the same production telemetry they already use to operate their systems.
 
@@ -26,6 +24,7 @@ npx dt-eval-cli deploy aws
 ```
 
 ## Why Teams Use It
+
 - Run evals on real production traces, not static test sets
 - Keep eval results in Dynatrace with traces, logs, metrics, dashboards, and alerts
 - Catch common LLM and agent failure modes with built-in judge metrics

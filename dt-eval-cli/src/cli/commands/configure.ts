@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { join } from 'node:path';
 import { loadConfig, saveConfig, validateConfig } from '../../config/index.js';
 import type { DtEvalConfig } from '../../config/schema.js';
+import { DEFAULT_JUDGE_MODELS } from '../../config/defaults.js';
 import { stringify as stringifyYaml } from 'yaml';
 import { redactSecrets } from '../../ui/format.js';
 import { logger } from '../../logger/index.js';
@@ -20,6 +21,15 @@ const MODEL_PRICING: Record<string, [number, number]> = {
   'claude-opus-4-6':     [15.00,  75.00],
   'claude-sonnet-4-6':   [3.00,  15.00],
   'claude-haiku-4-5':    [0.80,   4.00],
+  // Azure OpenAI — same as upstream OpenAI pricing
+  'gpt-4o (azure)':      [2.50,  10.00],
+  // Gemini
+  'gemini-2.0-flash':    [0.10,   0.40],
+  'gemini-1.5-pro':      [3.50,  10.50],
+  'gemini-1.5-flash':    [0.075,  0.30],
+  // Bedrock (Claude via Bedrock)
+  'anthropic.claude-sonnet-4-5-20251001-v1:0': [3.00, 15.00],
+  'anthropic.claude-haiku-3-5-20241022-v1:0':  [0.80,  4.00],
 };
 const FALLBACK_PRICING: [number, number] = [2.50, 10.00];
 
@@ -142,7 +152,7 @@ export function createConfigureCommand(): Command {
     }
 
     const availablePrompts = await listPrompts();
-    // LLM-as-judge metrics from the lib + drift as a special population-level metric
+    // Built-in evaluators from the lib + drift as a special population-level evaluator
     const allMetricIds = [...availablePrompts.map(p => p.id), DRIFT_METRIC_ID];
 
     if (!hasFlags) {
@@ -211,15 +221,34 @@ export function createConfigureCommand(): Command {
       const provider = await select({
         message: 'Evaluator provider',
         choices: [
-          { name: 'openai', value: 'openai' as const },
-          { name: 'anthropic', value: 'anthropic' as const },
+          { name: 'openai       — OpenAI API (GPT models)', value: 'openai' as const },
+          { name: 'anthropic    — Anthropic API (Claude models)', value: 'anthropic' as const },
+          { name: 'azure-openai — Azure OpenAI deployment', value: 'azure-openai' as const },
+          { name: 'gemini       — Google Gemini API', value: 'gemini' as const },
+          { name: 'bedrock      — AWS Bedrock (uses AWS credential chain)', value: 'bedrock' as const },
         ],
         default: existing.judge?.provider ?? 'openai',
       });
 
-      const apiKey = await password({
-        message: provider === 'openai' ? 'OpenAI API key' : 'Anthropic API key',
-      });
+      const providerApiKeyLabel: Record<string, string> = {
+        openai: 'OpenAI API key',
+        anthropic: 'Anthropic API key',
+        'azure-openai': 'Azure OpenAI API key (AZURE_OPENAI_API_KEY)',
+        gemini: 'Gemini API key (GEMINI_API_KEY or GOOGLE_API_KEY)',
+        bedrock: 'AWS region for Bedrock (e.g. us-east-1) — leave blank to use AWS_REGION env var',
+      };
+
+      let apiKey: string;
+      if (provider === 'bedrock') {
+        apiKey = await input({
+          message: providerApiKeyLabel[provider],
+          default: existing.judge?.region ?? process.env['AWS_REGION'] ?? 'us-east-1',
+        });
+      } else {
+        apiKey = await password({
+          message: providerApiKeyLabel[provider] ?? `${provider} API key`,
+        });
+      }
 
       const model = await input({
         message: 'Evaluator model  (leave blank for provider default)',
@@ -261,7 +290,9 @@ export function createConfigureCommand(): Command {
         },
         judge: {
           provider,
-          apiKey: apiKey || existing.judge?.apiKey,
+          ...(provider === 'bedrock'
+            ? { region: apiKey || existing.judge?.region }
+            : { apiKey: apiKey || existing.judge?.apiKey }),
           model: model || existing.judge?.model,
           timeout: existing.judge?.timeout ?? 30000,
           maxRetries: existing.judge?.maxRetries ?? 2,
@@ -299,7 +330,7 @@ export function createConfigureCommand(): Command {
         spanCount != null && spanCount > 0 ? spanCount : null,
         parseInt(sampleStr, 10),
         updated.metrics.enabled,
-        updated.judge.model ?? (updated.judge.provider === 'openai' ? 'gpt-4o' : 'claude-sonnet-4-6'),
+        updated.judge.model ?? DEFAULT_JUDGE_MODELS[updated.judge.provider] ?? 'gpt-4o',
       );
 
       return;
@@ -314,7 +345,7 @@ export function createConfigureCommand(): Command {
         apiToken: options.apiToken ?? existing.dynatrace?.apiToken,
       },
       judge: {
-        provider: (options.provider as 'openai' | 'anthropic') ?? existing.judge?.provider ?? 'openai',
+        provider: (options.provider as DtEvalConfig['judge']['provider']) ?? existing.judge?.provider ?? 'openai',
         apiKey: options.apiKey ?? existing.judge?.apiKey,
         model: options.model ?? existing.judge?.model,
         timeout: existing.judge?.timeout ?? 30000,

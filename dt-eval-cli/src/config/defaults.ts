@@ -46,4 +46,7 @@ export const DEFAULT_CONFIG: Omit<DtEvalConfig, 'dynatrace' | 'judge'> & {
 export const DEFAULT_JUDGE_MODELS: Record<string, string> = {
   openai: 'gpt-4o',
   anthropic: 'claude-sonnet-4-6',
+  'azure-openai': 'gpt-4o',
+  gemini: 'gemini-2.0-flash',
+  bedrock: 'anthropic.claude-sonnet-4-5-20251001-v1:0',
 };

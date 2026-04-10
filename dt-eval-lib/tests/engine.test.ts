@@ -1,18 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // We'll mock the provider modules so no real API calls are made
-vi.mock("openai", () => {
-  return {
-    default: vi.fn().mockImplementation(() => ({
-      chat: {
-        completions: {
-          create: vi.fn(),
-        },
-      },
-    })),
-  };
-});
-
 vi.mock("@anthropic-ai/sdk", () => {
   return {
     default: vi.fn().mockImplementation(() => ({
@@ -23,8 +11,43 @@ vi.mock("@anthropic-ai/sdk", () => {
   };
 });
 
+vi.mock("openai", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("openai")>();
+  return {
+    ...actual,
+    default: vi.fn().mockImplementation(() => ({
+      chat: { completions: { create: vi.fn() } },
+    })),
+    AzureOpenAI: vi.fn().mockImplementation(() => ({
+      chat: { completions: { create: vi.fn() } },
+    })),
+  };
+});
+
+vi.mock("@google/genai", () => {
+  return {
+    GoogleGenAI: vi.fn().mockImplementation(() => ({
+      models: {
+        generateContent: vi.fn(),
+      },
+    })),
+  };
+});
+
+vi.mock("@aws-sdk/client-bedrock-runtime", () => {
+  return {
+    BedrockRuntimeClient: vi.fn().mockImplementation(() => ({
+      send: vi.fn(),
+    })),
+    ConverseCommand: vi.fn(),
+  };
+});
+
 import { evaluate } from "../src/engine/index";
 import { AnthropicProvider } from "../src/engine/providers/anthropic";
+import { AzureOpenAIProvider } from "../src/engine/providers/azure-openai";
+import { BedrockProvider } from "../src/engine/providers/bedrock";
+import { GeminiProvider } from "../src/engine/providers/gemini";
 import { createProvider } from "../src/engine/providers/index";
 import { OpenAIProvider } from "../src/engine/providers/openai";
 import type { LLMJudgeResponse, LLMProvider } from "../src/engine/providers/types";
@@ -493,5 +516,144 @@ describe("provider factory", () => {
       if (origUrl !== undefined) process.env.ANTHROPIC_BASE_URL = origUrl;
       else delete process.env.ANTHROPIC_BASE_URL;
     }
+  });
+
+  it("creates AzureOpenAI provider when provider is 'azure-openai'", async () => {
+    const provider = await createProvider({
+      provider: "azure-openai",
+      apiKey: "test-azure-key",
+      baseUrl: "https://my-resource.openai.azure.com",
+      timeout: 30000,
+    });
+    expect(provider).toBeInstanceOf(AzureOpenAIProvider);
+  });
+
+  it("throws when azure-openai is missing endpoint", async () => {
+    await expect(
+      createProvider({
+        provider: "azure-openai",
+        apiKey: "test-azure-key",
+        timeout: 30000,
+      }),
+    ).rejects.toThrow("azure-openai requires an endpoint");
+  });
+
+  it("throws when azure-openai is missing API key", async () => {
+    const origKey = process.env.AZURE_OPENAI_API_KEY;
+    delete process.env.AZURE_OPENAI_API_KEY;
+    try {
+      await expect(
+        createProvider({
+          provider: "azure-openai",
+          baseUrl: "https://my-resource.openai.azure.com",
+          timeout: 30000,
+        }),
+      ).rejects.toThrow("Missing API key for azure-openai");
+    } finally {
+      if (origKey !== undefined) process.env.AZURE_OPENAI_API_KEY = origKey;
+    }
+  });
+
+  it("falls back to AZURE_OPENAI_API_KEY env var", async () => {
+    const origKey = process.env.AZURE_OPENAI_API_KEY;
+    process.env.AZURE_OPENAI_API_KEY = "env-azure-key";
+    try {
+      const provider = await createProvider({
+        provider: "azure-openai",
+        baseUrl: "https://my-resource.openai.azure.com",
+        timeout: 30000,
+      });
+      expect(provider).toBeInstanceOf(AzureOpenAIProvider);
+    } finally {
+      if (origKey !== undefined) process.env.AZURE_OPENAI_API_KEY = origKey;
+      else delete process.env.AZURE_OPENAI_API_KEY;
+    }
+  });
+
+  it("creates Gemini provider when provider is 'gemini'", async () => {
+    const provider = await createProvider({
+      provider: "gemini",
+      apiKey: "test-gemini-key",
+      timeout: 30000,
+    });
+    expect(provider).toBeInstanceOf(GeminiProvider);
+  });
+
+  it("falls back to GEMINI_API_KEY env var", async () => {
+    const origKey = process.env.GEMINI_API_KEY;
+    process.env.GEMINI_API_KEY = "env-gemini-key";
+    try {
+      const provider = await createProvider({
+        provider: "gemini",
+        timeout: 30000,
+      });
+      expect(provider).toBeInstanceOf(GeminiProvider);
+    } finally {
+      if (origKey !== undefined) process.env.GEMINI_API_KEY = origKey;
+      else delete process.env.GEMINI_API_KEY;
+    }
+  });
+
+  it("falls back to GOOGLE_API_KEY env var for gemini", async () => {
+    const origGemini = process.env.GEMINI_API_KEY;
+    const origGoogle = process.env.GOOGLE_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+    process.env.GOOGLE_API_KEY = "env-google-key";
+    try {
+      const provider = await createProvider({
+        provider: "gemini",
+        timeout: 30000,
+      });
+      expect(provider).toBeInstanceOf(GeminiProvider);
+    } finally {
+      if (origGemini !== undefined) process.env.GEMINI_API_KEY = origGemini;
+      if (origGoogle !== undefined) process.env.GOOGLE_API_KEY = origGoogle;
+      else delete process.env.GOOGLE_API_KEY;
+    }
+  });
+
+  it("throws when gemini is missing API key", async () => {
+    const origGemini = process.env.GEMINI_API_KEY;
+    const origGoogle = process.env.GOOGLE_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.GOOGLE_API_KEY;
+    try {
+      await expect(
+        createProvider({ provider: "gemini", timeout: 30000 }),
+      ).rejects.toThrow("Missing API key for gemini");
+    } finally {
+      if (origGemini !== undefined) process.env.GEMINI_API_KEY = origGemini;
+      if (origGoogle !== undefined) process.env.GOOGLE_API_KEY = origGoogle;
+    }
+  });
+
+  it("creates Bedrock provider when provider is 'bedrock'", async () => {
+    const provider = await createProvider({
+      provider: "bedrock",
+      region: "us-east-1",
+      timeout: 30000,
+    });
+    expect(provider).toBeInstanceOf(BedrockProvider);
+  });
+
+  it("creates Bedrock provider without explicit region (uses env/default)", async () => {
+    const origRegion = process.env.AWS_REGION;
+    process.env.AWS_REGION = "eu-west-1";
+    try {
+      const provider = await createProvider({
+        provider: "bedrock",
+        timeout: 30000,
+      });
+      expect(provider).toBeInstanceOf(BedrockProvider);
+    } finally {
+      if (origRegion !== undefined) process.env.AWS_REGION = origRegion;
+      else delete process.env.AWS_REGION;
+    }
+  });
+
+  it("throws on unknown provider", async () => {
+    await expect(
+      createProvider({ provider: "unknown-provider" as never, timeout: 30000 }),
+    ).rejects.toThrow("Unknown provider: unknown-provider");
   });
 });

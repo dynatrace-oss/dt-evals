@@ -7,10 +7,12 @@ export interface LLMJudgeResponse {
 
 /** Configuration passed to provider constructors */
 export interface ProviderConfig {
-  apiKey: string;
+  apiKey?: string;
   model: string;
   timeout: number;
   baseUrl?: string;
+  /** AWS region — used by Bedrock */
+  region?: string;
 }
 
 /** Interface that each LLM provider must implement */

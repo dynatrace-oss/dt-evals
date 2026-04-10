@@ -1,22 +1,24 @@
 import type { Score } from "../scoring/types";
 
 /** Provider selection */
-export type Provider = "openai" | "anthropic";
+export type Provider = "openai" | "anthropic" | "azure-openai" | "gemini" | "bedrock";
 
 /** Provider-related configuration */
 export interface ProviderOptions {
   /** Which LLM provider to use */
   provider: Provider;
-  /** API key — falls back to OPENAI_API_KEY / ANTHROPIC_API_KEY env vars */
+  /** API key — falls back to provider-specific env var (not used for bedrock) */
   apiKey?: string;
-  /** Base URL for the provider API — falls back to OPENAI_BASE_URL / ANTHROPIC_BASE_URL env vars */
+  /** Base URL / endpoint for the provider API */
   baseUrl?: string;
-  /** Model override — defaults to gpt-5.1 / claude-sonnet-4-20250514 */
+  /** Model override — falls back to provider-specific default */
   model?: string;
   /** Request timeout in ms — default 30000 */
   timeout?: number;
   /** Max retries on transient errors — default 2 */
   maxRetries?: number;
+  /** AWS region for Bedrock — falls back to AWS_REGION env var */
+  region?: string;
 }
 
 /** Scoring-related configuration */
