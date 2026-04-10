@@ -6,6 +6,9 @@
 
 ---
 
+<img width="686" height="512" alt="image" src="https://github.com/user-attachments/assets/45ed1f81-2d07-4b4a-bfc3-c673e88bac2d" />
+
+
 ## Why this exists
 
 Dynatrace captures GenAI spans (inputs, outputs, latency, token usage) automatically via OpenTelemetry. What it does not do out of the box is tell you whether your LLM responses were actually *good*. `dt-eval-cli` closes that gap:
