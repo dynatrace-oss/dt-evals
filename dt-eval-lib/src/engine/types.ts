@@ -17,10 +17,6 @@ export interface ProviderOptions {
   timeout?: number;
   /** Max retries on transient errors — default 2 */
   maxRetries?: number;
-  /** GCP project ID — required for Vertex AI (ADC) mode. Falls back to GOOGLE_CLOUD_PROJECT env var */
-  project?: string;
-  /** GCP location — required for Vertex AI (ADC) mode. Falls back to GOOGLE_CLOUD_LOCATION env var */
-  location?: string;
 }
 
 /** Scoring-related configuration */

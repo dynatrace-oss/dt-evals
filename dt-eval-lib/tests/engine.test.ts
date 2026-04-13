@@ -522,17 +522,6 @@ describe("provider factory — vertex", () => {
     expect(provider).toBeInstanceOf(VertexProvider);
   });
 
-  it("creates Vertex provider with project + location (ADC mode)", async () => {
-    const provider = await createProvider({
-      provider: "vertex",
-      project: "my-project",
-      location: "us-central1",
-      timeout: 30000,
-      maxRetries: 2,
-    });
-    expect(provider).toBeInstanceOf(VertexProvider);
-  });
-
   it("falls back to GOOGLE_API_KEY env var", async () => {
     const origKey = process.env.GOOGLE_API_KEY;
     process.env.GOOGLE_API_KEY = "env-google-key";
@@ -549,33 +538,9 @@ describe("provider factory — vertex", () => {
     }
   });
 
-  it("falls back to GOOGLE_CLOUD_PROJECT + GOOGLE_CLOUD_LOCATION env vars", async () => {
-    const origProject = process.env.GOOGLE_CLOUD_PROJECT;
-    const origLocation = process.env.GOOGLE_CLOUD_LOCATION;
-    process.env.GOOGLE_CLOUD_PROJECT = "env-project";
-    process.env.GOOGLE_CLOUD_LOCATION = "us-east1";
-    try {
-      const provider = await createProvider({
-        provider: "vertex",
-        timeout: 30000,
-        maxRetries: 2,
-      });
-      expect(provider).toBeInstanceOf(VertexProvider);
-    } finally {
-      if (origProject !== undefined) process.env.GOOGLE_CLOUD_PROJECT = origProject;
-      else delete process.env.GOOGLE_CLOUD_PROJECT;
-      if (origLocation !== undefined) process.env.GOOGLE_CLOUD_LOCATION = origLocation;
-      else delete process.env.GOOGLE_CLOUD_LOCATION;
-    }
-  });
-
-  it("throws EvalConfigError when no credentials are provided for vertex", async () => {
+  it("throws EvalConfigError when no apiKey is provided for vertex", async () => {
     const origKey = process.env.GOOGLE_API_KEY;
-    const origProject = process.env.GOOGLE_CLOUD_PROJECT;
-    const origLocation = process.env.GOOGLE_CLOUD_LOCATION;
     delete process.env.GOOGLE_API_KEY;
-    delete process.env.GOOGLE_CLOUD_PROJECT;
-    delete process.env.GOOGLE_CLOUD_LOCATION;
     try {
       await expect(
         createProvider({
@@ -586,48 +551,6 @@ describe("provider factory — vertex", () => {
       ).rejects.toBeInstanceOf(EvalConfigError);
     } finally {
       if (origKey !== undefined) process.env.GOOGLE_API_KEY = origKey;
-      if (origProject !== undefined) process.env.GOOGLE_CLOUD_PROJECT = origProject;
-      if (origLocation !== undefined) process.env.GOOGLE_CLOUD_LOCATION = origLocation;
-    }
-  });
-
-  it("throws EvalConfigError when only project is provided (missing location)", async () => {
-    const origKey = process.env.GOOGLE_API_KEY;
-    const origLocation = process.env.GOOGLE_CLOUD_LOCATION;
-    delete process.env.GOOGLE_API_KEY;
-    delete process.env.GOOGLE_CLOUD_LOCATION;
-    try {
-      await expect(
-        createProvider({
-          provider: "vertex",
-          project: "my-project",
-          timeout: 30000,
-          maxRetries: 2,
-        }),
-      ).rejects.toBeInstanceOf(EvalConfigError);
-    } finally {
-      if (origKey !== undefined) process.env.GOOGLE_API_KEY = origKey;
-      if (origLocation !== undefined) process.env.GOOGLE_CLOUD_LOCATION = origLocation;
-    }
-  });
-
-  it("throws EvalConfigError when only location is provided (missing project)", async () => {
-    const origKey = process.env.GOOGLE_API_KEY;
-    const origProject = process.env.GOOGLE_CLOUD_PROJECT;
-    delete process.env.GOOGLE_API_KEY;
-    delete process.env.GOOGLE_CLOUD_PROJECT;
-    try {
-      await expect(
-        createProvider({
-          provider: "vertex",
-          location: "us-central1",
-          timeout: 30000,
-          maxRetries: 2,
-        }),
-      ).rejects.toBeInstanceOf(EvalConfigError);
-    } finally {
-      if (origKey !== undefined) process.env.GOOGLE_API_KEY = origKey;
-      if (origProject !== undefined) process.env.GOOGLE_CLOUD_PROJECT = origProject;
     }
   });
 

@@ -19,9 +19,6 @@ const ENV_BASE_URL_KEYS: Record<string, string> = {
   anthropic: "ANTHROPIC_BASE_URL",
 };
 
-const ENV_PROJECT_KEY = "GOOGLE_CLOUD_PROJECT";
-const ENV_LOCATION_KEY = "GOOGLE_CLOUD_LOCATION";
-
 export async function createProvider(options: ProviderOptions): Promise<LLMProvider> {
   const provider = options.provider;
   if (provider !== "openai" && provider !== "anthropic" && provider !== "vertex") {
@@ -36,34 +33,16 @@ export async function createProvider(options: ProviderOptions): Promise<LLMProvi
   const model = options.model ?? DEFAULT_MODELS[provider];
 
   if (provider === "vertex") {
-    const project = options.project ?? process.env[ENV_PROJECT_KEY];
-    const location = options.location ?? process.env[ENV_LOCATION_KEY];
     const apiKey = options.apiKey ?? process.env[ENV_KEYS[provider]];
 
-    // Validate: need either (project AND location) or apiKey
-    if ((project && !location) || (!project && location)) {
+    if (!apiKey) {
       throw new EvalConfigError(
-        `Vertex AI ADC mode requires both project and location. ` +
-          `You provided only ${project ? "project" : "location"}. ` +
-          `Provide both or use apiKey instead.`,
-      );
-    }
-
-    if (!project && !location && !apiKey) {
-      throw new EvalConfigError(
-        `Missing credentials for vertex. Provide either project + location (for Vertex AI with ADC) or apiKey (for Express Mode). ` +
-          `Set via provider options or environment variables: ${ENV_PROJECT_KEY} + ${ENV_LOCATION_KEY}, or ${ENV_KEYS[provider]}.`,
+        `Missing API key for vertex. Provide it via provider.apiKey or set the ${ENV_KEYS[provider]} environment variable.`,
       );
     }
 
     const { VertexProvider } = await import("./vertex");
-    return new VertexProvider({
-      apiKey: apiKey || "",
-      model,
-      timeout,
-      project,
-      location,
-    });
+    return new VertexProvider({ apiKey, model, timeout });
   }
 
   const apiKey = options.apiKey ?? process.env[ENV_KEYS[provider]];

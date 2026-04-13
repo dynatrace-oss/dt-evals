@@ -14,35 +14,12 @@ const RESPONSE_JSON_SCHEMA = {
   required: ["scoreValue", "summary", "reasoning"],
 } as const;
 
-export interface VertexProviderConfig extends ProviderConfig {
-  project?: string;
-  location?: string;
-}
-
 export class VertexProvider extends BaseProvider {
   private client: GoogleGenAI;
 
-  constructor(config: VertexProviderConfig) {
+  constructor(config: ProviderConfig) {
     super(config);
-
-    // Always use vertexai: true — this provider targets Vertex AI.
-    // Two auth modes:
-    //   1. API key (Express Mode): vertexai + apiKey, no project/location needed
-    //   2. ADC (full Vertex AI): vertexai + project + location, no API key needed
-    if (config.project && config.location) {
-      this.client = new GoogleGenAI({
-        vertexai: true,
-        project: config.project,
-        location: config.location,
-      });
-    } else if (config.apiKey) {
-      this.client = new GoogleGenAI({
-        vertexai: true,
-        apiKey: config.apiKey,
-      });
-    } else {
-      this.client = new GoogleGenAI({ vertexai: true });
-    }
+    this.client = new GoogleGenAI({ vertexai: true, apiKey: config.apiKey });
   }
 
   async call(prompt: string): Promise<LLMJudgeResponse> {
