@@ -65,7 +65,7 @@ console.log(result.explanation); // { summary: "...", reasoning: "..." }
 
 ## Providers
 
-Supports **OpenAI**, **Anthropic**, and **Vertex AI (Google Gemini)**. Configure via API key or GCP credentials in code or environment variables.
+Supports **OpenAI**, **Anthropic**, and **Vertex AI (Google Gemini)**. Configure via API key in code or environment variables.
 
 ### Environment Variables
 
