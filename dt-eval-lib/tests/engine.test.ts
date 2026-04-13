@@ -3,33 +3,42 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // We'll mock the provider modules so no real API calls are made
 vi.mock("openai", () => {
   return {
-    default: vi.fn().mockImplementation(() => ({
-      chat: {
-        completions: {
-          create: vi.fn(),
+    // biome-ignore lint/complexity/useArrowFunction: function expression required for new-able mock in vitest 4.x
+    default: vi.fn().mockImplementation(function () {
+      return {
+        chat: {
+          completions: {
+            create: vi.fn(),
+          },
         },
-      },
-    })),
+      };
+    }),
   };
 });
 
 vi.mock("@anthropic-ai/sdk", () => {
   return {
-    default: vi.fn().mockImplementation(() => ({
-      messages: {
-        create: vi.fn(),
-      },
-    })),
+    // biome-ignore lint/complexity/useArrowFunction: function expression required for new-able mock in vitest 4.x
+    default: vi.fn().mockImplementation(function () {
+      return {
+        messages: {
+          create: vi.fn(),
+        },
+      };
+    }),
   };
 });
 
 vi.mock("@google/genai", () => {
   return {
-    GoogleGenAI: vi.fn().mockImplementation(() => ({
-      models: {
-        generateContent: vi.fn(),
-      },
-    })),
+    // biome-ignore lint/complexity/useArrowFunction: function expression required for new-able mock in vitest 4.x
+    GoogleGenAI: vi.fn().mockImplementation(function () {
+      return {
+        models: {
+          generateContent: vi.fn(),
+        },
+      };
+    }),
   };
 });
 
@@ -112,7 +121,7 @@ describe("evaluate() — happy path", () => {
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it("evaluates with a BuiltInMetric enum value", async () => {
@@ -207,7 +216,7 @@ describe("evaluate() — prompt rendering", () => {
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it("replaces {{input}} placeholder", async () => {
@@ -258,7 +267,7 @@ describe("evaluate() — input validation", () => {
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it("throws EvalInputError when required field 'context' is missing for faithfulness", async () => {
@@ -284,8 +293,15 @@ describe("evaluate() — input validation", () => {
 });
 
 describe("evaluate() — error handling", () => {
+  beforeEach(async () => {
+    const actual = await vi.importActual<typeof import("../src/engine/providers/index")>(
+      "../src/engine/providers/index",
+    );
+    vi.mocked(createProvider).mockImplementation(actual.createProvider);
+  });
+
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it("throws EvalConfigError when API key is missing", async () => {
@@ -383,8 +399,15 @@ describe("evaluate() — error handling", () => {
 });
 
 describe("provider factory", () => {
+  beforeEach(async () => {
+    const actual = await vi.importActual<typeof import("../src/engine/providers/index")>(
+      "../src/engine/providers/index",
+    );
+    vi.mocked(createProvider).mockImplementation(actual.createProvider);
+  });
+
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it("creates OpenAI provider when provider is 'openai'", async () => {
@@ -508,8 +531,15 @@ describe("provider factory", () => {
 });
 
 describe("provider factory — vertex", () => {
+  beforeEach(async () => {
+    const actual = await vi.importActual<typeof import("../src/engine/providers/index")>(
+      "../src/engine/providers/index",
+    );
+    vi.mocked(createProvider).mockImplementation(actual.createProvider);
+  });
+
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it("creates Vertex provider when provider is 'vertex' with apiKey", async () => {
@@ -574,7 +604,7 @@ describe("evaluate() — vertex provider", () => {
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it("evaluates with vertex provider", async () => {
