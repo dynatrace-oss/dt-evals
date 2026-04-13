@@ -3,9 +3,9 @@ import { EvalMetricError } from "../src/errors";
 import { BuiltInMetric, getPrompt, listPrompts } from "../src/prompts/index";
 
 describe("prompt catalog", () => {
-  it("loads all 13 built-in prompts", () => {
+  it("loads all 14 built-in prompts", () => {
     const prompts = listPrompts();
-    expect(prompts).toHaveLength(13);
+    expect(prompts).toHaveLength(14);
   });
 
   it("each prompt has id, name, version, description, prompt, requiredFields, scoring", () => {
@@ -42,8 +42,12 @@ describe("prompt catalog", () => {
   });
 
   const scoringCases = [
-    { id: BuiltInMetric.Toxicity, type: "binary", threshold: 1 },
-    { id: BuiltInMetric.Faithfulness, type: "continuous", threshold: 0.5 },
+    { id: BuiltInMetric.Fluency, type: "continuous", threshold: 0.7 },
+    { id: BuiltInMetric.Toxicity, type: "continuous", threshold: 0.9 },
+    { id: BuiltInMetric.Faithfulness, type: "continuous", threshold: 0.8 },
+    { id: BuiltInMetric.Hallucination, type: "continuous", threshold: 0.8 },
+    { id: BuiltInMetric.PiiLeakage, type: "continuous", threshold: 0.9 },
+    { id: BuiltInMetric.FactualAccuracy, type: "continuous", threshold: 0.8 },
     { id: BuiltInMetric.Coherence, type: "likert", threshold: 3 },
   ] as const;
 
@@ -58,6 +62,7 @@ describe("prompt catalog", () => {
   });
 
   const requiredFieldsCases = [
+    { id: BuiltInMetric.Fluency, fields: ["input", "output", "context"] },
     { id: BuiltInMetric.Toxicity, fields: ["input", "output"] },
     { id: BuiltInMetric.Faithfulness, fields: ["input", "output", "context"] },
     { id: BuiltInMetric.Hallucination, fields: ["input", "output", "context"] },
@@ -102,9 +107,9 @@ describe("getPrompt", () => {
 });
 
 describe("listPrompts", () => {
-  it("returns all 13 prompts", () => {
+  it("returns all 14 prompts", () => {
     const prompts = listPrompts();
-    expect(prompts).toHaveLength(13);
+    expect(prompts).toHaveLength(14);
   });
 
   it("getPrompt and listPrompts are synchronous", () => {
@@ -116,8 +121,8 @@ describe("listPrompts", () => {
 });
 
 describe("BuiltInMetric enum", () => {
-  it("has all 13 metric IDs", () => {
-    expect(Object.values(BuiltInMetric)).toHaveLength(13);
+  it("has all 14 metric IDs", () => {
+    expect(Object.values(BuiltInMetric)).toHaveLength(14);
   });
 
   it("enum values match catalog IDs", () => {
