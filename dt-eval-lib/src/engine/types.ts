@@ -1,7 +1,7 @@
 import type { Score } from "../scoring/types";
 
 /** Provider selection */
-export type Provider = "openai" | "anthropic" | "vertex";
+export type Provider = "openai" | "anthropic" | "vertex" | "gemini";
 
 /** Provider-related configuration */
 export interface ProviderOptions {

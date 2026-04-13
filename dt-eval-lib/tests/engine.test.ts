@@ -44,10 +44,10 @@ vi.mock("@google/genai", () => {
 
 import { evaluate } from "../src/engine/index";
 import { AnthropicProvider } from "../src/engine/providers/anthropic";
+import { GoogleProvider } from "../src/engine/providers/google";
 import { createProvider } from "../src/engine/providers/index";
 import { OpenAIProvider } from "../src/engine/providers/openai";
 import type { LLMJudgeResponse, LLMProvider } from "../src/engine/providers/types";
-import { VertexProvider } from "../src/engine/providers/vertex";
 import type { EvalConfig, EvalInput, ProviderOptions } from "../src/engine/types";
 import {
   EvalConfigError,
@@ -549,7 +549,7 @@ describe("provider factory — vertex", () => {
       timeout: 30000,
       maxRetries: 2,
     });
-    expect(provider).toBeInstanceOf(VertexProvider);
+    expect(provider).toBeInstanceOf(GoogleProvider);
   });
 
   it("falls back to GOOGLE_API_KEY env var", async () => {
@@ -561,7 +561,7 @@ describe("provider factory — vertex", () => {
         timeout: 30000,
         maxRetries: 2,
       });
-      expect(provider).toBeInstanceOf(VertexProvider);
+      expect(provider).toBeInstanceOf(GoogleProvider);
     } finally {
       if (origKey !== undefined) process.env.GOOGLE_API_KEY = origKey;
       else delete process.env.GOOGLE_API_KEY;
@@ -592,7 +592,7 @@ describe("provider factory — vertex", () => {
       timeout: 30000,
       maxRetries: 2,
     });
-    expect(provider).toBeInstanceOf(VertexProvider);
+    expect(provider).toBeInstanceOf(GoogleProvider);
   });
 });
 
@@ -619,6 +619,92 @@ describe("evaluate() — vertex provider", () => {
   it("returns correct EvalResult shape with vertex provider", async () => {
     const result = await evaluate(BuiltInMetric.Toxicity, baseInput, {
       provider: { provider: "vertex", apiKey: "test-key" },
+    });
+    expect(result).toEqual({
+      score: { value: 1, label: "pass" },
+      explanation: { summary: "Good output", reasoning: "Output is correct" },
+    });
+  });
+});
+
+describe("provider factory — gemini", () => {
+  beforeEach(async () => {
+    const actual = await vi.importActual<typeof import("../src/engine/providers/index")>(
+      "../src/engine/providers/index",
+    );
+    vi.mocked(createProvider).mockImplementation(actual.createProvider);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("creates Gemini provider when provider is 'gemini' with apiKey", async () => {
+    const provider = await createProvider({
+      provider: "gemini",
+      apiKey: "test-key",
+      timeout: 30000,
+      maxRetries: 2,
+    });
+    expect(provider).toBeInstanceOf(GoogleProvider);
+  });
+
+  it("falls back to GOOGLE_API_KEY env var", async () => {
+    const origKey = process.env.GOOGLE_API_KEY;
+    process.env.GOOGLE_API_KEY = "env-google-key";
+    try {
+      const provider = await createProvider({
+        provider: "gemini",
+        timeout: 30000,
+        maxRetries: 2,
+      });
+      expect(provider).toBeInstanceOf(GoogleProvider);
+    } finally {
+      if (origKey !== undefined) process.env.GOOGLE_API_KEY = origKey;
+      else delete process.env.GOOGLE_API_KEY;
+    }
+  });
+
+  it("throws EvalConfigError when no apiKey is provided for gemini", async () => {
+    const origKey = process.env.GOOGLE_API_KEY;
+    delete process.env.GOOGLE_API_KEY;
+    try {
+      await expect(
+        createProvider({
+          provider: "gemini",
+          timeout: 30000,
+          maxRetries: 2,
+        }),
+      ).rejects.toBeInstanceOf(EvalConfigError);
+    } finally {
+      if (origKey !== undefined) process.env.GOOGLE_API_KEY = origKey;
+    }
+  });
+});
+
+describe("evaluate() — gemini provider", () => {
+  beforeEach(() => {
+    vi.mocked(createProvider).mockResolvedValue(
+      mockProvider({ scoreValue: 1, summary: "Good output", reasoning: "Output is correct" }),
+    );
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("evaluates with gemini provider", async () => {
+    const result = await evaluate(BuiltInMetric.Toxicity, baseInput, {
+      provider: { provider: "gemini", apiKey: "test-key" },
+    });
+    expect(result).toBeDefined();
+    expect(result.score).toBeDefined();
+    expect(result.explanation).toBeDefined();
+  });
+
+  it("returns correct EvalResult shape with gemini provider", async () => {
+    const result = await evaluate(BuiltInMetric.Toxicity, baseInput, {
+      provider: { provider: "gemini", apiKey: "test-key" },
     });
     expect(result).toEqual({
       score: { value: 1, label: "pass" },
