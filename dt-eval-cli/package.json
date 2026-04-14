@@ -1,5 +1,5 @@
 {
-  "name": "dt-eval-cli",
+  "name": "dt-eval",
   "version": "0.1.0",
   "description": "Evaluation CLI for AI Observability on Dynatrace",
   "type": "module",

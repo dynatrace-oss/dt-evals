@@ -24,13 +24,13 @@ End-to-end LLM evaluation toolkit for Dynatrace AI Observability.
 ## Install
 
 ```bash
-npm install -g dt-eval-cli
+npm install -g dt-eval
 ```
 
 Or run without installing:
 
 ```bash
-npx dt-eval-cli <command>
+npx dt-eval <command>
 ```
 
 ## Quick Start
@@ -120,7 +120,7 @@ dt-eval run --since 2h --sample 20 --concurrency 8 --debug
 
 ```yaml
 - name: Run LLM eval gate
-  run: npx dt-eval-cli run --since 6h --metric faithfulness --ci
+  run: npx dt-eval run --since 6h --metric faithfulness --ci
   env:
     DT_ENV_URL: ${{ secrets.DT_ENV_URL }}
     DT_API_TOKEN: ${{ secrets.DT_API_TOKEN }}

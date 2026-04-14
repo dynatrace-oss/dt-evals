@@ -2,7 +2,7 @@
 
 **Open source continuous evals for LLM applications, with production prompt traces as the dataset.**
 
-[![npm version](https://img.shields.io/npm/v/dt-eval-cli)](https://www.npmjs.com/package/dt-eval-cli)
+[![npm version](https://img.shields.io/npm/v/dt-eval)](https://www.npmjs.com/package/dt-eval)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 [![CI](https://github.com/dynatrace-oss/dt-evals/actions/workflows/ci.yml/badge.svg)](https://github.com/dynatrace-oss/dt-evals/actions)
 
@@ -17,10 +17,10 @@ In practice, this gives AI engineers a closed loop for evaluation, observability
 The repository also includes `dt-eval-lib`, a reusable TypeScript evaluation engine for running the same judge-based metrics directly in code, using either the built-in evaluator catalog or your own custom prompt definitions. It also fits cleanly into broader evaluation workflows and observability stacks such as Ragas, MLflow, or Langfuse when you want to orchestrate or track evals in those systems alongside this library.
 
 ```bash
-npx dt-eval-cli configure
-npx dt-eval-cli validate
-npx dt-eval-cli run --since 1h --sample 10
-npx dt-eval-cli deploy --provider aws
+npx dt-eval configure
+npx dt-eval validate
+npx dt-eval run --since 1h --sample 10
+npx dt-eval deploy --provider aws
 ```
 
 ## Why Teams Use It
@@ -79,13 +79,13 @@ The current CLI path is Dynatrace specific. The product positioning is broader: 
 ## Install
 
 ```bash
-npm install -g dt-eval-cli
+npm install -g dt-eval
 ```
 
 Or run without installing:
 
 ```bash
-npx dt-eval-cli <command>
+npx dt-eval <command>
 ```
 
 The CLI also auto-loads a local `.env` file from the current working directory.
@@ -169,7 +169,7 @@ Example GitHub Actions step:
 
 ```yaml
 - name: Run LLM eval gate
-  run: npx dt-eval-cli run --since 6h --metric faithfulness --ci
+  run: npx dt-eval run --since 6h --metric faithfulness --ci
   env:
     DT_ENV_URL: ${{ secrets.DT_ENV_URL }}
     DT_API_TOKEN: ${{ secrets.DT_API_TOKEN }}
