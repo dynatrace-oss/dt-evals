@@ -1,7 +1,5 @@
 # dt-evals
 
-> **Note**
-> This product is not officially supported by Dynatrace.
 
 End-to-end LLM evaluation toolkit for Dynatrace AI Observability.
 
