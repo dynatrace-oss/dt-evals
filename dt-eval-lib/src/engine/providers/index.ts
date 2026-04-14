@@ -3,10 +3,10 @@ import type { ProviderOptions } from "../types";
 import type { LLMProvider } from "./types";
 
 const DEFAULT_MODELS: Record<string, string> = {
-  openai: "gpt-4.1",
+  openai: "gpt-5.4",
   anthropic: "claude-sonnet-4-6",
-  vertex: "gemini-2.5-pro",
-  gemini: "gemini-2.5-flash",
+  vertex: "gemini-3.1-pro-preview",
+  gemini: "gemini-3-flash-preview",
 };
 
 const ENV_KEYS: Record<string, string> = {
