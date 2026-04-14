@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - "dt-eval-deploy/dt-eval-engine/**"
+      - "dt-eval-lib/**"
       - ".github/workflows/ci-engine.yml"
   workflow_dispatch:
 
@@ -15,18 +16,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-node@v4
         with:
-          go-version: "1.23"
-          cache-dependency-path: dt-eval-deploy/dt-eval-engine/go.sum
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Test
         working-directory: dt-eval-deploy/dt-eval-engine
-        run: go test ./...
+        run: npm test
 
       - name: Build
         working-directory: dt-eval-deploy/dt-eval-engine
-        run: go build ./...
+        run: npm run build
 
       - name: Docker build (smoke test)
         working-directory: dt-eval-deploy/dt-eval-engine

@@ -3,7 +3,8 @@
   "private": true,
   "workspaces": [
     "dt-eval-cli",
-    "dt-eval-lib"
+    "dt-eval-lib",
+    "dt-eval-deploy/dt-eval-engine"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
