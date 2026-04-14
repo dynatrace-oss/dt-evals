@@ -1,0 +1,34 @@
+---
+name: CI — dt-eval-cli
+
+on:
+  pull_request:
+    paths:
+      - "dt-eval-cli/**"
+      - ".github/workflows/ci-cli.yml"
+  workflow_dispatch:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    name: Test & Build
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: dt-eval-cli/package-lock.json
+
+      - name: Install
+        working-directory: dt-eval-cli
+        run: npm install
+
+      - name: Test
+        working-directory: dt-eval-cli
+        run: npm test
+
+      - name: Build
+        working-directory: dt-eval-cli
+        run: npm run build

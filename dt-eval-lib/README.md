@@ -173,7 +173,7 @@ const config: EvalConfig = {
     provider: "openai",          // "openai" | "anthropic" | "vertex" | "gemini"
     apiKey: "sk-...",            // optional if env var is set
     baseUrl: "https://...",      // optional (openai/anthropic only)
-    model: "gpt-5.1",           // optional — defaults to gpt-5.1 / claude-sonnet-4-20250514 / gemini-2.5-flash
+    model: "gpt-4.1",           // optional — defaults to gpt-4.1 / claude-sonnet-4-6 / gemini-2.5-pro (vertex) / gemini-2.5-flash (gemini)
     timeout: 30000,              // optional — request timeout in ms (default 30000)
     maxRetries: 2,               // optional — retries on transient errors (default 2)
   },

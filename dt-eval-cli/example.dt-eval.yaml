@@ -1,0 +1,113 @@
+# dt-eval-cli configuration example
+# Copy this file to <your-service>.dt-eval.yaml and fill in your values.
+# Run: dt-eval run --config <your-service>.dt-eval.yaml
+
+schemaVersion: 1
+
+# Human-readable name shown in run output and stored in Dynatrace bizevents.
+name: my-ai-service-prod
+
+# ---------------------------------------------------------------------------
+# Dynatrace connection
+# ---------------------------------------------------------------------------
+dynatrace:
+  # Your Dynatrace environment URL (SaaS or Managed).
+  environmentUrl: https://<your-env-id>.apps.dynatracelabs.com
+
+  # API token with the following scopes: bizevents.ingest, storage.read
+  # Tip: use the DYNATRACE_API_TOKEN env var instead of hardcoding the token.
+  apiToken: dt0c01.REPLACE_ME
+
+  # (Optional) dtctl context name to use OAuth for DQL queries instead of the
+  # API token. Requires dtctl to be installed and authenticated.
+  # dtctlContext: my-env
+
+# ---------------------------------------------------------------------------
+# Judge (LLM-as-a-judge) provider
+# ---------------------------------------------------------------------------
+judge:
+  # Supported providers: openai, anthropic
+  provider: openai
+
+  # API key for the judge provider.
+  # Tip: use OPENAI_API_KEY / ANTHROPIC_API_KEY env vars instead.
+  apiKey: sk-REPLACE_ME
+
+  # (Optional) Override the model. Defaults: openai → gpt-4o, anthropic → claude-sonnet-4-6
+  model: gpt-5.3
+
+  # (Optional) Custom base URL — useful for Azure OpenAI or local proxies.
+  # baseUrl: https://my-azure-resource.openai.azure.com/
+
+  # Request timeout in milliseconds (default: 30000).
+  timeout: 30000
+
+  # Number of retries on transient failures (default: 2).
+  maxRetries: 2
+
+# ---------------------------------------------------------------------------
+# Scope — which spans to evaluate
+# ---------------------------------------------------------------------------
+scope:
+  # service.name of the AI service to evaluate as it appears in Dynatrace.
+  service: my-ai-service-prod
+
+  # Look-back window for span collection. Accepts: Nh (hours), Nd (days).
+  since: 1h
+
+  sampling:
+    # Sampling strategy: random | latest | errors-only
+    #   random      — random % of spans in the window (set `percent`)
+    #   latest      — most recent N spans (set `count`)
+    #   errors-only — spans that ended in an error state
+    strategy: random
+    percent: 10   # used with strategy: random  (0–100)
+    # count: 50   # used with strategy: latest
+
+# ---------------------------------------------------------------------------
+# Metrics — which evaluations to run
+# ---------------------------------------------------------------------------
+metrics:
+  enabled:
+    # LLM-as-judge metrics (require a judge provider):
+    - toxicity              # Detect harmful or offensive content
+    - faithfulness          # Response grounded in retrieved context
+    - hallucination         # Fabricated facts not in context
+    - pii-leakage           # Personally identifiable information in output
+    - relevance             # Response answers the user's question
+    - factual-accuracy      # Factual correctness vs. provided context
+    - coherence             # Logical flow and readability
+    - context-relevance     # Retrieved context relevant to the question
+    - answer-completeness   # All aspects of the question addressed
+    - prompt-injection      # Adversarial prompt injection attempts
+    - bias                  # Demographic or ideological bias
+    - summarization-quality # Quality of summaries vs. source document
+    - conciseness           # Avoids unnecessary verbosity
+
+    # Statistical drift detection (no LLM call — compares current vs. baseline scores in DT):
+    - drift
+
+# ---------------------------------------------------------------------------
+# Alerts — thresholds that trigger a non-zero exit code
+# ---------------------------------------------------------------------------
+alerts:
+  # Metric score thresholds. A run fails if any enabled metric's average score
+  # falls below (for 0–1 metrics) or above (for toxicity/prompt-injection) the threshold.
+  thresholds:
+    toxicity: 1           # fail if any span scores above 1 (out of 5)
+    hallucination: 0      # fail if any hallucination detected
+    pii-leakage: 0        # fail if any PII leakage detected
+    prompt-injection: 0   # fail if any injection detected
+    relevance: 0.6        # fail if average relevance drops below 0.6
+    coherence: 3          # fail if average coherence drops below 3 (out of 5)
+    answer-completeness: 0.7
+    conciseness: 0.6
+    faithfulness: 0.7
+    factual-accuracy: 0.7
+
+  # (Optional) Webhook notifications on threshold breach.
+  webhooks:
+    - url: https://hooks.slack.com/services/REPLACE_ME
+      type: slack
+    # - url: https://my-webhook-endpoint.example.com/alerts
+    #   type: generic

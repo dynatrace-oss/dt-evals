@@ -11,7 +11,7 @@ export interface ProviderOptions {
   apiKey?: string;
   /** Base URL for the provider API — falls back to OPENAI_BASE_URL / ANTHROPIC_BASE_URL env vars */
   baseUrl?: string;
-  /** Model override — defaults to gpt-5.1 / claude-sonnet-4-20250514 / gemini-2.5-flash */
+  /** Model override — defaults to gpt-4.1 / claude-sonnet-4-6 / gemini-2.5-pro (vertex) / gemini-2.5-flash (gemini) */
   model?: string;
   /** Request timeout in ms — default 30000 */
   timeout?: number;

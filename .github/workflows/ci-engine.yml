@@ -1,0 +1,33 @@
+---
+name: CI — dt-eval-engine
+
+on:
+  pull_request:
+    paths:
+      - "dt-eval-deploy/dt-eval-engine/**"
+      - ".github/workflows/ci-engine.yml"
+  workflow_dispatch:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    name: Test & Build
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache-dependency-path: dt-eval-deploy/dt-eval-engine/go.sum
+
+      - name: Test
+        working-directory: dt-eval-deploy/dt-eval-engine
+        run: go test ./...
+
+      - name: Build
+        working-directory: dt-eval-deploy/dt-eval-engine
+        run: go build ./...
+
+      - name: Docker build (smoke test)
+        working-directory: dt-eval-deploy/dt-eval-engine
+        run: docker build -t dt-eval-engine:ci .
