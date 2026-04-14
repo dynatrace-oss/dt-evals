@@ -1,0 +1,37 @@
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+*.env
+!.env.example
+armin-tests/
+.deepeval/
+mlflow.db
+node_modules/
+
+# Editor / OS
+.vscode/
+.DS_Store
+
+# Planning (GSD framework — local only)
+.planning/
+
+# Presentations / generated output
+docs/slides/
+diagrams/
+*.html
+*.pdf
+*.pptx
+*.key
+
+# Node (puppeteer tooling — not a Node project)
+package.json
+package-lock.json
+
+# Convenience scripts
+run_tests.sh

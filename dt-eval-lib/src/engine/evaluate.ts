@@ -58,6 +58,11 @@ function validateInput(input: EvalInput, prompt: PromptDefinition): void {
 
 function renderPrompt(template: string, input: EvalInput): string {
   let rendered = template;
+  // NOTE: The function form `() => value` is intentional on all replace() calls below.
+  // Using a plain string replacement (e.g. `.replace(pattern, input.input)`) would
+  // cause JavaScript to interpret `$$`, `$&`, `$'`, `` $` ``, and `$n` sequences in
+  // the replacement string as special backreferences, silently corrupting any user
+  // input that contains those characters. The function form bypasses this entirely.
   rendered = rendered.replace(/\{\{input\}\}/g, () => input.input);
   rendered = rendered.replace(/\{\{output\}\}/g, () => input.output);
   if (input.context != null) {
@@ -110,14 +115,10 @@ async function callWithRetry(
   fn: () => Promise<LLMJudgeResponse>,
   maxRetries: number,
 ): Promise<LLMJudgeResponse> {
-  let lastError: unknown;
-
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await fn();
     } catch (error: unknown) {
-      lastError = error;
-
       // Don't retry non-transient errors
       if (error instanceof EvalResponseError || error instanceof EvalConfigError) {
         throw error;
@@ -132,13 +133,11 @@ async function callWithRetry(
         throw error;
       }
 
-      // Exponential backoff: 100ms, 200ms, 400ms...
-      const delay = 100 * 2 ** attempt;
+      // Exponential backoff capped at 5000ms: 100ms, 200ms, 400ms, ... up to 5s.
+      const delay = Math.min(100 * 2 ** attempt, 5000);
       await sleep(delay);
     }
   }
-
-  throw lastError;
 }
 
 function sleep(ms: number): Promise<void> {

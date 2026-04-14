@@ -66,7 +66,14 @@ export class OpenAIProvider extends BaseProvider {
       throw new EvalResponseError("OpenAI returned an empty response");
     }
 
-    const parsed = JSON.parse(content);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(content);
+    } catch {
+      throw new EvalResponseError(
+        `OpenAI returned non-JSON content: ${content.slice(0, 200)}`,
+      );
+    }
     return validateLLMResponse(parsed);
   }
 }

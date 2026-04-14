@@ -3,3 +3,18 @@ MD013: false
 
 # punctuation in headings
 MD026: false
+
+# allow blank lines between separate GitHub alert callout boxes
+MD028: false
+
+# allow inline HTML elements used for layout (details/summary, centered headings)
+MD033:
+  allowed_elements:
+    - div
+    - details
+    - summary
+    - strong
+    - code
+
+# first line is a centered <div> wrapping the heading
+MD041: false
