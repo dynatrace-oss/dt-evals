@@ -1,4 +1,4 @@
-# dt-eval-cli - Dynatrace Evaluation CLI tool
+# dt-eval - Dynatrace Evaluation CLI tool
 
 **Open source continuous evals for LLM applications, with production prompt traces as the dataset.**
 
@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 [![CI](https://github.com/dynatrace-oss/dt-evals/actions/workflows/ci.yml/badge.svg)](https://github.com/dynatrace-oss/dt-evals/actions)
 
-`dt-eval-cli` is for teams shipping chat, RAG, copilots, and agent workflows who want evals to run on real traffic, not just curated test sets.
+`dt-eval` is for teams shipping chat, RAG, copilots, and agent workflows who want evals to run on real traffic, not just curated test sets.
 
 Today, the CLI uses Dynatrace as both the trace source and the evaluation result store. It pulls gen_ai.* spans from your live environment, masks sensitive data in memory, scores real production interactions with an LLM judge, detects score drift over time, and writes structured evaluation results back to Dynatrace as business events.
 
@@ -39,7 +39,7 @@ npx dt-eval deploy --provider aws
 
 | Package | What it is for |
 |---------|-----------------|
-| `dt-eval-cli` | Continuous evaluation runs against production GenAI traces in Dynatrace |
+| `dt-eval` | Continuous evaluation runs against production GenAI traces in Dynatrace |
 | `dt-eval-lib` | TypeScript library for judge-based evals inside tests, scripts, and app code |
 | `dt-eval-engine` | Core runtime for deployed eval workers and serverless runners |
 

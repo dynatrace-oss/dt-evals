@@ -11,7 +11,7 @@ End-to-end LLM evaluation toolkit for Dynatrace AI Observability.
 
 | Package | Description |
 |---------|-------------|
-| [`dt-eval-cli`](dt-eval-cli) | CLI — configure, run, schedule, inspect, and deploy evals |
+| [`dt-eval`](dt-eval-cli) | CLI — configure, run, schedule, inspect, and deploy evals |
 | [`dt-eval-lib`](dt-eval-lib) | TypeScript library — run judge-based evals in code, tests, and CI |
 | [`dt-eval-deploy`](dt-eval-deploy) | Deployment resources — Docker image and serverless runners |
 
