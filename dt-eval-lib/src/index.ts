@@ -20,7 +20,7 @@ export {
   EvalTimeoutError,
 } from "./errors";
 // Prompt catalog
-export { BuiltInMetric, getPrompt, listPrompts } from "./prompts/index";
+export { BuiltInMetric, DRIFT_METRIC_ID, getPrompt, listPrompts } from "./prompts/index";
 
 export type { PromptDefinition } from "./prompts/types";
 // Scoring

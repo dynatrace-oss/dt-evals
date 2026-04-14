@@ -8,6 +8,7 @@ vi.mock('dt-eval-lib', () => ({
     score: { value: 0.9, label: 'pass' },
     explanation: { summary: 'Looks good', reasoning: 'No issues' },
   }),
+  DRIFT_METRIC_ID: 'drift',
 }));
 
 // Mock appendRunRecord from checkpoint to avoid filesystem writes

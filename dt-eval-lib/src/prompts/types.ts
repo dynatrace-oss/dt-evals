@@ -17,6 +17,9 @@ export enum BuiltInMetric {
   Conciseness = "conciseness",
 }
 
+/** Identifier for the population-level drift detection metric. */
+export const DRIFT_METRIC_ID = "drift";
+
 export interface PromptDefinition {
   id: string;
   name: string;
