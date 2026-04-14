@@ -60,7 +60,7 @@ export async function runEvals(
   // 1. Fetch spans via DQL
   logger.step('Fetching spans...');
   const query = buildGenAiSpanQuery({
-    service: evalConfig.scope.service,
+    app: evalConfig.scope.service,
     since,
     errorsOnly: evalConfig.scope.sampling.strategy === 'errors-only',
   });

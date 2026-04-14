@@ -1,7 +1,8 @@
 import { CURRENT_SCHEMA_VERSION, type DtEvalConfig } from './schema.js';
 
-// All built-in LLM-as-judge metrics available in dt-eval-lib + drift
+// All built-in LLM-as-judge metrics available in dt-eval-lib
 export const ALL_METRICS = [
+  'fluency',
   'toxicity',
   'faithfulness',
   'hallucination',
@@ -15,8 +16,10 @@ export const ALL_METRICS = [
   'bias',
   'summarization-quality',
   'conciseness',
-  'drift',
 ];
+
+// Sensible starter set — users can expand via dt-eval configure
+export const DEFAULT_METRICS = ['toxicity', 'relevance', 'faithfulness'];
 
 export const DEFAULT_CONFIG: Omit<DtEvalConfig, 'dynatrace' | 'judge'> & {
   dynatrace: Partial<DtEvalConfig['dynatrace']>;
@@ -35,18 +38,17 @@ export const DEFAULT_CONFIG: Omit<DtEvalConfig, 'dynatrace' | 'judge'> & {
     since: '1h',
     sampling: {
       strategy: 'random',
-      percent: 5,
+      percent: 100,
     },
   },
   metrics: {
-    enabled: ALL_METRICS,
+    enabled: DEFAULT_METRICS,
   },
 };
 
 export const DEFAULT_JUDGE_MODELS: Record<string, string> = {
-  openai: 'gpt-4o',
+  openai: 'gpt-4.1',
   anthropic: 'claude-sonnet-4-6',
-  'azure-openai': 'gpt-4o',
-  gemini: 'gemini-2.0-flash',
-  bedrock: 'anthropic.claude-sonnet-4-5-20251001-v1:0',
+  vertex: 'gemini-2.5-pro',
+  gemini: 'gemini-2.5-flash',
 };

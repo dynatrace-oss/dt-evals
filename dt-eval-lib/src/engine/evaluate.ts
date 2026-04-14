@@ -63,17 +63,17 @@ function renderPrompt(template: string, input: EvalInput): string {
   // cause JavaScript to interpret `$$`, `$&`, `$'`, `` $` ``, and `$n` sequences in
   // the replacement string as special backreferences, silently corrupting any user
   // input that contains those characters. The function form bypasses this entirely.
-  rendered = rendered.replace(/\{\{input\}\}/g, () => input.input);
-  rendered = rendered.replace(/\{\{output\}\}/g, () => input.output);
+  rendered = rendered.replace(/\{\{\s*input\s*\}\}/g, () => input.input);
+  rendered = rendered.replace(/\{\{\s*output\s*\}\}/g, () => input.output);
   if (input.context != null) {
     const ctx = input.context;
-    rendered = rendered.replace(/\{\{context\}\}/g, () => ctx);
+    rendered = rendered.replace(/\{\{\s*context\s*\}\}/g, () => ctx);
   }
   if (input.expectedOutput != null) {
     const expected = input.expectedOutput;
-    rendered = rendered.replace(/\{\{expectedOutput\}\}/g, () => expected);
+    rendered = rendered.replace(/\{\{\s*expectedOutput\s*\}\}/g, () => expected);
   }
-  const unreplaced = rendered.match(/\{\{[\w_]+\}\}/g);
+  const unreplaced = rendered.match(/\{\{\s*[\w_]+\s*\}\}/g);
   if (unreplaced) {
     throw new EvalInputError(
       `Unreplaced placeholders in prompt: ${unreplaced.join(", ")}. Ensure all required fields are provided.`,
@@ -138,6 +138,8 @@ async function callWithRetry(
       await sleep(delay);
     }
   }
+  // Unreachable: the final attempt always throws above
+  throw new EvalConfigError("callWithRetry: exhausted retries");
 }
 
 function sleep(ms: number): Promise<void> {

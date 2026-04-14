@@ -1,6 +1,7 @@
 import type { ScoringScale } from "../scoring/types";
 
 export enum BuiltInMetric {
+  Fluency = "fluency",
   Toxicity = "toxicity",
   Faithfulness = "faithfulness",
   Hallucination = "hallucination",

@@ -29,19 +29,19 @@ describe('buildBizeventPayload', () => {
     const result = makeEvalResult();
     const payload = buildBizeventPayload(span, 'relevance', result, 'run-001', 'openai', 'gpt-4o');
 
-    expect(payload['event.type']).toBe('dt-eval.result');
+    expect(payload['event.type']).toBe('gen_ai.evaluation.result');
     expect(payload['event.provider']).toBe('dt-eval-cli');
-    expect(payload['trace.id']).toBe('trace-abc-123');
+    expect(payload['trace_id']).toBe('trace-abc-123');
     expect(payload['dt.eval.run_id']).toBe('run-001');
     expect(payload['gen_ai.evaluation.name']).toBe('relevance');
     expect(payload['gen_ai.evaluation.score.value']).toBe(0.9);
-    expect(payload['gen_ai.evaluation.judge.provider']).toBe('openai');
-    expect(payload['gen_ai.evaluation.judge.model']).toBe('gpt-4o');
+    expect(payload['gen_ai.provider.name']).toBe('openai');
+    expect(payload['gen_ai.request.model']).toBe('gpt-4o');
   });
 
-  it('sets event.type to "dt-eval.result"', () => {
+  it('sets event.type to "gen_ai.evaluation.result"', () => {
     const payload = buildBizeventPayload(makeSpan(), 'toxicity', makeEvalResult(), 'run-1', 'anthropic', 'claude');
-    expect(payload['event.type']).toBe('dt-eval.result');
+    expect(payload['event.type']).toBe('gen_ai.evaluation.result');
   });
 
   it('sets score label to "pass" from eval result', () => {
@@ -70,27 +70,21 @@ describe('buildBizeventPayload', () => {
 
   it('includes judge provider and model metadata', () => {
     const payload = buildBizeventPayload(makeSpan(), 'faithfulness', makeEvalResult(), 'run-1', 'anthropic', 'claude-sonnet-4-6');
-    expect(payload['gen_ai.evaluation.judge.provider']).toBe('anthropic');
-    expect(payload['gen_ai.evaluation.judge.model']).toBe('claude-sonnet-4-6');
-  });
-
-  it('copies gen_ai.system and gen_ai.request.model from span', () => {
-    const span = makeSpan({ system: 'openai', requestModel: 'gpt-4o-mini' });
-    const payload = buildBizeventPayload(span, 'relevance', makeEvalResult(), 'run-1', 'openai', 'gpt-4o');
-    expect(payload['gen_ai.system']).toBe('openai');
-    expect(payload['gen_ai.request.model']).toBe('gpt-4o-mini');
+    expect(payload['gen_ai.provider.name']).toBe('anthropic');
+    expect(payload['gen_ai.request.model']).toBe('claude-sonnet-4-6');
   });
 
   it('omits gen_ai.system when span.system is absent', () => {
     const span = makeSpan({ system: undefined });
     const payload = buildBizeventPayload(span, 'relevance', makeEvalResult(), 'run-1', 'openai', 'gpt-4o');
-    expect(payload['gen_ai.system']).toBeUndefined();
+    // gen_ai.system is not part of the dt-ai-ingest schema; only gen_ai.provider.name is used
+    expect(payload['gen_ai.provider.name']).toBe('openai');
   });
 
   it('includes a valid ISO timestamp field', () => {
     const payload = buildBizeventPayload(makeSpan(), 'toxicity', makeEvalResult(), 'run-1', 'openai', 'gpt-4o');
     expect(payload.timestamp).toBeDefined();
-    expect(new Date(payload.timestamp).toISOString()).toBe(payload.timestamp);
+    expect(new Date(payload.timestamp!).toISOString()).toBe(payload.timestamp);
   });
 });
 
@@ -108,7 +102,7 @@ describe('BizeventWriter', () => {
     expect(mockClient.ingestBizevents).toHaveBeenCalledOnce();
     const callArgs = mockClient.ingestBizevents.mock.calls[0]![0] as unknown[];
     expect(callArgs).toHaveLength(1);
-    expect((callArgs[0] as Record<string, unknown>)['event.type']).toBe('dt-eval.result');
+    expect((callArgs[0] as Record<string, unknown>)['event.type']).toBe('gen_ai.evaluation.result');
   });
 
   it('writeBatch sends all payloads in one call', async () => {

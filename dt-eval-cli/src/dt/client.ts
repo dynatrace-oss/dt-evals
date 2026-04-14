@@ -99,11 +99,7 @@ export class DynatraceClient {
   }
 
   async ingestBizevents(events: object[]): Promise<void> {
-    // Use the classic API v2 bizevents endpoint which accepts Api-Token auth.
-    // Platform URLs use *.apps.dynatracelabs.com; classic uses *.dynatracelabs.com (no .apps.)
-    const baseUrl = this.environmentUrl
-      .replace(/\.apps\.(dynatracelabs\.com|dynatrace\.com)$/, '.$1');
-    const url = `${baseUrl}/api/v2/bizevents/ingest`;
+    const url = `${this.environmentUrl}/platform/ingest/v1/bizevents`;
     const response = await fetch(url, {
       method: 'POST',
       headers: this.headers,

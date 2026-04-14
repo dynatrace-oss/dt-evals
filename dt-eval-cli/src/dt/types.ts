@@ -12,9 +12,11 @@ export interface GenAiSpan {
 
 export interface BizeventPayload {
   'event.type': 'gen_ai.evaluation.result';
+  'event.provider'?: string;
   'trace_id': string;
   'span_id'?: string;
   'gen_ai.response.id'?: string;
+  'timestamp'?: string;
   'gen_ai.evaluation.name': string;
   'gen_ai.evaluation.type': 'ready_made';
   'gen_ai.evaluation.version': string;
@@ -22,7 +24,7 @@ export interface BizeventPayload {
   'gen_ai.evaluation.scoring_format': string;
   'gen_ai.evaluation.score.value': number;
   'gen_ai.evaluation.score.label': 'pass' | 'fail';
-  'gen_ai.evaluation.score.explanation': string;
+  'gen_ai.evaluation.explanation': string;
   'gen_ai.evaluation.method': 'llm_as_judge';
   'gen_ai.evaluation.input.question': string;
   'gen_ai.evaluation.input.answer': string;

@@ -1,9 +1,10 @@
-import { detectDriftBatch, DRIFT_METRIC_ID } from 'dt-eval-lib';
+import { detectDriftBatch } from 'dt-eval-lib';
 import type { DriftResult, DriftOptions } from 'dt-eval-lib';
+
+export const DRIFT_METRIC_ID = 'drift';
 import type { DynatraceClient } from '../dt/client.js';
 import { logger } from '../logger/index.js';
 
-export { DRIFT_METRIC_ID };
 export type { DriftResult };
 
 interface ScoreRecord {
