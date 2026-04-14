@@ -6,31 +6,35 @@ Deployment resources for running `dt-eval` as a continuously scheduled serverles
 
 For on-demand or CI usage, no deployment is needed — run `dt-eval` directly. This folder is for teams that want continuous, scheduled evaluation without keeping a local process running.
 
+The serverless runner is a lightweight TypeScript/Node.js wrapper around the same `dt-eval` CLI used locally. This keeps the runtime consistent: same code, same evaluators, same config — just triggered by a cloud scheduler instead of a terminal.
+
 ## Deployment options
-
-### Docker
-
-`dt-eval-engine` provides a container image that wraps the CLI for scheduled execution.
-
-```bash
-cd dt-eval-deploy/dt-eval-engine
-docker build -t dt-eval-engine .
-docker run --env-file .env dt-eval-engine
-```
 
 ### Serverless
 
 Deploy to AWS Lambda, Google Cloud Run, or Azure Functions using the `deploy` command:
 
 ```bash
-dt-eval deploy --provider aws      # AWS Lambda
-dt-eval deploy --provider gcp      # Google Cloud Run
-dt-eval deploy --provider azure    # Azure Functions
+dt-eval deploy --provider aws      # AWS Lambda (Node.js runtime)
+dt-eval deploy --provider gcp      # Google Cloud Run (Node.js container)
+dt-eval deploy --provider azure    # Azure Functions (Node.js runtime)
 dt-eval deploy --teardown          # Destroy resources
+```
+
+Each provider packages the CLI as a Node.js function and wires up the schedule configured via `dt-eval schedule set`.
+
+### Docker
+
+Run the eval runner in a container for self-hosted or Kubernetes-based deployments:
+
+```bash
+cd dt-eval-deploy
+docker build -t dt-eval .
+docker run --env-file .env dt-eval run --since 1h --sample 10
 ```
 
 See [eval.md](../eval.md) — Section 10 for full configuration reference.
 
 ## Contents
 
-- `dt-eval-engine/` — Go-based container entrypoint for the eval runner
+- `dt-eval-engine/` — placeholder for the TypeScript serverless entrypoint (in progress)

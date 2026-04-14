@@ -10,7 +10,7 @@ on:
 
 jobs:
   ci:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: Test & Build
     steps:
       - uses: actions/checkout@v4
@@ -23,7 +23,7 @@ jobs:
 
       - name: Install
         working-directory: dt-eval-cli
-        run: npm install
+        run: npm ci
 
       - name: Test
         working-directory: dt-eval-cli
