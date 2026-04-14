@@ -20,7 +20,7 @@ export {
   EvalTimeoutError,
 } from "./errors";
 // Prompt catalog
-export { BuiltInMetric, DRIFT_METRIC_ID, getPrompt, listPrompts } from "./prompts/index";
+export { BuiltInMetric, DRIFT_METRIC_ID, getPrompt, listPrompts, createCustomPrompt, deleteCustomPrompt } from "./prompts/index";
 
 export type { PromptDefinition } from "./prompts/types";
 // Scoring
@@ -31,3 +31,6 @@ export type {
   ScoringScale,
   ScoringScaleType,
 } from "./scoring/types";
+// Drift detection
+export { detectDrift, detectDriftBatch } from "./drift";
+export type { DriftOptions, DriftResult, DriftWindowStats } from "./drift";

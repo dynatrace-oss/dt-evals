@@ -1,10 +1,21 @@
+import { createRequire } from 'node:module';
 import type { DynatraceClient } from './client.js';
 import type { GenAiSpan, BizeventPayload } from './types.js';
 import type { EvalResult } from 'dt-eval-lib';
 
-declare const __CLIENT_VERSION__: string;
+declare const __CLIENT_VERSION__: string | undefined;
 const CLIENT_NAME = 'dt-eval-cli';
-const CLIENT_VERSION = __CLIENT_VERSION__;
+// __CLIENT_VERSION__ is replaced at build time by tsup; fall back to package.json at runtime (tsx dev mode)
+function resolveVersion(): string {
+  try {
+    if (typeof __CLIENT_VERSION__ !== 'undefined') return __CLIENT_VERSION__;
+  } catch { /* not defined in dev/tsx */ }
+  try {
+    const require = createRequire(import.meta.url);
+    return (require('../../package.json') as { version: string }).version;
+  } catch { return 'dev'; }
+}
+const CLIENT_VERSION = resolveVersion();
 
 export type { EvalResult };
 
