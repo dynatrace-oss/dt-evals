@@ -26,7 +26,7 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
 
   if (app) {
     // Match by service.name or the entity ID alternative
-    lines.push(`| filter service.name == "${app}" or dt.entity.service == "${app}"`);
+    lines.push(`| filter service.name == "${app}" or dt.smartscape.service == "${app}"`);
   }
 
   if (errorsOnly) {

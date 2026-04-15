@@ -24,7 +24,7 @@ describe('buildGenAiSpanQuery', () => {
   it('filters by app when app is provided', () => {
     const query = buildGenAiSpanQuery({ since: '1h', app: 'my-service' });
     expect(query).toContain('my-service');
-    expect(query).toContain('dt.entity.service');
+    expect(query).toContain('dt.smartscape.service');
   });
 
   it('does not include app filter when app is not provided', () => {

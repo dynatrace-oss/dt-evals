@@ -28,6 +28,7 @@ export interface RunResult {
   spansEvaluated: number;
   resultsWritten: number;
   errors: number;
+  errorSamples: string[];   // deduplicated sample of error messages for user display
   thresholdBreaches: Array<{ metric: string; traceId: string; score: number }>;
   durationMs: number;
 }
@@ -108,6 +109,7 @@ export async function runEvals(
       spansEvaluated: maskedSpans.length,
       resultsWritten: 0,
       errors: 0,
+      errorSamples: [],
       thresholdBreaches: [],
       durationMs: Date.now() - startTime,
     };
@@ -150,17 +152,26 @@ export async function runEvals(
   // 7. Collect results and errors
   const successResults: EvalTaskResult[] = [];
   let errors = 0;
+  const seenErrors = new Map<string, number>(); // message → count
 
   for (const r of batchResults) {
     if (r.error) {
       errors++;
+      const msg = r.error.message ?? String(r.error);
+      seenErrors.set(msg, (seenErrors.get(msg) ?? 0) + 1);
       if (opts.ci) {
-        console.error(JSON.stringify({ error: r.error.message, item: r.item }));
+        console.error(JSON.stringify({ error: msg, metric: (r.item as EvalTask).metric }));
       }
     } else if (r.result) {
       successResults.push(r.result);
     }
   }
+
+  // Keep the top-3 most frequent distinct error messages for surfacing to the user
+  const errorSamples = [...seenErrors.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([msg, count]) => count > 1 ? `${msg} (×${count})` : msg);
 
   // 8. Write bizevents
   logger.step('Writing bizevents...');
@@ -214,6 +225,7 @@ export async function runEvals(
     spansEvaluated: maskedSpans.length,
     resultsWritten: payloads.length,
     errors,
+    errorSamples,
     thresholdBreaches,
     durationMs: Date.now() - startTime,
   };

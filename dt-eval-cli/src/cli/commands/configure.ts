@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { join } from 'node:path';
+import { join, basename } from 'node:path';
 import { loadConfig, saveConfig, validateConfig } from '../../config/index.js';
 import type { DtEvalConfig } from '../../config/schema.js';
 import { DEFAULT_JUDGE_MODELS } from '../../config/defaults.js';
@@ -86,7 +86,7 @@ async function testServiceSpans(
   try {
     const client = new DynatraceClient({ environmentUrl, apiToken, dtctlContext });
     const query = `fetch spans
-| filter service.name == "${serviceName}" or dt.entity.service == "${serviceName}"
+| filter service.name == "${serviceName}" or dt.smartscape.service == "${serviceName}"
 | filter isNotNull(gen_ai.provider.name)
 | limit 1000
 | summarize count = count()`;
@@ -333,6 +333,9 @@ export function createConfigureCommand(): Command {
         updated.judge.model ?? DEFAULT_JUDGE_MODELS[updated.judge.provider] ?? 'gpt-4o',
       );
 
+      console.log(`  Copy this to run the newly created config:`);
+      console.log(`  dt-eval run ${basename(outputPath)}\n`);
+
       return;
     }
 
@@ -373,6 +376,8 @@ export function createConfigureCommand(): Command {
     try {
       saveConfig(updated, outputPath);
       console.log(`Config saved to ${outputPath}`);
+      console.log(`\n  Copy this to run the newly created config:`);
+      console.log(`  dt-eval run ${basename(outputPath)}\n`);
     } catch (err) {
       console.error(`Failed to save config: ${(err as Error).message}`);
       process.exit(1);

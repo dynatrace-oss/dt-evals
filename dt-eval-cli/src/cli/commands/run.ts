@@ -7,6 +7,21 @@ import { renderTable } from '../../ui/table.js';
 import { formatDuration } from '../../ui/format.js';
 import { logger, configureLogger } from '../../logger/index.js';
 
+function evalErrorHint(messages: string[]): string | null {
+  const combined = messages.join(' ').toLowerCase();
+  if (/model.*not.*exist|no such model|invalid model|unknown model/.test(combined))
+    return 'Hint: the judge model name is invalid. Check judge.model in your config (e.g. gpt-4o, gpt-4o-mini, claude-sonnet-4-6).';
+  if (/401|unauthorized|invalid.*api.*key|incorrect.*api.*key|api key/.test(combined))
+    return 'Hint: API key rejected. Check judge.apiKey in your config or the relevant env var for your provider.';
+  if (/429|rate.?limit|quota/.test(combined))
+    return 'Hint: rate limit hit. Try reducing --sample or --concurrency.';
+  if (/econnrefused|network|timeout|enotfound/.test(combined))
+    return 'Hint: network error reaching the judge provider. Check your internet connection and judge.baseUrl if set.';
+  if (/context.*length|maximum.*token|too.*long/.test(combined))
+    return 'Hint: input too long for the model. Try a model with a larger context window.';
+  return null;
+}
+
 export function createRunCommand(): Command {
   const cmd = new Command('run');
   cmd.description('Run evaluations against recent GenAI traces from Dynatrace');
@@ -97,6 +112,15 @@ export function createRunCommand(): Command {
 
         console.log(`\nRun ${result.runId} complete in ${formatDuration(result.durationMs)}`);
         console.log(`${result.resultsWritten} evaluation results written to Dynatrace`);
+
+        if (result.errors > 0 && result.errorSamples.length > 0) {
+          logger.warn(`\n${result.errors} evaluation(s) failed. Sample errors:`);
+          for (const msg of result.errorSamples) {
+            logger.warn(`  • ${msg}`);
+          }
+          const hint = evalErrorHint(result.errorSamples);
+          if (hint) logger.warn(`\n  ${hint}`);
+        }
 
         if (result.thresholdBreaches.length > 0) {
           logger.warn(`Threshold breaches: ${result.thresholdBreaches.length}`);
