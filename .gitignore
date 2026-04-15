@@ -5,6 +5,3 @@ dist/
 .env.*
 eval.md
 
-# Go
-dt-eval-deploy/dt-eval-engine/handler
-dt-eval-deploy/dt-eval-engine/vendor/
