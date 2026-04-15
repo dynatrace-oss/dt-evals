@@ -4,7 +4,7 @@ name: CI — dt-eval-engine
 on:
   pull_request:
     paths:
-      - "dt-eval-deploy/dt-eval-engine/**"
+      - "dt-eval-deploy/**"
       - "dt-eval-lib/**"
       - ".github/workflows/ci-engine.yml"
   workflow_dispatch:
@@ -25,13 +25,13 @@ jobs:
         run: npm ci
 
       - name: Test
-        working-directory: dt-eval-deploy/dt-eval-engine
+        working-directory: dt-eval-deploy
         run: npm test
 
       - name: Build
-        working-directory: dt-eval-deploy/dt-eval-engine
+        working-directory: dt-eval-deploy
         run: npm run build
 
       - name: Docker build (smoke test)
-        working-directory: dt-eval-deploy/dt-eval-engine
+        working-directory: dt-eval-deploy
         run: docker build -t dt-eval-engine:ci .
