@@ -11,7 +11,8 @@ export function createRunCommand(): Command {
   const cmd = new Command('run');
   cmd.description('Run evaluations against recent GenAI traces from Dynatrace');
 
-  cmd.option('--config <path>', 'Path to eval config file (e.g. travel-advisor.dt-eval.yaml)');
+  cmd.argument('[config]', 'Path to eval config file (e.g. travel-advisor.dt-eval.yaml)');
+  cmd.option('--config <path>', 'Path to eval config file (alias for positional argument)');
   cmd.option('--since <duration>', 'Time window for trace fetch (e.g. 1h, 6h, 24h)', '1h');
   cmd.option('--sample <percent>', 'Percentage of traces to evaluate (0-100)', parseFloat, 100);
   cmd.option('--metric <name>', 'Run a specific evaluator only');
@@ -20,7 +21,7 @@ export function createRunCommand(): Command {
   cmd.option('--concurrency <n>', 'Number of parallel evaluation workers', (v) => parseInt(v, 10), 5);
   cmd.option('--debug', 'Enable debug logging with per-step timing');
 
-  cmd.action(async (options: {
+  cmd.action(async (configArg: string | undefined, options: {
     config?: string;
     since: string;
     sample: number;
@@ -33,9 +34,10 @@ export function createRunCommand(): Command {
     if (options.debug) {
       configureLogger({ level: 'debug' });
     }
+    const configPath = configArg ?? options.config;
     let config;
     try {
-      config = loadConfig(options.config ? { projectFile: options.config } : undefined);
+      config = loadConfig(configPath ? { projectFile: configPath } : undefined);
       validateConfig(config);
     } catch (err) {
       if (options.ci) {
