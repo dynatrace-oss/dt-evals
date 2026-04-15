@@ -9,24 +9,40 @@ export interface DqlQueryOptions {
 
 export type DqlResult = GenAiSpan[];
 
+// Number of prompt slots to probe for the OpenLLMetry convention
+// (gen_ai.prompt.0.content, gen_ai.prompt.1.content, ...)
+const PROMPT_SLOTS = 3;
+
 export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
   const { app, since, limit = 1000, errorsOnly = false } = opts;
 
   const lines: string[] = ['fetch spans'];
 
-  lines.push('| filter isNotNull(gen_ai.system)');
-  lines.push(`| filter timestamp > now() - ${since}`);
+  // Support both OTel GenAI semconv (gen_ai.system) and OpenLLMetry (gen_ai.provider.name)
+  lines.push('| filter isNotNull(gen_ai.system) or isNotNull(gen_ai.provider.name)');
+
+  // Spans use start_time, not timestamp
+  lines.push(`| filter start_time > now() - ${since}`);
 
   if (app) {
-    lines.push(`| filter service.name == "${app}"`);
+    // Match by service.name or the entity ID alternative
+    lines.push(`| filter service.name == "${app}" or dt.entity.service == "${app}"`);
   }
 
   if (errorsOnly) {
     lines.push('| filter status.code == "ERROR"');
   }
 
+  // Fetch both OTel GenAI and OpenLLMetry field names so parseSpanResults can handle either
+  const promptFields = Array.from({ length: PROMPT_SLOTS }, (_, i) =>
+    `gen_ai.prompt.${i}.content, gen_ai.prompt.${i}.role`,
+  ).join(', ');
+
   lines.push(
-    '| fields trace.id, span.id, timestamp, status.code, gen_ai.system, gen_ai.request.model, gen_ai.input.messages, gen_ai.output.message, gen_ai.system_instruction',
+    `| fields trace.id, span.id, start_time, status.code,` +
+    ` gen_ai.system, gen_ai.provider.name, gen_ai.request.model,` +
+    ` gen_ai.input.messages, gen_ai.output.message, gen_ai.system_instruction,` +
+    ` ${promptFields}, gen_ai.completion.0.content`,
   );
 
   lines.push(`| limit ${limit}`);
@@ -44,19 +60,47 @@ export function parseSpanResults(records: unknown[]): GenAiSpan[] {
     const traceId = asString(r['trace.id']);
     if (!traceId) continue;
 
+    // OTel GenAI: gen_ai.input.messages; OpenLLMetry: gen_ai.prompt.N.content
+    let input = asString(r['gen_ai.input.messages']);
+    let systemInstruction = asString(r['gen_ai.system_instruction']);
+
+    if (!input) {
+      // Reconstruct from prompt slots — system role → context, user/assistant → input
+      const messages: string[] = [];
+      for (let i = 0; i < PROMPT_SLOTS; i++) {
+        const content = asString(r[`gen_ai.prompt.${i}.content`]);
+        const role = asString(r[`gen_ai.prompt.${i}.role`]);
+        if (!content) continue;
+        if (role === 'system') {
+          systemInstruction ??= content;
+        } else {
+          messages.push(role ? `${role}: ${content}` : content);
+        }
+      }
+      if (messages.length > 0) input = messages.join('\n');
+    }
+
+    // OTel GenAI: gen_ai.output.message; OpenLLMetry: gen_ai.completion.0.content
+    const output =
+      asString(r['gen_ai.output.message']) ??
+      asString(r['gen_ai.completion.0.content']);
+
+    // Skip spans with no usable input or output
+    if (!input || !output) continue;
+
     const statusCode = asString(r['status.code']);
-    const isError = statusCode === 'ERROR';
 
     spans.push({
       traceId,
       spanId: asString(r['span.id']),
-      timestamp: asString(r['timestamp']) ?? new Date().toISOString(),
-      input: asString(r['gen_ai.input.messages']),
-      output: asString(r['gen_ai.output.message']),
-      systemInstruction: asString(r['gen_ai.system_instruction']),
-      system: asString(r['gen_ai.system']),
+      timestamp: asString(r['start_time']) ?? new Date().toISOString(),
+      input,
+      output,
+      systemInstruction,
+      // gen_ai.system (OTel) or gen_ai.provider.name (OpenLLMetry)
+      system: asString(r['gen_ai.system']) ?? asString(r['gen_ai.provider.name']),
       requestModel: asString(r['gen_ai.request.model']),
-      isError: isError || undefined,
+      isError: statusCode === 'ERROR' || undefined,
     });
   }
 

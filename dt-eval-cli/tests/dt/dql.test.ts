@@ -2,34 +2,34 @@ import { describe, it, expect } from 'vitest';
 import { buildGenAiSpanQuery, parseSpanResults } from '../../src/dt/dql.js';
 
 describe('buildGenAiSpanQuery', () => {
-  it('includes timestamp filter with the given since value', () => {
+  it('includes start_time filter with the given since value', () => {
     const query = buildGenAiSpanQuery({ since: '1h' });
-    expect(query).toContain('timestamp > now() - 1h');
+    expect(query).toContain('start_time > now() - 1h');
   });
 
   it('uses the correct since duration in filter', () => {
     const query24h = buildGenAiSpanQuery({ since: '24h' });
-    expect(query24h).toContain('timestamp > now() - 24h');
+    expect(query24h).toContain('start_time > now() - 24h');
 
     const query6h = buildGenAiSpanQuery({ since: '6h' });
-    expect(query6h).toContain('timestamp > now() - 6h');
+    expect(query6h).toContain('start_time > now() - 6h');
   });
 
-  it('includes gen_ai.system not-null filter', () => {
+  it('filters on both gen_ai.system and gen_ai.provider.name', () => {
     const query = buildGenAiSpanQuery({ since: '1h' });
     expect(query).toContain('isNotNull(gen_ai.system)');
+    expect(query).toContain('isNotNull(gen_ai.provider.name)');
   });
 
   it('filters by app when app is provided', () => {
     const query = buildGenAiSpanQuery({ since: '1h', app: 'my-service' });
     expect(query).toContain('my-service');
+    expect(query).toContain('dt.entity.service');
   });
 
   it('does not include app filter when app is not provided', () => {
     const query = buildGenAiSpanQuery({ since: '1h' });
-    // Should not contain dt.entity.service or app.name filter
-    expect(query).not.toContain('dt.entity.service');
-    expect(query).not.toContain('app.name');
+    expect(query).not.toContain('service.name');
   });
 
   it('adds error filter when errorsOnly is true', () => {
@@ -54,21 +54,26 @@ describe('buildGenAiSpanQuery', () => {
 
   it('includes required fields in the fields clause', () => {
     const query = buildGenAiSpanQuery({ since: '1h' });
+    // OTel GenAI fields
     expect(query).toContain('gen_ai.input.messages');
     expect(query).toContain('gen_ai.output.message');
     expect(query).toContain('gen_ai.system');
     expect(query).toContain('trace.id');
-    expect(query).toContain('timestamp');
+    expect(query).toContain('start_time');
+    // OpenLLMetry fields
+    expect(query).toContain('gen_ai.provider.name');
+    expect(query).toContain('gen_ai.prompt.0.content');
+    expect(query).toContain('gen_ai.completion.0.content');
   });
 });
 
 describe('parseSpanResults', () => {
-  it('maps fields correctly for a well-formed record', () => {
+  it('maps fields correctly for a well-formed OTel GenAI record', () => {
     const records = [
       {
         'trace.id': 'abc123',
         'span.id': 'span001',
-        timestamp: '2026-03-01T10:00:00Z',
+        'start_time': '2026-03-01T10:00:00Z',
         'gen_ai.input.messages': '[{"role":"user","content":"Hello"}]',
         'gen_ai.output.message': 'Hi there!',
         'gen_ai.system_instruction': 'Be helpful.',
@@ -91,6 +96,34 @@ describe('parseSpanResults', () => {
     expect(span.system).toBe('openai');
     expect(span.requestModel).toBe('gpt-4o');
     expect(span.isError).toBeUndefined();
+  });
+
+  it('maps fields correctly for an OpenLLMetry record', () => {
+    const records = [
+      {
+        'trace.id': 'llmetry-trace',
+        'span.id': 'span002',
+        'start_time': '2026-03-01T11:00:00Z',
+        'gen_ai.prompt.0.role': 'system',
+        'gen_ai.prompt.0.content': 'You are helpful.',
+        'gen_ai.prompt.1.role': 'user',
+        'gen_ai.prompt.1.content': 'What is Paris?',
+        'gen_ai.completion.0.content': 'The capital of France.',
+        'gen_ai.provider.name': 'openai',
+        'gen_ai.request.model': 'gpt-4o-mini',
+      },
+    ];
+
+    const spans = parseSpanResults(records);
+
+    expect(spans).toHaveLength(1);
+    const span = spans[0]!;
+    expect(span.traceId).toBe('llmetry-trace');
+    expect(span.timestamp).toBe('2026-03-01T11:00:00Z');
+    expect(span.input).toContain('What is Paris?');
+    expect(span.output).toBe('The capital of France.');
+    expect(span.systemInstruction).toBe('You are helpful.');
+    expect(span.system).toBe('openai');
   });
 
   it('handles missing optional fields gracefully', () => {
@@ -124,7 +157,14 @@ describe('parseSpanResults', () => {
   });
 
   it('skips null and non-object records', () => {
-    const records = [null, undefined, 'string', 42, { 'trace.id': 'valid' }];
+    const records = [
+      null,
+      undefined,
+      'string',
+      42,
+      // valid record with both input and output
+      { 'trace.id': 'valid', 'gen_ai.input.messages': 'q', 'gen_ai.output.message': 'a' },
+    ];
     const spans = parseSpanResults(records as unknown[]);
     expect(spans).toHaveLength(1);
     expect(spans[0]!.traceId).toBe('valid');
@@ -159,5 +199,18 @@ describe('parseSpanResults', () => {
 
     const spans = parseSpanResults(records);
     expect(spans[0]!.input).toBe('[{"role":"user","content":"Hello"}]');
+  });
+
+  it('falls back to gen_ai.provider.name when gen_ai.system is absent', () => {
+    const records = [
+      {
+        'trace.id': 'provider-trace',
+        'gen_ai.input.messages': 'q',
+        'gen_ai.output.message': 'a',
+        'gen_ai.provider.name': 'anthropic',
+      },
+    ];
+    const spans = parseSpanResults(records);
+    expect(spans[0]!.system).toBe('anthropic');
   });
 });
