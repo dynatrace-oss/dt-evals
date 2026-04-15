@@ -50,8 +50,9 @@ export function createRunCommand(): Command {
     }
 
     const apiToken = config.dynatrace.apiToken;
-    if (!apiToken) {
-      const msg = 'dynatrace.apiToken is required. Set DT_API_TOKEN env var or configure it.';
+    const dtctlContext = config.dynatrace.dtctlContext;
+    if (!apiToken && !dtctlContext) {
+      const msg = 'Authentication required: set dynatrace.apiToken, DT_API_TOKEN env var, or configure a dtctlContext.';
       if (options.ci) {
         console.log(JSON.stringify({ error: msg }));
       } else {
@@ -63,7 +64,7 @@ export function createRunCommand(): Command {
     const dtClient = new DynatraceClient({
       environmentUrl: config.dynatrace.environmentUrl,
       apiToken,
-      dtctlContext: config.dynatrace.dtctlContext,
+      dtctlContext,
     });
 
     const spinner = options.ci ? null : new Spinner('Fetching GenAI spans from Dynatrace...');
