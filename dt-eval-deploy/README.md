@@ -33,8 +33,6 @@ docker build -t dt-eval .
 docker run --env-file .env dt-eval run --since 1h --sample 10
 ```
 
-See [eval.md](../eval.md) — Section 10 for full configuration reference.
-
 ## Contents
 
 - `src/` — TypeScript serverless entrypoint (Lambda handler + HTTP server)
