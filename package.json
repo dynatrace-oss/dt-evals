@@ -4,7 +4,7 @@
   "workspaces": [
     "dt-eval-cli",
     "dt-eval-lib",
-    "dt-eval-deploy/dt-eval-engine"
+    "dt-eval-deploy"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",

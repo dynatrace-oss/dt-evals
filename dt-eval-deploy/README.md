@@ -37,4 +37,5 @@ See [eval.md](../eval.md) — Section 10 for full configuration reference.
 
 ## Contents
 
-- `dt-eval-engine/` — placeholder for the TypeScript serverless entrypoint (in progress)
+- `src/` — TypeScript serverless entrypoint (Lambda handler + HTTP server)
+- `Dockerfile` — container image for Cloud Run / Kubernetes deployments
