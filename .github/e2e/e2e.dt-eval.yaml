@@ -1,0 +1,28 @@
+schemaVersion: 1
+name: e2e-ci
+
+dynatrace:
+  environmentUrl: https://xbw95514.dev.apps.dynatracelabs.com/
+  # apiToken from DT_API_TOKEN env var (dt0s* platform token)
+  # dtctlContext routes DQL through dtctl (configured with set-credentials in CI)
+  dtctlContext: e2e
+
+judge:
+  provider: anthropic
+  # apiKey from ANTHROPIC_API_KEY env var
+  model: claude-haiku-4-5-20251001
+  timeout: 60000
+  maxRetries: 2
+
+scope:
+  service: ai-travel-advisor-agent-test
+  since: 6h
+  sampling:
+    strategy: latest
+    count: 3
+
+metrics:
+  enabled:
+    - relevance
+    - toxicity
+    - helpfulness
