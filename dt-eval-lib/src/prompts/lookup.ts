@@ -11,7 +11,9 @@ export function getPrompt(id: string): PromptDefinition {
   const prompt = allPrompts().find((p) => p.id === id);
   if (!prompt) {
     throw new EvalMetricError(
-      `Unknown metric "${id}". Available: ${allPrompts().map((p) => p.id).join(", ")}`,
+      `Unknown metric "${id}". Available: ${allPrompts()
+        .map((p) => p.id)
+        .join(", ")}`,
     );
   }
   return prompt;

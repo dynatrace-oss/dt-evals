@@ -46,7 +46,7 @@ function windowStats(scores: number[], passThreshold: number): DriftWindowStats 
   const mean = scores.reduce((s, v) => s + v, 0) / n;
   const variance = scores.reduce((s, v) => s + (v - mean) ** 2, 0) / n;
   const stddev = Math.sqrt(variance);
-  const passRate = scores.filter(v => v >= passThreshold).length / n;
+  const passRate = scores.filter((v) => v >= passThreshold).length / n;
   return { mean, stddev, passRate, sampleSize: n };
 }
 
@@ -80,7 +80,8 @@ export function detectDrift(
   const baseline = windowStats(baselineScores, passThreshold);
   const current = windowStats(currentScores, passThreshold);
   const effectSize = cohensD(baseline, current);
-  const detected = effectSize >= effectSizeThreshold && current.sampleSize > 0 && baseline.sampleSize > 0;
+  const detected =
+    effectSize >= effectSizeThreshold && current.sampleSize > 0 && baseline.sampleSize > 0;
 
   return {
     metric,

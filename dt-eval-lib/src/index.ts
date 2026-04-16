@@ -1,5 +1,8 @@
 // Public API — dt-eval-lib
 
+export type { DriftOptions, DriftResult, DriftWindowStats } from "./drift";
+// Drift detection
+export { detectDrift, detectDriftBatch } from "./drift";
 // Main eval function
 export { evaluate } from "./engine/index";
 export type {
@@ -20,8 +23,14 @@ export {
   EvalTimeoutError,
 } from "./errors";
 // Prompt catalog
-export { BuiltInMetric, DRIFT_METRIC_ID, getPrompt, listPrompts, createCustomPrompt, deleteCustomPrompt } from "./prompts/index";
-
+export {
+  BuiltInMetric,
+  createCustomPrompt,
+  DRIFT_METRIC_ID,
+  deleteCustomPrompt,
+  getPrompt,
+  listPrompts,
+} from "./prompts/index";
 export type { PromptDefinition } from "./prompts/types";
 // Scoring
 export { BINARY_SCALE, CONTINUOUS_SCALE, computeScore, LIKERT_SCALE } from "./scoring/index";
@@ -31,6 +40,3 @@ export type {
   ScoringScale,
   ScoringScaleType,
 } from "./scoring/types";
-// Drift detection
-export { detectDrift, detectDriftBatch } from "./drift";
-export type { DriftOptions, DriftResult, DriftWindowStats } from "./drift";

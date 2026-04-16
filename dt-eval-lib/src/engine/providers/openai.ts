@@ -70,9 +70,7 @@ export class OpenAIProvider extends BaseProvider {
     try {
       parsed = JSON.parse(content);
     } catch {
-      throw new EvalResponseError(
-        `OpenAI returned non-JSON content: ${content.slice(0, 200)}`,
-      );
+      throw new EvalResponseError(`OpenAI returned non-JSON content: ${content.slice(0, 200)}`);
     }
     return validateLLMResponse(parsed);
   }
