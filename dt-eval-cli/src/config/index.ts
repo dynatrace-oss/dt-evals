@@ -106,6 +106,7 @@ function applyEnvVars(config: DtEvalConfig): DtEvalConfig {
   } else if (provider === 'azure-openai') {
     if (process.env['AZURE_OPENAI_API_KEY']) result.judge.apiKey = process.env['AZURE_OPENAI_API_KEY'];
     if (process.env['AZURE_OPENAI_ENDPOINT']) result.judge.baseUrl = process.env['AZURE_OPENAI_ENDPOINT'];
+    if (process.env['AZURE_OPENAI_API_VERSION']) result.judge.apiVersion = process.env['AZURE_OPENAI_API_VERSION'];
   } else if (provider === 'gemini') {
     if (process.env['GEMINI_API_KEY']) result.judge.apiKey = process.env['GEMINI_API_KEY'];
     else if (process.env['GOOGLE_API_KEY']) result.judge.apiKey = process.env['GOOGLE_API_KEY'];

@@ -29,7 +29,7 @@ export function createRunCommand(): Command {
   cmd.argument('[config]', 'Path to eval config file (e.g. travel-advisor.dt-eval.yaml)');
   cmd.option('--config <path>', 'Path to eval config file (alias for positional argument)');
   cmd.option('--since <duration>', 'Time window for trace fetch (e.g. 1h, 6h, 24h)', '1h');
-  cmd.option('--sample <percent>', 'Percentage of traces to evaluate (0-100)', parseFloat, 100);
+  cmd.option('--sample <percent>', 'Override sampling: percentage of traces to evaluate (0-100). When omitted, uses the strategy from your config file.', parseFloat);
   cmd.option('--metric <name>', 'Run a specific evaluator only');
   cmd.option('--dry-run', 'Fetch and transform traces, print payloads, do not send');
   cmd.option('--ci', 'Non-interactive mode: JSON stdout, exit 1 on threshold breach');

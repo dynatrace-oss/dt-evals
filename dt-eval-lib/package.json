@@ -28,6 +28,7 @@
   "license": "MIT",
   "peerDependencies": {
     "@anthropic-ai/sdk": "^0.32.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.0.0",
     "@google/genai": "^1.0.0",
     "openai": "^4.73.0"
   },
@@ -38,12 +39,16 @@
     "@anthropic-ai/sdk": {
       "optional": true
     },
+    "@aws-sdk/client-bedrock-runtime": {
+      "optional": true
+    },
     "@google/genai": {
       "optional": true
     }
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.32.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.1031.0",
     "@biomejs/biome": "2.4.9",
     "@google/genai": "^1.0.0",
     "dotenv": "^17.3.1",

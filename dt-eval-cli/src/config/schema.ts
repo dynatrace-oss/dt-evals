@@ -9,12 +9,18 @@ export interface DynatraceConfig {
 
 export interface JudgeConfig {
   provider: 'openai' | 'anthropic' | 'azure-openai' | 'gemini' | 'bedrock';
+  /** API key. For Bedrock: AWS access key ID. */
   apiKey?: string;
+  /** For Bedrock: AWS secret access key. Falls back to AWS_SECRET_ACCESS_KEY env var. */
+  secretKey?: string;
+  /** For azure-openai: endpoint URL (e.g. https://my-resource.openai.azure.com/). Falls back to AZURE_OPENAI_ENDPOINT. */
   baseUrl?: string;
+  /** For azure-openai: API version (e.g. 2025-04-01-preview). Falls back to AZURE_OPENAI_API_VERSION. Required for azure-openai. */
+  apiVersion?: string;
   model?: string;
   timeout?: number;
   maxRetries?: number;
-  /** AWS region for Bedrock; Azure OpenAI deployment endpoint base region */
+  /** For Bedrock: AWS region (e.g. us-east-1). Falls back to AWS_DEFAULT_REGION / AWS_REGION env vars. */
   region?: string;
 }
 

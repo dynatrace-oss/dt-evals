@@ -118,13 +118,19 @@ export async function runEvals(
   // 5. Build provider config for dt-eval-lib
   const judgeProvider = evalConfig.judge.provider;
   const judgeModel = evalConfig.judge.model ?? '';
+
   const libConfig: EvalConfig = {
-    provider: evalConfig.judge.provider,
-    apiKey: evalConfig.judge.apiKey,
-    baseUrl: evalConfig.judge.baseUrl,
-    model: evalConfig.judge.model,
-    timeout: evalConfig.judge.timeout,
-    maxRetries: evalConfig.judge.maxRetries,
+    provider: {
+      provider: evalConfig.judge.provider as import('dt-eval-lib').Provider,
+      apiKey: evalConfig.judge.apiKey,
+      baseUrl: evalConfig.judge.baseUrl,
+      apiVersion: evalConfig.judge.apiVersion,
+      region: evalConfig.judge.region,
+      secretKey: evalConfig.judge.secretKey,
+      model: evalConfig.judge.model,
+      timeout: evalConfig.judge.timeout,
+      maxRetries: evalConfig.judge.maxRetries,
+    },
   };
 
   // 6. Evaluate via dt-eval-lib in parallel batches
