@@ -2,16 +2,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // We'll mock the provider modules so no real API calls are made
 vi.mock("openai", () => {
+  const mockClient = {
+    chat: {
+      completions: {
+        create: vi.fn(),
+      },
+    },
+  };
   return {
     // biome-ignore lint/complexity/useArrowFunction: function expression required for new-able mock in vitest 4.x
     default: vi.fn().mockImplementation(function () {
-      return {
-        chat: {
-          completions: {
-            create: vi.fn(),
-          },
-        },
-      };
+      return mockClient;
+    }),
+    // biome-ignore lint/complexity/useArrowFunction: function expression required for new-able mock in vitest 4.x
+    AzureOpenAI: vi.fn().mockImplementation(function () {
+      return mockClient;
     }),
   };
 });
@@ -25,6 +30,19 @@ vi.mock("@anthropic-ai/sdk", () => {
           create: vi.fn(),
         },
       };
+    }),
+  };
+});
+
+vi.mock("@aws-sdk/client-bedrock-runtime", () => {
+  return {
+    // biome-ignore lint/complexity/useArrowFunction: function expression required for new-able mock in vitest 4.x
+    BedrockRuntimeClient: vi.fn().mockImplementation(function () {
+      return { send: vi.fn() };
+    }),
+    // biome-ignore lint/complexity/useArrowFunction: function expression required for new-able mock in vitest 4.x
+    ConverseCommand: vi.fn().mockImplementation(function (input) {
+      return input;
     }),
   };
 });
@@ -44,6 +62,8 @@ vi.mock("@google/genai", () => {
 
 import { evaluate } from "../src/engine/index";
 import { AnthropicProvider } from "../src/engine/providers/anthropic";
+import { AzureOpenAIProvider } from "../src/engine/providers/azure-openai";
+import { BedrockProvider } from "../src/engine/providers/bedrock";
 import { GoogleProvider } from "../src/engine/providers/google";
 import { createProvider } from "../src/engine/providers/index";
 import { OpenAIProvider } from "../src/engine/providers/openai";
@@ -710,5 +730,191 @@ describe("evaluate() — gemini provider", () => {
       score: { value: 1, label: "pass" },
       explanation: { summary: "Good output", reasoning: "Output is correct" },
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Azure OpenAI provider
+// ---------------------------------------------------------------------------
+
+describe("provider factory — azure-openai", () => {
+  beforeEach(async () => {
+    const actual = await vi.importActual<typeof import("../src/engine/providers/index")>(
+      "../src/engine/providers/index",
+    );
+    vi.mocked(createProvider).mockImplementation(actual.createProvider);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+    delete process.env.AZURE_OPENAI_API_KEY;
+    delete process.env.AZURE_OPENAI_ENDPOINT;
+    delete process.env.AZURE_OPENAI_API_VERSION;
+  });
+
+  it("creates AzureOpenAIProvider when all required fields are provided", async () => {
+    const provider = await createProvider({
+      provider: "azure-openai",
+      apiKey: "test-key",
+      baseUrl: "https://my-resource.openai.azure.com/",
+      apiVersion: "2025-04-01-preview",
+      model: "my-gpt4-deployment",
+      timeout: 30000,
+      maxRetries: 2,
+    });
+    expect(provider).toBeInstanceOf(AzureOpenAIProvider);
+  });
+
+  it("throws EvalConfigError when apiKey is missing", async () => {
+    await expect(
+      createProvider({
+        provider: "azure-openai",
+        baseUrl: "https://my-resource.openai.azure.com/",
+        apiVersion: "2025-04-01-preview",
+        model: "my-gpt4-deployment",
+        timeout: 30000,
+        maxRetries: 2,
+      }),
+    ).rejects.toBeInstanceOf(EvalConfigError);
+  });
+
+  it("throws EvalConfigError when baseUrl is missing", async () => {
+    await expect(
+      createProvider({
+        provider: "azure-openai",
+        apiKey: "test-key",
+        apiVersion: "2025-04-01-preview",
+        model: "my-gpt4-deployment",
+        timeout: 30000,
+        maxRetries: 2,
+      }),
+    ).rejects.toBeInstanceOf(EvalConfigError);
+  });
+
+  it("throws EvalConfigError when apiVersion is missing", async () => {
+    await expect(
+      createProvider({
+        provider: "azure-openai",
+        apiKey: "test-key",
+        baseUrl: "https://my-resource.openai.azure.com/",
+        model: "my-gpt4-deployment",
+        timeout: 30000,
+        maxRetries: 2,
+      }),
+    ).rejects.toBeInstanceOf(EvalConfigError);
+  });
+
+  it("throws EvalConfigError when model (deployment name) is missing", async () => {
+    await expect(
+      createProvider({
+        provider: "azure-openai",
+        apiKey: "test-key",
+        baseUrl: "https://my-resource.openai.azure.com/",
+        apiVersion: "2025-04-01-preview",
+        timeout: 30000,
+        maxRetries: 2,
+      }),
+    ).rejects.toBeInstanceOf(EvalConfigError);
+  });
+
+  it("falls back to env vars when fields are not provided in options", async () => {
+    process.env.AZURE_OPENAI_API_KEY = "env-key";
+    process.env.AZURE_OPENAI_ENDPOINT = "https://env-resource.openai.azure.com/";
+    process.env.AZURE_OPENAI_API_VERSION = "2025-04-01-preview";
+    const provider = await createProvider({
+      provider: "azure-openai",
+      model: "my-deployment",
+      timeout: 30000,
+      maxRetries: 2,
+    });
+    expect(provider).toBeInstanceOf(AzureOpenAIProvider);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Bedrock provider
+// ---------------------------------------------------------------------------
+
+describe("provider factory — bedrock", () => {
+  beforeEach(async () => {
+    const actual = await vi.importActual<typeof import("../src/engine/providers/index")>(
+      "../src/engine/providers/index",
+    );
+    vi.mocked(createProvider).mockImplementation(actual.createProvider);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+    delete process.env.AWS_ACCESS_KEY_ID;
+    delete process.env.AWS_SECRET_ACCESS_KEY;
+    delete process.env.AWS_REGION;
+    delete process.env.AWS_DEFAULT_REGION;
+  });
+
+  it("creates BedrockProvider when credentials are provided", async () => {
+    const provider = await createProvider({
+      provider: "bedrock",
+      apiKey: "AKIAIOSFODNN7EXAMPLE",
+      secretKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+      timeout: 30000,
+      maxRetries: 2,
+    });
+    expect(provider).toBeInstanceOf(BedrockProvider);
+  });
+
+  it("throws EvalConfigError when credentials are missing", async () => {
+    await expect(
+      createProvider({
+        provider: "bedrock",
+        timeout: 30000,
+        maxRetries: 2,
+      }),
+    ).rejects.toBeInstanceOf(EvalConfigError);
+  });
+
+  it("falls back to AWS env vars for credentials", async () => {
+    process.env.AWS_ACCESS_KEY_ID = "env-access-key";
+    process.env.AWS_SECRET_ACCESS_KEY = "env-secret-key";
+    const provider = await createProvider({
+      provider: "bedrock",
+      timeout: 30000,
+      maxRetries: 2,
+    });
+    expect(provider).toBeInstanceOf(BedrockProvider);
+  });
+
+  it("uses explicit region when provided", async () => {
+    process.env.AWS_ACCESS_KEY_ID = "env-access-key";
+    process.env.AWS_SECRET_ACCESS_KEY = "env-secret-key";
+    const provider = await createProvider({
+      provider: "bedrock",
+      region: "eu-west-1",
+      timeout: 30000,
+      maxRetries: 2,
+    });
+    expect(provider).toBeInstanceOf(BedrockProvider);
+  });
+
+  it("falls back to AWS_REGION env var for region", async () => {
+    process.env.AWS_ACCESS_KEY_ID = "env-access-key";
+    process.env.AWS_SECRET_ACCESS_KEY = "env-secret-key";
+    process.env.AWS_REGION = "ap-southeast-1";
+    const provider = await createProvider({
+      provider: "bedrock",
+      timeout: 30000,
+      maxRetries: 2,
+    });
+    expect(provider).toBeInstanceOf(BedrockProvider);
+  });
+
+  it("uses default Bedrock model when model not specified", async () => {
+    process.env.AWS_ACCESS_KEY_ID = "env-access-key";
+    process.env.AWS_SECRET_ACCESS_KEY = "env-secret-key";
+    const provider = await createProvider({
+      provider: "bedrock",
+      timeout: 30000,
+      maxRetries: 2,
+    });
+    expect(provider).toBeInstanceOf(BedrockProvider);
   });
 });

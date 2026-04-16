@@ -1,7 +1,7 @@
 import type { Score } from "../scoring/types";
 
 /** Provider selection */
-export type Provider = "openai" | "anthropic" | "vertex" | "gemini";
+export type Provider = "openai" | "anthropic" | "vertex" | "gemini" | "azure-openai" | "bedrock";
 
 /** Provider-related configuration */
 export interface ProviderOptions {
@@ -11,6 +11,12 @@ export interface ProviderOptions {
   apiKey?: string;
   /** Base URL for the provider API — falls back to OPENAI_BASE_URL / ANTHROPIC_BASE_URL env vars */
   baseUrl?: string;
+  /** Azure OpenAI api-version (e.g. "2026-04-01-preview"). Only used for Azure endpoints. */
+  apiVersion?: string;
+  /** AWS region for Bedrock (e.g. "us-east-1"). Only used for bedrock provider. */
+  region?: string;
+  /** AWS secret access key for Bedrock. Paired with apiKey (access key ID). */
+  secretKey?: string;
   /** Model override — defaults to gpt-4.1 / claude-sonnet-4-6 / gemini-2.5-pro (vertex) / gemini-2.5-flash (gemini) */
   model?: string;
   /** Request timeout in ms — default 30000 */

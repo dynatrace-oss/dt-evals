@@ -51,4 +51,6 @@ export const DEFAULT_JUDGE_MODELS: Record<string, string> = {
   anthropic: 'claude-sonnet-4-6',
   vertex: 'gemini-2.5-pro',
   gemini: 'gemini-2.5-flash',
+  // azure-openai: no default — deployment names are user-defined in Azure portal
+  bedrock: 'us.anthropic.claude-3-5-haiku-20241022-v1:0',
 };

@@ -235,14 +235,42 @@ export function createConfigureCommand(): Command {
         anthropic: 'Anthropic API key',
         'azure-openai': 'Azure OpenAI API key (AZURE_OPENAI_API_KEY)',
         gemini: 'Gemini API key (GEMINI_API_KEY or GOOGLE_API_KEY)',
-        bedrock: 'AWS region for Bedrock (e.g. us-east-1) — leave blank to use AWS_REGION env var',
+        bedrock: 'AWS Access Key ID — leave blank to rely on AWS_ACCESS_KEY_ID env var / IAM role',
       };
 
       let apiKey: string;
+      let bedrockSecretKey = '';
+      let bedrockRegion = '';
+      let azureBaseUrl = '';
+      let azureApiVersion = '';
+
       if (provider === 'bedrock') {
         apiKey = await input({
           message: providerApiKeyLabel[provider],
+          default: existing.judge?.apiKey ?? '',
+        });
+        bedrockSecretKey = await password({
+          message: 'AWS Secret Access Key — leave blank to rely on AWS_SECRET_ACCESS_KEY env var',
+          mask: '*',
+        });
+        bedrockRegion = await input({
+          message: 'AWS region (e.g. us-east-1)',
           default: existing.judge?.region ?? process.env['AWS_REGION'] ?? 'us-east-1',
+        });
+      } else if (provider === 'azure-openai') {
+        apiKey = await password({
+          message: providerApiKeyLabel[provider] ?? `${provider} API key`,
+        });
+        azureBaseUrl = await input({
+          message: 'Azure OpenAI endpoint URL (e.g. https://my-resource.openai.azure.com/)',
+          default: existing.judge?.baseUrl ?? process.env['AZURE_OPENAI_ENDPOINT'] ?? '',
+        });
+        azureApiVersion = await input({
+          message: 'Azure OpenAI API version (e.g. 2025-04-01-preview)',
+          default:
+            existing.judge?.apiVersion ??
+            process.env['AZURE_OPENAI_API_VERSION'] ??
+            '2025-04-01-preview',
         });
       } else {
         apiKey = await password({
@@ -250,8 +278,13 @@ export function createConfigureCommand(): Command {
         });
       }
 
+      const modelPlaceholder =
+        provider === 'azure-openai'
+          ? 'Required: enter your Azure deployment name (e.g. my-gpt4-deployment)'
+          : 'Leave blank for provider default';
+
       const model = await input({
-        message: 'Evaluator model  (leave blank for provider default)',
+        message: `Evaluator model  (${modelPlaceholder})`,
         default: existing.judge?.model ?? '',
       });
 
@@ -290,9 +323,15 @@ export function createConfigureCommand(): Command {
         },
         judge: {
           provider,
-          ...(provider === 'bedrock'
-            ? { region: apiKey || existing.judge?.region }
-            : { apiKey: apiKey || existing.judge?.apiKey }),
+          apiKey: apiKey || existing.judge?.apiKey,
+          ...(provider === 'bedrock' && {
+            secretKey: bedrockSecretKey || existing.judge?.secretKey,
+            region: bedrockRegion || existing.judge?.region,
+          }),
+          ...(provider === 'azure-openai' && {
+            baseUrl: azureBaseUrl || existing.judge?.baseUrl,
+            apiVersion: azureApiVersion || existing.judge?.apiVersion,
+          }),
           model: model || existing.judge?.model,
           timeout: existing.judge?.timeout ?? 30000,
           maxRetries: existing.judge?.maxRetries ?? 2,
