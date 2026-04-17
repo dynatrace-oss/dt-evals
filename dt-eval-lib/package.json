@@ -27,7 +27,8 @@
   },
   "keywords": [
     "LLM",
-    "AI"
+    "AI",
+    "evaluation"
   ],
   "homepage": "https://github.com/dynatrace-oss/dt-evals#readme",
   "bugs": {
