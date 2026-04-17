@@ -72,7 +72,7 @@ jobs:
 
     outputs:
         release_created: ${{ steps.release.outputs.release_created }}
-        build-config: ${{ steps.build-config.outputs.result }}
+        build_config: ${{ steps.build-config.outputs.result }}
 
   publish-npm:
       runs-on: ubuntu-latest
@@ -81,7 +81,7 @@ jobs:
       permissions:
           id-token: write # OIDC token for npm trusted publishing
           contents: read
-      if: needs.release-please.outputs.releases-created == 'true' && needs.release-please.outputs.build-config.mode == 'npm'
+      if: needs.release-please.outputs.release_created == 'true' && needs.release-please.outputs.build_config.mode == 'npm'
 
       steps:
           - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
