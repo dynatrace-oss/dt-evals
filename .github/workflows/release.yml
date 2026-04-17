@@ -35,21 +35,50 @@ jobs:
       
       - name: Debug info
         env:
-          CHANGED_ITEMS: ${{ steps.release.outputs.paths_released }}
           RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
           PATHS_RELEASED: ${{ steps.release.outputs.paths_released }}
           ARTIFACT_TAG_NAME: ${{ steps.release.outputs[format('{0}--tag_name', fromJson(steps.release.outputs.paths_released)[0])] }}
           FULL_RELEASE_OUTPUT: ${{ toJSON(steps.release.outputs) }}
         run: |
-          echo "PATHS_RELEASE_JSON: ${PATHS_RELEASE_JSON}"
           echo "FULL RELEASE OUTPUT: ${FULL_RELEASE_OUTPUT}"
-          echo "CHANGED_ITEMS: ${CHANGED_ITEMS}"
           echo "RELEASE_TAG: ${RELEASE_TAG}"
           echo "ARTIFACT_TAG_NAME: ${ARTIFACT_TAG_NAME}"
           echo "PATHS_RELEASED: ${PATHS_RELEASED}"
 
+      - name: Create release matrix
+        id: build-config
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+        env:
+          CHANGED_ITEMS: ${{ steps.release.outputs.paths_released }}
+          ARTIFACT_TAG_NAME: ${{ steps.release.outputs[format('{0}--tag_name', fromJson(steps.release.outputs.paths_released)[0])] }}
+        with:
+          script: |
+            const changedItems = JSON.parse(process.env.CHANGED_ITEMS || '[]');
+            console.log("changed items", changedItems);
+            console.log("setting up release config...");
+            const releaseConfig = {};
+            changedItems.forEach(item => {
+                switch (item) {
+                    case "dt-eval-cli":
+                    case "dt-eval-lib":
+                        releaseConfig = {
+                            name: item,
+                            folder: item,
+                            tagName: process.env.ARTIFACT_TAG_NAME,
+                            mode: "npm"
+                        };
+                        break;
+                    // add more cases for other languages/artifacts as needed
+                    default:
+                        break;
+                }
+            });
+            console.log("release config: " + JSON.stringify(releaseConfig));
+            return releaseConfig;
+
     outputs:
         release_created: ${{ steps.release.outputs.release_created }}
+        build-config: ${{ steps.build-config.outputs.result }}
 
   publish-npm:
       runs-on: ubuntu-latest
@@ -58,7 +87,7 @@ jobs:
       permissions:
           id-token: write # OIDC token for npm trusted publishing
           contents: read
-      if: ${{ fromJSON(needs.release-please.outputs.release_created || false) }}
+      if: needs.release-please.outputs.releases-created == 'true' && needs.release-please.outputs.build-config.mode == 'npm'
 
       steps:
           - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
@@ -75,4 +104,4 @@ jobs:
             run: npm run build
 
           - name: Publish package
-            run: echo npm publish --access public --tag alpha
+            run: npm publish --access public --tag alpha
