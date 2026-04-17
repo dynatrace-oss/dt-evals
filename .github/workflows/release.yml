@@ -71,7 +71,7 @@ jobs:
             return releaseConfig;
 
     outputs:
-        release_created: ${{ steps.release.outputs.release_created }}
+        release_created: ${{ steps.release.outputs.releases_created }}
         build_config: ${{ steps.build-config.outputs.result }}
 
   publish-npm:
