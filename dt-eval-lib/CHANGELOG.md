@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.8-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.7-alpha...dt-eval-lib-v0.0.8-alpha) (2026-04-17)
+
+
+### 🧹 Chore
+
+* add keywords ([17c7203](https://github.com/dynatrace-oss/dt-evals/commit/17c720361bdae81757c64c91f3fd9409eef586e9))
+
 ## [0.0.7-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.6-alpha...dt-eval-lib-v0.0.7-alpha) (2026-04-17)
 
 
