@@ -1,15 +1,9 @@
 name: Release
 
 on:
-  workflow_call:
   push:
     branches:
       - main
-  pull_request_target:
-    types:
-      - opened
-      - edited
-      - synchronize
 
 concurrency:
   group: release-${{ github.ref }}
