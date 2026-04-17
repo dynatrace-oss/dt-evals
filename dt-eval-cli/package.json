@@ -1,6 +1,6 @@
 {
-  "name": "dt-eval",
-  "version": "0.1.0",
+  "name": "@dynatrace-oss/dt-eval",
+  "version": "0.1.0-alpha1",
   "description": "Evaluation CLI for AI Observability on Dynatrace",
   "type": "module",
   "bin": {
@@ -24,6 +24,14 @@
     "build": "tsup",
     "test": "vitest run",
     "dev": "tsx src/index.ts"
+  },
+  "homepage": "https://github.com/dynatrace-oss/dt-evals#readme",
+  "bugs": {
+    "url": "https://github.com/dynatrace-oss/dt-evals/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dynatrace-oss/dt-evals.git"
   },
   "license": "Apache-2.0",
   "dependencies": {

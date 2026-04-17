@@ -1,0 +1,86 @@
+{
+    "separate-pull-requests": true,
+    "last-release-sha": "d29e047d7417ab69fae727c2621931235fa0c147",
+    "bump-minor-pre-major": true,
+    "bump-patch-for-minor-pre-major": true,
+    "pull-request-title-pattern": "chore: release${component} ${version}",
+    "packages": {
+        "dt-eval-cli": {
+            "package-name": "dt-eval",
+            "changelog-path": "CHANGELOG.md",
+            "release-type": "node",
+            "monorepo-tags": "dt-eval",
+            "prerelease": true,
+            "prerelease-type": "alpha",
+            "include-component-in-tag": false,
+            "draft": false,
+            "extra-files": []
+        },
+        "dt-eval-lib": {
+            "package-name": "dt-eval-lib",
+            "component": "dt-eval-lib",
+            "changelog-path": "CHANGELOG.md",
+            "monorepo-tags": "dt-eval-lib",
+            "release-type": "node",
+            "prerelease": true,
+            "prerelease-type": "alpha",
+            "draft": false,
+            "extra-files": []
+        }
+    },
+    "changelog-sections": [
+        {
+            "type": "feat",
+            "section": "✨ New Features"
+        },
+        {
+            "type": "fix",
+            "section": "🐛 Bug Fixes"
+        },
+        {
+            "type": "chore",
+            "section": "🧹 Chore"
+        },
+        {
+            "type": "docs",
+            "section": "📚 Documentation"
+        },
+        {
+            "type": "perf",
+            "section": "🚀 Performance"
+        },
+        {
+            "type": "build",
+            "hidden": true,
+            "section": "🛠️ Build"
+        },
+        {
+            "type": "deps",
+            "section": "📦 Dependencies"
+        },
+        {
+            "type": "ci",
+            "hidden": true,
+            "section": "🚦 CI"
+        },
+        {
+            "type": "refactor",
+            "section": "🔄 Refactoring"
+        },
+        {
+            "type": "revert",
+            "section": "🔙 Reverts"
+        },
+        {
+            "type": "style",
+            "hidden": true,
+            "section": "🎨 Styling"
+        },
+        {
+            "type": "test",
+            "hidden": true,
+            "section": "🧪 Tests"
+        }
+    ],
+    "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json"
+}
