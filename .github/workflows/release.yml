@@ -4,6 +4,11 @@ on:
     push:
         branches:
             - main
+    pull_request_target:
+        types:
+            - opened
+            - edited
+            - synchronize
 
 concurrency:
     group: release-${{ github.ref }}
@@ -53,4 +58,4 @@ jobs:
               run: npm run build
 
             - name: Publish package
-              run: npm publish --access public --tag alpha
+              run: echo npm publish --access public --tag alpha
