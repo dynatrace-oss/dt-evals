@@ -39,7 +39,7 @@ jobs:
           echo "ARTIFACT_TAG_NAME: ${ARTIFACT_TAG_NAME}"
           echo "PATHS_RELEASED: ${PATHS_RELEASED}"
 
-      - name: Create release matrix
+      - name: Create release config
         id: build-config
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
         env:
