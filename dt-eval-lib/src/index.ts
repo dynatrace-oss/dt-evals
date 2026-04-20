@@ -22,6 +22,7 @@ export {
   EvalResponseError,
   EvalTimeoutError,
 } from "./errors";
+export type { PromptDefinition, PromptStore } from "./prompts/index";
 // Prompt catalog
 export {
   BuiltInMetric,
@@ -30,8 +31,8 @@ export {
   deleteCustomPrompt,
   getPrompt,
   listPrompts,
+  registerPromptStore,
 } from "./prompts/index";
-export type { PromptDefinition } from "./prompts/types";
 // Scoring
 export { BINARY_SCALE, CONTINUOUS_SCALE, computeScore, LIKERT_SCALE } from "./scoring/index";
 // Types

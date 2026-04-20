@@ -1,5 +1,10 @@
 #!/usr/bin/env -S node --no-warnings
 
+import { registerPromptStore } from 'dt-eval-lib';
+import { FsPromptStore } from './prompts/fs-store.js';
+
+registerPromptStore(new FsPromptStore());
+
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
