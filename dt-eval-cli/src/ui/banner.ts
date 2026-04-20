@@ -34,5 +34,7 @@ export function printBanner(): void {
   const banner = figlet.textSync('DT-EVALS', { font: 'ANSI Shadow' });
 
   process.stdout.write('\n' + applyGradient(banner) + '\n');
-  process.stdout.write('  welcome to dt-evals\n\n');
+  process.stdout.write('  Welcome to dt-evals\n\n');
+  process.stdout.write('  Evaluate production LLM & agent interactions with Dynatrace AI Observability.\n\n');
+
 }
