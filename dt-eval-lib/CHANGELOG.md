@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.12-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.11-alpha...dt-eval-lib-v0.0.12-alpha) (2026-04-20)
+
+
+### ✨ New Features
+
+* add Azure OpenAI and Bedrock provider support ([#18](https://github.com/dynatrace-oss/dt-evals/issues/18)) ([0988a0e](https://github.com/dynatrace-oss/dt-evals/commit/0988a0e73ebd6db17e7eacfdf3f08b5830665ba4))
+
+
+### 🐛 Bug Fixes
+
+* **dt-eval-lib:** remove Node.js builtins via PromptStore DI ([#43](https://github.com/dynatrace-oss/dt-evals/issues/43)) ([b6e8f39](https://github.com/dynatrace-oss/dt-evals/commit/b6e8f393d09b932a9cbcd12f3dc546ead416bf1d))
+
 ## [0.0.11-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.10-alpha...dt-eval-lib-v0.0.11-alpha) (2026-04-17)
 
 
