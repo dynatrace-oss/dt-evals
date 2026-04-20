@@ -27,7 +27,7 @@ export interface JudgeConfig {
 export interface ScopeConfig {
   service?: string; // service.name to filter spans (previously 'app')
   since: string; // e.g. "1h", "6h", "24h"
-  sampling: {
+  sampling?: {
     strategy: 'random' | 'latest' | 'errors-only';
     percent?: number; // for random
     count?: number;   // for latest

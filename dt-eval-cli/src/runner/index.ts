@@ -63,7 +63,7 @@ export async function runEvals(
   const query = buildGenAiSpanQuery({
     app: evalConfig.scope.service,
     since,
-    errorsOnly: evalConfig.scope.sampling.strategy === 'errors-only',
+    errorsOnly: evalConfig.scope.sampling?.strategy === 'errors-only',
   });
   logger.debug(`DQL query:\n${query}`);
 

@@ -97,11 +97,12 @@ export function createStatusCommand(): Command {
 
     console.log('\nScope:');
     console.log(`  Time window: ${config.scope.since}`);
-    console.log(`  Sampling:    ${config.scope.sampling.strategy} (${
-      config.scope.sampling.strategy === 'random'
-        ? `${config.scope.sampling.percent ?? 100}%`
-        : config.scope.sampling.strategy === 'latest'
-        ? `top ${config.scope.sampling.count ?? 'all'}`
+    const sampling = config.scope.sampling;
+    console.log(`  Sampling:    ${sampling?.strategy ?? 'random'} (${
+      !sampling || sampling.strategy === 'random'
+        ? `${sampling?.percent ?? 5}%`
+        : sampling.strategy === 'latest'
+        ? `top ${sampling.count ?? 'all'}`
         : 'errors only'
     })`);
 

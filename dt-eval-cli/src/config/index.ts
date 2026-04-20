@@ -187,9 +187,7 @@ export function validateConfig(config: DtEvalConfig): void {
   }
 
   const { strategy } = config.scope?.sampling ?? {};
-  if (!strategy) {
-    issues.push('scope.sampling.strategy is required');
-  } else if (!['random', 'latest', 'errors-only'].includes(strategy)) {
+  if (strategy && !['random', 'latest', 'errors-only'].includes(strategy)) {
     issues.push(`scope.sampling.strategy must be one of: random, latest, errors-only`);
   }
 

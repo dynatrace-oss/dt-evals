@@ -11,7 +11,7 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 export function applySampling(spans: GenAiSpan[], config: ScopeConfig): GenAiSpan[] {
-  const { strategy, percent, count } = config.sampling;
+  const { strategy, percent, count } = config.sampling ?? { strategy: 'random' as const, percent: 5 };
 
   if (strategy === 'random') {
     const pct = percent ?? 100;
