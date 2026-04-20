@@ -31,8 +31,8 @@ function applyGradient(text: string): string {
 export function printBanner(): void {
   if (!process.stdout.isTTY) return;
 
-  const banner = figlet.textSync('DT-EVAL', { font: 'ANSI Shadow' });
+  const banner = figlet.textSync('DT-EVALS', { font: 'ANSI Shadow' });
 
   process.stdout.write('\n' + applyGradient(banner) + '\n');
-  process.stdout.write('  welcome to dt-eval\n\n');
+  process.stdout.write('  welcome to dt-evals\n\n');
 }
