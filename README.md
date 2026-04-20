@@ -14,6 +14,8 @@ End-to-end LLM evaluation toolkit for Dynatrace AI Observability.
 | [`dt-eval-lib`](dt-eval-lib) | TypeScript library — run judge-based evals in code, tests, and CI |
 | [`dt-eval-deploy`](dt-eval-deploy) | Deployment resources — Docker image and serverless runners |
 
+> **Early Development**: This project is in active development. If you encounter any bugs or issues, please [file a GitHub issue](https://github.com/dynatrace-oss/dt-evals/issues/new). Contributions and feedback are welcome!
+
 ## Requirements
 
 - Node.js `>=20`
