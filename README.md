@@ -21,13 +21,13 @@ End-to-end LLM evaluation toolkit for Dynatrace AI Observability.
 ## Install
 
 ```bash
-npm install -g dt-eval
+npm install -g github:dynatrace-oss/dt-evals#main
 ```
 
 Or run without installing:
 
 ```bash
-npx dt-eval <command>
+npx github:dynatrace-oss/dt-evals#main <command>
 ```
 
 ## Quick Start
