@@ -1,0 +1,84 @@
+name: E2E — Integration Test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "dt-eval-cli/**"
+      - "dt-eval-lib/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "dt-eval-cli/**"
+      - "dt-eval-lib/**"
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-24.04
+    name: Fetch → Evaluate → Ingest → Validate
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build dt-eval-lib
+        working-directory: dt-eval-lib
+        run: npm run build
+
+      - name: Build dt-eval-cli
+        working-directory: dt-eval-cli
+        run: npm run build
+
+      - name: Install dtctl
+        run: |
+          # TODO: replace with official dtctl install URL or GitHub Action when available
+          # curl -sSL <dtctl-install-url> | sh
+          echo "dtctl must be pre-installed on the runner or installed here"
+          dtctl version
+
+      - name: Configure dtctl context
+        env:
+          E2E_DT_API_TOKEN: ${{ secrets.E2E_DT_API_TOKEN }}
+        run: |
+          dtctl config set-context e2e \
+            --environment https://xbw95514.dev.apps.dynatracelabs.com \
+            --token-ref e2e
+          dtctl config set-credentials e2e --token "$E2E_DT_API_TOKEN"
+          dtctl config use-context e2e
+
+      - name: Run evaluations
+        id: run
+        env:
+          DT_API_TOKEN: ${{ secrets.E2E_DT_API_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.E2E_ANTHROPIC_API_KEY }}
+        run: |
+          node dt-eval-cli/dist/index.js run \
+            --config .github/e2e/e2e.dt-eval.yaml \
+            --ci 2>/dev/null | tee /tmp/run-result.json
+
+          RUN_ID=$(python3 -c "import json; print(json.load(open('/tmp/run-result.json'))['runId'])")
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "Eval run complete: runId=$RUN_ID"
+
+          RESULTS_WRITTEN=$(python3 -c "import json; print(json.load(open('/tmp/run-result.json'))['resultsWritten'])")
+          if [ "$RESULTS_WRITTEN" -eq 0 ]; then
+            echo "ERROR: No results written — all evaluations failed"
+            cat /tmp/run-result.json
+            exit 1
+          fi
+          echo "Results written: $RESULTS_WRITTEN"
+
+      - name: Validate bizevents in Dynatrace
+        run: |
+          npx tsx .github/e2e/validate.ts \
+            "${{ secrets.E2E_DT_API_TOKEN }}" \
+            "https://xbw95514.dev.apps.dynatracelabs.com" \
+            "${{ steps.run.outputs.run_id }}"
