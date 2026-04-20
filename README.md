@@ -243,11 +243,11 @@ See [`dt-eval-deploy`](dt-eval-deploy) for Docker-based deployment.
 
 | Provider | Default model | Notes |
 |----------|--------------|-------|
-| `openai` | `gpt-4.1` | `OPENAI_API_KEY` |
-| `anthropic` | `claude-sonnet-4-6` | `ANTHROPIC_API_KEY` |
-| `vertex` | `gemini-2.5-pro` | `GOOGLE_API_KEY` |
-| `gemini` | `gemini-2.5-flash` | `GOOGLE_API_KEY` |
-| `bedrock` | `us.anthropic.claude-3-5-haiku-20241022-v1:0` | `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` |
+| `openai` | `gpt-5.4` | `OPENAI_API_KEY` |
+| `anthropic` | `claude-sonnet-4-7` | `ANTHROPIC_API_KEY` |
+| `vertex` | `gemini-3-pro` | `GOOGLE_API_KEY` |
+| `gemini` | `gemini-3.1-flash-live` | `GOOGLE_API_KEY` |
+| `bedrock` | `anthropic.claude-opus-4-7` | `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` |
 | `azure-openai` | user-provided deployment name | `AZURE_OPENAI_API_KEY` + `AZURE_OPENAI_ENDPOINT` + `AZURE_OPENAI_API_VERSION` |
 
 Override the model with `--model <id>` or set `judge.model` in config.
