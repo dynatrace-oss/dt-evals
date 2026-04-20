@@ -214,7 +214,7 @@ Output JSON: {"score": {"value": <float 0-1>, "label": "<pass|fail>"}, "explanat
     name: "Relevance",
     version: "1.0.0",
     description: "Measures how relevant the output is to the input question",
-    prompt:`You are a strict answer relevancy evaluator. Extract and classify statements from actual output.
+    prompt: `You are a strict answer relevancy evaluator. Extract and classify statements from actual output.
 Do NOT include any reasoning, chain-of-thought, or explanation in your response. Return valid JSON only. Use response_format={"type": "json_object"}.
 Relevant = helps answer the input query.
 Be objective.
