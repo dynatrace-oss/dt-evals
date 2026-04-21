@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+import { spawnSync } from 'node:child_process';
 import { join, basename } from 'node:path';
 import { loadConfig, saveConfig, validateConfig } from '../../config/index.js';
 import type { DtEvalConfig } from '../../config/schema.js';
@@ -164,7 +165,7 @@ export function createConfigureCommand(): Command {
         process.exit(1);
       }
 
-      const { input, password, select, checkbox } = inquirer;
+      const { input, password, select, checkbox, confirm } = inquirer;
 
       console.log('\n  dt-eval-cli setup wizard');
       console.log('  ' + '─'.repeat(30) + '\n');
@@ -372,8 +373,18 @@ export function createConfigureCommand(): Command {
         updated.judge.model ?? DEFAULT_JUDGE_MODELS[updated.judge.provider] ?? 'gpt-4o',
       );
 
-      console.log(`  Copy this to run the newly created config:`);
-      console.log(`  dt-eval run ${basename(outputPath)}\n`);
+      const runNow = await confirm({
+        message: 'Would you like to run this right now?',
+        default: true,
+      });
+
+      if (runNow) {
+        console.log(`\n  Running: dt-eval run ${basename(outputPath)}\n`);
+        spawnSync(process.execPath, [process.argv[1], 'run', outputPath], { stdio: 'inherit' });
+      } else {
+        console.log(`  Copy this to run the newly created config:`);
+        console.log(`  dt-eval run ${basename(outputPath)}\n`);
+      }
 
       return;
     }
