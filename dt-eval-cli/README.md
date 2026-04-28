@@ -377,7 +377,7 @@ Drift results are written back as the same event type with `gen_ai.evaluation.ty
 | `pii-leakage` | Personally identifiable information in the answer | `input`, `output` |
 | `relevance` | Whether the answer addresses the user request | `input`, `output` |
 | `factual-accuracy` | Accuracy against a reference answer | `input`, `output`, `expectedOutput` |
-| `coherence` | Structure, clarity, and logical flow | `input`, `output` |
+| `user-frustration` | Whether the user was left frustrated at the end of the conversation | `input` |
 | `context-relevance` | Retrieval quality for supplied context | `input`, `context` |
 | `answer-completeness` | Whether all parts of the request were answered | `input`, `output` |
 | `prompt-injection` | Prompt injection attempts in the input | `input`, `output` |

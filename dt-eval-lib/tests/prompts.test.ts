@@ -48,7 +48,7 @@ describe("prompt catalog", () => {
     { id: BuiltInMetric.Hallucination, type: "continuous", threshold: 0.8 },
     { id: BuiltInMetric.PiiLeakage, type: "continuous", threshold: 0.9 },
     { id: BuiltInMetric.FactualAccuracy, type: "continuous", threshold: 0.8 },
-    { id: BuiltInMetric.Coherence, type: "likert", threshold: 3 },
+    { id: BuiltInMetric.UserFrustration, type: "binary", threshold: 1 },
   ] as const;
 
   it.each(scoringCases)("$id has $type scoring with threshold $threshold", ({
@@ -69,7 +69,7 @@ describe("prompt catalog", () => {
     { id: BuiltInMetric.PiiLeakage, fields: ["input", "output"] },
     { id: BuiltInMetric.Relevance, fields: ["input", "output"] },
     { id: BuiltInMetric.FactualAccuracy, fields: ["input", "output", "expectedOutput"] },
-    { id: BuiltInMetric.Coherence, fields: ["input", "output"] },
+    { id: BuiltInMetric.UserFrustration, fields: ["input"] },
     { id: BuiltInMetric.ContextRelevance, fields: ["input", "context"] },
     { id: BuiltInMetric.AnswerCompleteness, fields: ["input", "output"] },
     { id: BuiltInMetric.PromptInjection, fields: ["input", "output"] },

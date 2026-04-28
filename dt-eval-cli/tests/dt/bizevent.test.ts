@@ -58,7 +58,7 @@ describe('buildBizeventPayload', () => {
 
   it('uses the exact score.value from EvalResult', () => {
     const result = makeEvalResult(0.75, 'pass');
-    const payload = buildBizeventPayload(makeSpan(), 'coherence', result, 'run-1', 'openai', 'gpt-4o');
+    const payload = buildBizeventPayload(makeSpan(), 'user-frustration', result, 'run-1', 'openai', 'gpt-4o');
     expect(payload['gen_ai.evaluation.score.value']).toBe(0.75);
   });
 
