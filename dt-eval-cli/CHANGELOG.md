@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.3-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.1.2-alpha...v0.1.3-alpha) (2026-04-30)
+
+
+### 🐛 Bug Fixes
+
+* fix build for CLI ([#54](https://github.com/dynatrace-oss/dt-evals/issues/54)) ([591b20e](https://github.com/dynatrace-oss/dt-evals/commit/591b20eb53236d96804f0081a8df07bfc922fa4e))
+* **main:** redact secretKey in configure --show output ([#51](https://github.com/dynatrace-oss/dt-evals/issues/51)) ([a77ca6c](https://github.com/dynatrace-oss/dt-evals/commit/a77ca6c44e682df55d3f41b7ae3f3ccc04729b0d))
+
 ## [0.1.2-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.1.1-alpha...v0.1.2-alpha) (2026-04-28)
 
 
