@@ -12,6 +12,10 @@ jobs:
   ci:
     runs-on: ubuntu-24.04
     name: Test & Build
+    defaults:
+        run:
+          shell: bash
+          working-directory: dt-eval-lib
     steps:
       - uses: actions/checkout@v4
 
@@ -24,13 +28,10 @@ jobs:
         run: npm ci
 
       - name: Lint
-        working-directory: dt-eval-lib
         run: npm run lint
 
       - name: Test
-        working-directory: dt-eval-lib
         run: npm test
 
       - name: Build
-        working-directory: dt-eval-lib
         run: npm run build

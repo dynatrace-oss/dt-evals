@@ -12,6 +12,10 @@ jobs:
   ci:
     runs-on: ubuntu-24.04
     name: Test & Build
+    defaults:
+        run:
+          shell: bash
+          working-directory: dt-eval-cli
     steps:
       - uses: actions/checkout@v4
 
@@ -23,14 +27,8 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Build dt-eval-lib
-        working-directory: dt-eval-lib
-        run: npm run build
-
       - name: Test
-        working-directory: dt-eval-cli
         run: npm test
 
       - name: Build
-        working-directory: dt-eval-cli
         run: npm run build
