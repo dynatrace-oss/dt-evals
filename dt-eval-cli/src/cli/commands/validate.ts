@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { loadConfig, validateConfig } from '../../config/index.js';
 import { DEFAULT_JUDGE_MODELS } from '../../config/defaults.js';
 import { DynatraceClient } from '../../dt/client.js';
-import { listPrompts } from 'dt-eval-lib';
+import { listPrompts } from '@dynatrace-oss/dt-eval-lib';
 import { logger } from '../../logger/index.js';
 
 async function testDynatraceConnection(environmentUrl: string, apiToken: string): Promise<boolean> {

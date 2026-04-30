@@ -398,7 +398,7 @@ The repository includes `dt-eval-lib` for programmatic usage.
 ### Basic example
 
 ```ts
-import { evaluate, BuiltInMetric } from "dt-eval-lib";
+import { evaluate, BuiltInMetric } from "@dynatrace-oss/dt-eval-lib";
 
 const result = await evaluate(
   BuiltInMetric.Faithfulness,
@@ -426,7 +426,7 @@ console.log(result.explanation.reasoning);
 ### Inspect the evaluator catalog
 
 ```ts
-import { listPrompts, getPrompt, BuiltInMetric } from "dt-eval-lib";
+import { listPrompts, getPrompt, BuiltInMetric } from "@dynatrace-oss/dt-eval-lib";
 
 const prompts = listPrompts();
 const relevance = getPrompt(BuiltInMetric.Relevance);
@@ -438,7 +438,7 @@ console.log(relevance.requiredFields);
 ### Override thresholds in code
 
 ```ts
-import { evaluate, BuiltInMetric } from "dt-eval-lib";
+import { evaluate, BuiltInMetric } from "@dynatrace-oss/dt-eval-lib";
 
 const result = await evaluate(
   BuiltInMetric.Relevance,
@@ -463,7 +463,7 @@ console.log(result.score.label);
 ### Use a custom gateway or proxy
 
 ```ts
-import { evaluate, BuiltInMetric } from "dt-eval-lib";
+import { evaluate, BuiltInMetric } from "@dynatrace-oss/dt-eval-lib";
 
 await evaluate(
   BuiltInMetric.Toxicity,

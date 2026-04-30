@@ -3,7 +3,7 @@ import type { DtEvalConfig } from '../../src/config/schema.js';
 import type { GenAiSpan } from '../../src/dt/types.js';
 
 // Mock dt-eval-lib
-vi.mock('dt-eval-lib', () => ({
+vi.mock('@dynatrace-oss/dt-eval-lib', () => ({
   evaluate: vi.fn().mockResolvedValue({
     score: { value: 0.9, label: 'pass' },
     explanation: { summary: 'Looks good', reasoning: 'No issues' },
@@ -80,7 +80,7 @@ describe('runEvals', () => {
     vi.clearAllMocks();
     const mod = await import('../../src/runner/index.js');
     runEvals = mod.runEvals;
-    const dtEvalLib = await import('dt-eval-lib');
+    const dtEvalLib = await import('@dynatrace-oss/dt-eval-lib');
     evaluate = dtEvalLib.evaluate as ReturnType<typeof vi.fn>;
   });
 

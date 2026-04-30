@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { evaluate, type EvalConfig, type EvalInput, type EvalResult } from 'dt-eval-lib';
+import { evaluate, type EvalConfig, type EvalInput, type EvalResult } from '@dynatrace-oss/dt-eval-lib';
 import type { DynatraceClient } from '../dt/client.js';
 import type { DtEvalConfig } from '../config/schema.js';
 import type { GenAiSpan, BizeventPayload } from '../dt/types.js';
@@ -121,7 +121,7 @@ export async function runEvals(
 
   const libConfig: EvalConfig = {
     provider: {
-      provider: evalConfig.judge.provider as import('dt-eval-lib').Provider,
+      provider: evalConfig.judge.provider as import('@dynatrace-oss/dt-eval-lib').Provider,
       apiKey: evalConfig.judge.apiKey,
       baseUrl: evalConfig.judge.baseUrl,
       apiVersion: evalConfig.judge.apiVersion,

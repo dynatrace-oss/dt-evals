@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --no-warnings
 
-import { registerPromptStore } from 'dt-eval-lib';
+import { registerPromptStore } from '@dynatrace-oss/dt-eval-lib';
 import { FsPromptStore } from './prompts/fs-store.js';
 
 registerPromptStore(new FsPromptStore());

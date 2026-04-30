@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module';
 import type { DynatraceClient } from './client.js';
 import type { GenAiSpan, BizeventPayload } from './types.js';
-import type { EvalResult } from 'dt-eval-lib';
+import type { EvalResult } from '@dynatrace-oss/dt-eval-lib';
 
 declare const __CLIENT_VERSION__: string | undefined;
 const CLIENT_NAME = 'dt-eval-cli';

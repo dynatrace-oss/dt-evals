@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { buildBizeventPayload, BizeventWriter } from '../../src/dt/bizevent.js';
 import type { GenAiSpan } from '../../src/dt/types.js';
-import type { EvalResult } from 'dt-eval-lib';
+import type { EvalResult } from '@dynatrace-oss/dt-eval-lib';
 
 function makeSpan(overrides?: Partial<GenAiSpan>): GenAiSpan {
   return {
