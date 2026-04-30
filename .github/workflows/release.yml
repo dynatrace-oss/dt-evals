@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - build-issue
 
 concurrency:
   group: release-${{ github.ref }}
@@ -14,18 +13,81 @@ permissions:
   contents: read
 
 jobs:
+  release-please:
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Run Release Please
+        uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Debug info
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
+          PATHS_RELEASED: ${{ steps.release.outputs.paths_released }}
+          ARTIFACT_TAG_NAME: ${{ steps.release.outputs[format('{0}--tag_name', fromJson(steps.release.outputs.paths_released)[0])] }}
+          FULL_RELEASE_OUTPUT: ${{ toJSON(steps.release.outputs) }}
+        run: |
+          echo "FULL RELEASE OUTPUT: ${FULL_RELEASE_OUTPUT}"
+          echo "RELEASE_TAG: ${RELEASE_TAG}"
+          echo "ARTIFACT_TAG_NAME: ${ARTIFACT_TAG_NAME}"
+          echo "PATHS_RELEASED: ${PATHS_RELEASED}"
+
+      - name: Create release config
+        id: build-config
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+        env:
+          CHANGED_ITEMS: ${{ steps.release.outputs.paths_released }}
+          ARTIFACT_TAG_NAME: ${{ steps.release.outputs[format('{0}--tag_name', fromJson(steps.release.outputs.paths_released)[0])] }}
+        with:
+          script: |
+            const changedItems = JSON.parse(process.env.CHANGED_ITEMS || '[]');
+            console.log("changed items", changedItems);
+            console.log("setting up release config...");
+            let releaseConfig = {};
+            changedItems.forEach(item => {
+                switch (item) {
+                    case "dt-eval-cli":
+                    case "dt-eval-lib":
+                        releaseConfig = {
+                            name: item,
+                            folder: item,
+                            tagName: process.env.ARTIFACT_TAG_NAME,
+                            mode: "npm"
+                        };
+                        break;
+                    // add more cases for other languages/artifacts as needed
+                    default:
+                        break;
+                }
+            });
+            console.log("release config: " + JSON.stringify(releaseConfig));
+            return releaseConfig;
+
+    outputs:
+        release_created: ${{ steps.release.outputs.releases_created }}
+        build_config: ${{ steps.build-config.outputs.result }}
 
   publish-npm:
       runs-on: ubuntu-latest
+      needs: release-please
+      environment: release
       permissions:
           id-token: write # OIDC token for npm trusted publishing
           contents: read
+      if: ${{ fromJSON(needs.release-please.outputs.build_config).mode == 'npm' && fromJSON(needs.release-please.outputs.release_created || false) }}
       defaults:
         run:
           shell: bash
-          working-directory: ${{ env.FOLDER }}
+          working-directory: ${{ fromJSON(needs.release-please.outputs.build_config).folder }}
       env:
-          FOLDER: "dt-eval-cli"
+          FOLDER: ${{ fromJSON(needs.release-please.outputs.build_config).folder }}
 
       steps:
           - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
@@ -41,3 +103,5 @@ jobs:
           - name: Build
             run: npm run build
 
+          - name: Publish package
+            run: npm publish --access public --tag alpha
