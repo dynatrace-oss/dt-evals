@@ -13,9 +13,11 @@ jobs:
     runs-on: ubuntu-24.04
     name: Test & Build
     defaults:
-        run:
-          shell: bash
-          working-directory: dt-eval-cli
+      run:
+        shell: bash
+        working-directory: dt-eval-cli
+    env:
+      FOLDER: dt-eval-cli
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
