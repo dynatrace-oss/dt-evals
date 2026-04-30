@@ -21,11 +21,10 @@ jobs:
       permissions:
           id-token: write # OIDC token for npm trusted publishing
           contents: read
-      if: ${{ fromJSON(needs.release-please.outputs.build_config).mode == 'npm' && fromJSON(needs.release-please.outputs.release_created || false) }}
       defaults:
         run:
           shell: bash
-          working-directory: ${{ fromJSON(needs.release-please.outputs.build_config).folder }}
+          working-directory: ${{ env.FOLDER }}
       env:
           FOLDER: "dt-eval-cli"
 
