@@ -17,7 +17,6 @@ jobs:
 
   publish-npm:
       runs-on: ubuntu-latest
-      environment: release
       permissions:
           id-token: write # OIDC token for npm trusted publishing
           contents: read
@@ -42,5 +41,3 @@ jobs:
           - name: Build
             run: npm run build
 
-          - name: Publish package
-            run: npm publish --access public --tag alpha
