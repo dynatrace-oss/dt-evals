@@ -8,7 +8,7 @@ export default defineConfig({
   clean: true,
   // Bundle dt-eval-lib so the Lambda artifact is self-contained
   // (workspace deps won't resolve inside a Docker build without a full monorepo install)
-  noExternal: ["dt-eval-lib"],
+  noExternal: ["@dynatrace-oss/dt-eval-lib"],
   // CJS output so Lambda can import it without ESM config
   outExtension: () => ({ js: ".js" }),
 });

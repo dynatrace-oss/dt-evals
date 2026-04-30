@@ -1,4 +1,4 @@
-import type { BuiltInMetric, EvalConfig, EvalInput, EvalResult } from "dt-eval-lib";
+import type { BuiltInMetric, EvalConfig, EvalInput, EvalResult } from "@dynatrace-oss/dt-eval-lib";
 
 export interface EvaluateRequest {
   metric: BuiltInMetric;

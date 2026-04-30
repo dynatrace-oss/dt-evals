@@ -10,7 +10,7 @@
   },
   "license": "Apache-2.0",
   "dependencies": {
-    "dt-eval-lib": "*"
+    "@dynatrace-oss/dt-eval-lib": "^0.0.12-alpha"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.0",

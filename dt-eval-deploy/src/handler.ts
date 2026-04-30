@@ -1,4 +1,4 @@
-import { DtEvalError, evaluate, listPrompts } from "dt-eval-lib";
+import { DtEvalError, evaluate, listPrompts } from "@dynatrace-oss/dt-eval-lib";
 import type { ErrorResponse, EvaluateRequest, EvaluateResponse } from "./types.js";
 
 export interface ApiResponse {
