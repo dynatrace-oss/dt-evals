@@ -213,4 +213,102 @@ describe('parseSpanResults', () => {
     const spans = parseSpanResults(records);
     expect(spans[0]!.system).toBe('anthropic');
   });
+
+  it('extracts userPrompt from the user-role prompt slot', () => {
+    const records = [
+      {
+        'trace.id': 'user-prompt-trace',
+        'gen_ai.prompt.0.role': 'system',
+        'gen_ai.prompt.0.content': 'You are helpful.',
+        'gen_ai.prompt.1.role': 'user',
+        'gen_ai.prompt.1.content': 'Why is the sky blue?',
+        'gen_ai.completion.0.content': 'Rayleigh scattering.',
+      },
+    ];
+    const spans = parseSpanResults(records);
+    expect(spans[0]!.userPrompt).toBe('Why is the sky blue?');
+  });
+
+  it('userPrompt is undefined when no user-role slot is present', () => {
+    const records = [
+      {
+        'trace.id': 'no-user',
+        'gen_ai.input.messages': 'something',
+        'gen_ai.output.message': 'reply',
+      },
+    ];
+    expect(parseSpanResults(records)[0]!.userPrompt).toBeUndefined();
+  });
+});
+
+describe('spanFields configuration', () => {
+  it('buildGenAiSpanQuery includes user-supplied input candidate in fields clause', () => {
+    const query = buildGenAiSpanQuery({
+      since: '1h',
+      spanFields: { input: 'llm.user_input' },
+    });
+    expect(query).toContain('llm.user_input');
+    // Defaults still present as fallback
+    expect(query).toContain('gen_ai.input.messages');
+  });
+
+  it('buildGenAiSpanQuery accepts an array of candidates per canonical field', () => {
+    const query = buildGenAiSpanQuery({
+      since: '1h',
+      spanFields: { output: ['llm.response', 'custom.completion'] },
+    });
+    expect(query).toContain('llm.response');
+    expect(query).toContain('custom.completion');
+    expect(query).toContain('gen_ai.output.message');
+  });
+
+  it('parseSpanResults prefers user-supplied input over default candidates', () => {
+    const records = [
+      {
+        'trace.id': 'custom-input-trace',
+        'llm.user_input': 'hello from non-semconv span',
+        'gen_ai.input.messages': 'this should not win',
+        'gen_ai.output.message': 'a',
+      },
+    ];
+    const spans = parseSpanResults(records, { spanFields: { input: 'llm.user_input' } });
+    expect(spans[0]!.input).toBe('hello from non-semconv span');
+  });
+
+  it('parseSpanResults falls back to defaults when user candidate is missing', () => {
+    const records = [
+      {
+        'trace.id': 'fallback-trace',
+        'gen_ai.input.messages': 'default input',
+        'gen_ai.output.message': 'a',
+      },
+    ];
+    const spans = parseSpanResults(records, { spanFields: { input: 'not.present' } });
+    expect(spans[0]!.input).toBe('default input');
+  });
+
+  it('parseSpanResults respects user-supplied output candidate', () => {
+    const records = [
+      {
+        'trace.id': 'custom-output-trace',
+        'gen_ai.input.messages': 'q',
+        'llm.response': 'custom answer',
+      },
+    ];
+    const spans = parseSpanResults(records, { spanFields: { output: 'llm.response' } });
+    expect(spans[0]!.output).toBe('custom answer');
+  });
+
+  it('parseSpanResults respects user-supplied model candidate', () => {
+    const records = [
+      {
+        'trace.id': 'custom-model',
+        'gen_ai.input.messages': 'q',
+        'gen_ai.output.message': 'a',
+        'llm.model': 'claude-sonnet',
+      },
+    ];
+    const spans = parseSpanResults(records, { spanFields: { model: 'llm.model' } });
+    expect(spans[0]!.requestModel).toBe('claude-sonnet');
+  });
 });

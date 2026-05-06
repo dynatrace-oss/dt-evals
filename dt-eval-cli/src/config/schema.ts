@@ -1,4 +1,4 @@
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 
 export interface DynatraceConfig {
   environmentUrl: string;
@@ -24,6 +24,22 @@ export interface JudgeConfig {
   region?: string;
 }
 
+/**
+ * Override which span attributes feed each canonical GenAI field. Useful when
+ * spans don't follow the OTel GenAI semantic convention (e.g. they expose
+ * `llm.user_input` instead of `gen_ai.input.messages`).
+ *
+ * Each entry accepts a single attribute or a list of candidates; the first
+ * non-null value wins. User candidates are tried *before* the built-in OTel
+ * GenAI / OpenLLMetry defaults, so existing configs keep working.
+ */
+export interface SpanFieldsMap {
+  input?: string | string[];
+  output?: string | string[];
+  systemInstruction?: string | string[];
+  model?: string | string[];
+}
+
 export interface ScopeConfig {
   service?: string; // service.name to filter spans (previously 'app')
   since: string; // e.g. "1h", "6h", "24h"
@@ -32,10 +48,41 @@ export interface ScopeConfig {
     percent?: number; // for random
     count?: number;   // for latest
   };
+  /** Custom span attribute mapping. Defaults handle OTel + OpenLLMetry. */
+  spanFields?: SpanFieldsMap;
 }
 
+/**
+ * Which canonical span field feeds an evaluator input slot.
+ *
+ * - `input` / `output` / `systemInstruction` / `model` map to the like-named
+ *   span field.
+ * - `userPrompt` is a synthetic field — the content of the latest prompt slot
+ *   whose role is `user`. Useful for metrics like `user-frustration` that
+ *   should score the user's turn in isolation, not the full conversation.
+ */
+export type CanonicalSpanField =
+  | 'input'
+  | 'output'
+  | 'systemInstruction'
+  | 'model'
+  | 'userPrompt';
+
+/** Per-metric override of which canonical span field flows into each evaluator input slot. */
+export interface MetricInputs {
+  input?: CanonicalSpanField;
+  output?: CanonicalSpanField;
+  context?: CanonicalSpanField;
+}
+
+/**
+ * A metric entry in `metrics.enabled`. Either a string id (legacy form) or an
+ * object with optional per-metric input routing.
+ */
+export type MetricEntry = string | { id: string; inputs?: MetricInputs };
+
 export interface MetricsConfig {
-  enabled: string[]; // metric ids from eval-lib catalog
+  enabled: MetricEntry[];
 }
 
 export interface AlertsConfig {
@@ -52,4 +99,22 @@ export interface DtEvalConfig {
   scope: ScopeConfig;
   metrics: MetricsConfig;
   alerts?: AlertsConfig;
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+/** Extract the metric id from a string-or-object MetricEntry. */
+export function metricId(entry: MetricEntry): string {
+  return typeof entry === 'string' ? entry : entry.id;
+}
+
+/** Per-metric input routing, or undefined if the entry is a bare string. */
+export function metricInputs(entry: MetricEntry): MetricInputs | undefined {
+  return typeof entry === 'string' ? undefined : entry.inputs;
+}
+
+/** Normalize a single-or-list candidate to a list. */
+export function toCandidateList(value: string | string[] | undefined): string[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
 }

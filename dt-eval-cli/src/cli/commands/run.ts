@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import { loadConfig, validateConfig } from '../../config/index.js';
+import { metricId } from '../../config/schema.js';
 import { DynatraceClient } from '../../dt/client.js';
 import { runEvals } from '../../runner/index.js';
 import { Spinner } from '../../ui/spinner.js';
@@ -98,7 +99,7 @@ export function createRunCommand(): Command {
       spinner?.succeed(`Evaluation run complete in ${formatDuration(result.durationMs)}`);
 
       if (!options.ci && !options.dryRun) {
-        const metrics = options.metric ? [options.metric] : config.metrics.enabled;
+        const metrics = options.metric ? [options.metric] : config.metrics.enabled.map(metricId);
 
         console.log('\nEvaluation results:');
         const headers = ['Evaluator', 'Results', 'Errors', 'Duration'];

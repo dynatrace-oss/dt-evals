@@ -64,6 +64,11 @@ function makeDtClient(spans: GenAiSpan[]) {
     'gen_ai.system': s.system,
     'gen_ai.request.model': s.requestModel,
     'gen_ai.system_instruction': s.systemInstruction,
+    // Include a user-role prompt slot so the parser surfaces userPrompt
+    // for tests that rely on per-metric inputs routing.
+    ...(s.userPrompt
+      ? { 'gen_ai.prompt.0.role': 'user', 'gen_ai.prompt.0.content': s.userPrompt }
+      : {}),
   }));
   return {
     executeDql: vi.fn().mockResolvedValue(records),
@@ -268,5 +273,81 @@ describe('runEvals', () => {
     expect(result.resultsWritten).toBe(0);
     expect(result.errors).toBe(0);
     expect(evaluate).not.toHaveBeenCalled();
+  });
+
+  it('per-metric inputs.input=userPrompt routes the user-role prompt into the eval input', async () => {
+    const span = makeSpan({
+      traceId: 'trace-uf',
+      input: 'system: be nice\nuser: i am angry\nassistant: I understand',
+      output: 'I understand',
+      userPrompt: 'i am angry',
+    });
+    const dtClient = makeDtClient([span]);
+    const config = makeConfig({
+      metrics: {
+        enabled: [{ id: 'user-frustration', inputs: { input: 'userPrompt' } }],
+      },
+    });
+
+    await runEvals(
+      dtClient as unknown as import('../../src/dt/client.js').DynatraceClient,
+      config,
+      { since: '1h' },
+    );
+
+    expect(evaluate).toHaveBeenCalledOnce();
+    const callArgs = evaluate.mock.calls[0] as unknown[];
+    expect(callArgs[0]).toBe('user-frustration');
+    const evalInput = callArgs[1] as { input: string };
+    expect(evalInput.input).toBe('i am angry');
+  });
+
+  it('mixed string and object metric entries both run', async () => {
+    const span = makeSpan({ userPrompt: 'just the user turn' });
+    const dtClient = makeDtClient([span]);
+    const config = makeConfig({
+      metrics: {
+        enabled: [
+          'toxicity',
+          { id: 'user-frustration', inputs: { input: 'userPrompt' } },
+        ],
+      },
+    });
+
+    await runEvals(
+      dtClient as unknown as import('../../src/dt/client.js').DynatraceClient,
+      config,
+      { since: '1h' },
+    );
+
+    expect(evaluate).toHaveBeenCalledTimes(2);
+    const calls = evaluate.mock.calls as unknown[][];
+    const byMetric: Record<string, { input: string }> = {};
+    for (const c of calls) {
+      byMetric[c[0] as string] = c[1] as { input: string };
+    }
+    expect(byMetric['toxicity']!.input).toBe(span.input);
+    expect(byMetric['user-frustration']!.input).toBe('just the user turn');
+  });
+
+  it('falls back to span.input when the requested canonical field is unset on the span', async () => {
+    // span has no userPrompt — runner must not pass undefined to evaluate
+    const span = makeSpan({ userPrompt: undefined });
+    const dtClient = makeDtClient([span]);
+    const config = makeConfig({
+      metrics: {
+        enabled: [{ id: 'user-frustration', inputs: { input: 'userPrompt' } }],
+      },
+    });
+
+    await runEvals(
+      dtClient as unknown as import('../../src/dt/client.js').DynatraceClient,
+      config,
+      { since: '1h' },
+    );
+
+    const callArgs = evaluate.mock.calls[0] as unknown[];
+    const evalInput = callArgs[1] as { input: string };
+    expect(evalInput.input).toBe(span.input);
   });
 });

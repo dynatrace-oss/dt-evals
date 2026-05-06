@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { join, basename } from 'node:path';
 import { loadConfig, saveConfig, validateConfig } from '../../config/index.js';
 import type { DtEvalConfig } from '../../config/schema.js';
+import { metricId } from '../../config/schema.js';
 import { DEFAULT_JUDGE_MODELS } from '../../config/defaults.js';
 import { stringify as stringifyYaml } from 'yaml';
 import { redactSecrets } from '../../ui/format.js';
@@ -290,12 +291,12 @@ export function createConfigureCommand(): Command {
       });
 
       // ── Evaluators ───────────────────────────────────────
-      const enabledMetrics = existing.metrics?.enabled ?? allMetricIds;
+      const enabledMetricIds = (existing.metrics?.enabled ?? allMetricIds).map(metricId);
       const selectedMetrics = await checkbox({
         message: `Evaluators to run  (${allMetricIds.length - 1} built-in + drift detection)`,
         choices: [
-          ...availablePrompts.map(p => ({ name: p.id, value: p.id, checked: enabledMetrics.includes(p.id) })),
-          { name: `${DRIFT_METRIC_ID}  (population-level, compares score distributions vs 7d baseline)`, value: DRIFT_METRIC_ID, checked: enabledMetrics.includes(DRIFT_METRIC_ID) },
+          ...availablePrompts.map(p => ({ name: p.id, value: p.id, checked: enabledMetricIds.includes(p.id) })),
+          { name: `${DRIFT_METRIC_ID}  (population-level, compares score distributions vs 7d baseline)`, value: DRIFT_METRIC_ID, checked: enabledMetricIds.includes(DRIFT_METRIC_ID) },
         ],
       });
 
@@ -346,7 +347,7 @@ export function createConfigureCommand(): Command {
           },
         },
         metrics: {
-          enabled: selectedMetrics.length > 0 ? selectedMetrics : enabledMetrics,
+          enabled: selectedMetrics.length > 0 ? selectedMetrics : enabledMetricIds,
         },
         alerts: existing.alerts,
       };
@@ -369,7 +370,7 @@ export function createConfigureCommand(): Command {
       printCostEstimate(
         spanCount != null && spanCount > 0 ? spanCount : null,
         parseInt(sampleStr, 10),
-        updated.metrics.enabled,
+        updated.metrics.enabled.map(metricId),
         updated.judge.model ?? DEFAULT_JUDGE_MODELS[updated.judge.provider] ?? 'gpt-4o',
       );
 

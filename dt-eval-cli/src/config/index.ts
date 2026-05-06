@@ -193,6 +193,18 @@ export function validateConfig(config: DtEvalConfig): void {
 
   if (!config.metrics?.enabled?.length) {
     issues.push('metrics.enabled must have at least one metric');
+  } else {
+    for (const [i, entry] of config.metrics.enabled.entries()) {
+      if (typeof entry === 'string') {
+        if (!entry.trim()) issues.push(`metrics.enabled[${i}] must be a non-empty string`);
+      } else if (entry && typeof entry === 'object') {
+        if (typeof (entry as { id?: unknown }).id !== 'string' || !(entry as { id: string }).id.trim()) {
+          issues.push(`metrics.enabled[${i}].id must be a non-empty string`);
+        }
+      } else {
+        issues.push(`metrics.enabled[${i}] must be a string or { id, inputs? } object`);
+      }
+    }
   }
 
   if (issues.length > 0) {

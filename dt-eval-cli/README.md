@@ -275,7 +275,7 @@ Config is resolved in this order:
 ### Example config
 
 ```yaml
-schemaVersion: 1
+schemaVersion: 2
 name: travel-assistant-prod
 
 dynatrace:
@@ -318,6 +318,52 @@ Sampling strategies:
 | Random percentage | `strategy: random`, `percent: 10` |
 | Most recent traces | `strategy: latest`, `count: 200` |
 | Error traces only | `strategy: errors-only` |
+
+### Custom span field mapping
+
+By default, the CLI reads OTel GenAI semconv (`gen_ai.input.messages`,
+`gen_ai.output.message`, …) and OpenLLMetry conventions (`gen_ai.prompt.N.*`,
+`gen_ai.completion.0.content`). If your spans expose the LLM I/O under
+different attribute names, point the CLI at them via `scope.spanFields`.
+Each entry accepts a single attribute or a list of candidates; the first
+non-null value wins, with the built-in defaults appended as fallback.
+
+```yaml
+scope:
+  service: my-llm-service
+  since: 30m
+  spanFields:
+    input: llm.user_input              # or [llm.user_input, my.custom.input]
+    output: llm.response
+    systemInstruction: llm.system
+    model: llm.model
+```
+
+### Per-metric input routing
+
+Metric entries in `metrics.enabled` accept either a string id (the legacy
+form) or an object with `inputs` that overrides which canonical span field
+feeds each evaluator input slot. This is useful when a metric should score
+only part of the conversation — e.g. `user-frustration` evaluates the user's
+turn in isolation, not the joined transcript:
+
+```yaml
+metrics:
+  enabled:
+    - faithfulness                                  # legacy string form
+    - id: user-frustration
+      inputs:
+        input: userPrompt                           # latest user-role prompt slot
+    - id: hallucination
+      inputs:
+        context: systemInstruction                  # use system prompt as context
+```
+
+Available canonical fields: `input`, `output`, `systemInstruction`, `model`,
+`userPrompt` (latest user-role prompt slot, extracted from
+`gen_ai.prompt.N.role == "user"`). When the requested field is empty on a
+given span, the slot falls back to `span.input` / `span.output` /
+`span.systemInstruction` so a single misconfiguration doesn't drop spans.
 
 Useful environment variables:
 

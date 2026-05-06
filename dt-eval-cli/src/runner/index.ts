@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { evaluate, type EvalConfig, type EvalInput, type EvalResult } from '@dynatrace-oss/dt-eval-lib';
 import type { DynatraceClient } from '../dt/client.js';
-import type { DtEvalConfig } from '../config/schema.js';
+import type { DtEvalConfig, MetricEntry, MetricInputs, CanonicalSpanField } from '../config/schema.js';
+import { metricId, metricInputs } from '../config/schema.js';
 import type { GenAiSpan, BizeventPayload } from '../dt/types.js';
 import { buildGenAiSpanQuery, parseSpanResults } from '../dt/dql.js';
 import { BizeventWriter, buildBizeventPayload } from '../dt/bizevent.js';
@@ -17,7 +18,7 @@ export { logger };
 export interface RunOptions {
   since?: string;
   sample?: number;    // percent 0-100
-  metrics?: string[];
+  metrics?: MetricEntry[];
   dryRun?: boolean;
   ci?: boolean;
   concurrency?: number;
@@ -36,6 +37,34 @@ export interface RunResult {
 interface EvalTask {
   span: GenAiSpan;
   metric: string;
+  inputs?: MetricInputs;
+}
+
+/**
+ * Resolve a canonical span field reference to the concrete string value on
+ * a span. Returns undefined when the source field is not populated (e.g.
+ * `userPrompt` requested but no user-role prompt slot was present).
+ */
+function resolveCanonicalField(span: GenAiSpan, field: CanonicalSpanField): string | undefined {
+  switch (field) {
+    case 'input': return span.input;
+    case 'output': return span.output;
+    case 'systemInstruction': return span.systemInstruction;
+    case 'model': return span.requestModel;
+    case 'userPrompt': return span.userPrompt;
+  }
+}
+
+/** Build the EvalInput passed to dt-eval-lib, applying any per-metric routing. */
+function buildEvalInput(span: GenAiSpan, inputs: MetricInputs | undefined): EvalInput {
+  if (!inputs) {
+    return { input: span.input, output: span.output, context: span.systemInstruction };
+  }
+  return {
+    input: (inputs.input && resolveCanonicalField(span, inputs.input)) ?? span.input,
+    output: (inputs.output && resolveCanonicalField(span, inputs.output)) ?? span.output,
+    context: (inputs.context && resolveCanonicalField(span, inputs.context)) ?? span.systemInstruction,
+  };
 }
 
 interface EvalTaskResult {
@@ -55,7 +84,7 @@ export async function runEvals(
   const runId = `run-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}-${randomUUID().slice(0, 8)}`;
 
   const since = opts.since ?? evalConfig.scope.since;
-  const metrics = opts.metrics ?? evalConfig.metrics.enabled;
+  const metricEntries: MetricEntry[] = opts.metrics ?? evalConfig.metrics.enabled;
   const concurrency = opts.concurrency ?? 5;
 
   // 1. Fetch spans via DQL
@@ -64,6 +93,7 @@ export async function runEvals(
     app: evalConfig.scope.service,
     since,
     errorsOnly: evalConfig.scope.sampling?.strategy === 'errors-only',
+    spanFields: evalConfig.scope.spanFields,
   });
   logger.debug(`DQL query:\n${query}`);
 
@@ -72,7 +102,7 @@ export async function runEvals(
   logger.timing('DQL fetch', Date.now() - t0Dql, { rawRecords: (rawRecords as unknown[]).length });
 
   const t0Parse = Date.now();
-  const allSpans = parseSpanResults(rawRecords);
+  const allSpans = parseSpanResults(rawRecords, { spanFields: evalConfig.scope.spanFields });
   logger.timing('Parse spans', Date.now() - t0Parse, { spans: allSpans.length });
 
   // 2. Apply sampling
@@ -95,15 +125,16 @@ export async function runEvals(
   logger.timing('PII masking', Date.now() - t0Mask, { spans: maskedSpans.length });
 
   // 4. Build task list (span × metric), excluding drift which runs separately
-  const evalMetrics = metrics.filter(m => m !== DRIFT_METRIC_ID);
-  const runDrift = metrics.includes(DRIFT_METRIC_ID);
+  const metricIds = metricEntries.map(metricId);
+  const evalEntries = metricEntries.filter(e => metricId(e) !== DRIFT_METRIC_ID);
+  const runDrift = metricIds.includes(DRIFT_METRIC_ID);
 
   const tasks: EvalTask[] = maskedSpans.flatMap(span =>
-    evalMetrics.map(metric => ({ span, metric })),
+    evalEntries.map(entry => ({ span, metric: metricId(entry), inputs: metricInputs(entry) })),
   );
 
   if (opts.dryRun) {
-    console.log(JSON.stringify({ runId, tasks: tasks.length, spans: maskedSpans.length, metrics }, null, 2));
+    console.log(JSON.stringify({ runId, tasks: tasks.length, spans: maskedSpans.length, metrics: metricIds }, null, 2));
     return {
       runId,
       spansEvaluated: maskedSpans.length,
@@ -134,18 +165,14 @@ export async function runEvals(
   };
 
   // 6. Evaluate via dt-eval-lib in parallel batches
-  logger.info(`Evaluating ${maskedSpans.length} spans × ${metrics.length} metrics...`);
+  logger.info(`Evaluating ${maskedSpans.length} spans × ${metricIds.length} metrics...`);
   const t0Eval = Date.now();
   let evalCount = 0;
   const batchResults = await processBatch<EvalTask, EvalTaskResult>(
     tasks,
     async task => {
       const t0 = Date.now();
-      const input: EvalInput = {
-        input: task.span.input,
-        output: task.span.output,
-        context: task.span.systemInstruction,
-      };
+      const input: EvalInput = buildEvalInput(task.span, task.inputs);
       const evalResult = await evaluate(task.metric, input, libConfig);
       evalCount++;
       logger.debug(`eval [${evalCount}/${tasks.length}] ${task.metric} trace=${task.span.traceId.slice(0, 8)}… ${Date.now() - t0}ms score=${evalResult.score.value}`);
@@ -251,7 +278,7 @@ export async function runEvals(
     errors: result.errors,
     thresholdBreaches: result.thresholdBreaches.length,
     durationMs: result.durationMs,
-    metrics,
+    metrics: metricIds,
     since,
   });
 
