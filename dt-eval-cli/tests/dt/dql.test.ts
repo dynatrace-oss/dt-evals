@@ -23,8 +23,12 @@ describe('buildGenAiSpanQuery', () => {
 
   it('filters by app when app is provided', () => {
     const query = buildGenAiSpanQuery({ since: '1h', app: 'my-service' });
-    expect(query).toContain('my-service');
-    expect(query).toContain('dt.smartscape.service');
+    expect(query).toContain('service.name == "my-service"');
+  });
+
+  it('does not compare against dt.smartscape.service (entity ID, not a string)', () => {
+    const query = buildGenAiSpanQuery({ since: '1h', app: 'my-service' });
+    expect(query).not.toContain('dt.smartscape.service');
   });
 
   it('does not include app filter when app is not provided', () => {

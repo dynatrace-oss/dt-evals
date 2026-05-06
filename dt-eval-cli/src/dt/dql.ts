@@ -54,8 +54,11 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
   lines.push(`| filter start_time > now() - ${since}`);
 
   if (app) {
-    // Match by service.name or the entity ID alternative
-    lines.push(`| filter service.name == "${app}" or dt.smartscape.service == "${app}"`);
+    // Match by service.name only — `dt.smartscape.service` holds an entity
+    // ID (e.g. `SERVICE-1A2B…`), not a service name, so comparing it to a
+    // string raises a SMARTSCAPEID_TO_STRING_COMPARISON warning from Grail
+    // and matches nothing.
+    lines.push(`| filter service.name == "${app}"`);
   }
 
   if (errorsOnly) {

@@ -71,6 +71,8 @@ interface EvalTaskResult {
   span: GenAiSpan;
   metric: string;
   evalResult: EvalResult;
+  /** The exact input the judge was given — may be a routed subset of span fields. */
+  evalInput: EvalInput;
 }
 
 export type { EvalResult };
@@ -176,7 +178,7 @@ export async function runEvals(
       const evalResult = await evaluate(task.metric, input, libConfig);
       evalCount++;
       logger.debug(`eval [${evalCount}/${tasks.length}] ${task.metric} trace=${task.span.traceId.slice(0, 8)}… ${Date.now() - t0}ms score=${evalResult.score.value}`);
-      return { span: task.span, metric: task.metric, evalResult };
+      return { span: task.span, metric: task.metric, evalResult, evalInput: input };
     },
     { concurrency },
   );
@@ -210,7 +212,7 @@ export async function runEvals(
   logger.step('Writing bizevents...');
   const writer = new BizeventWriter(dtClient);
   const payloads: BizeventPayload[] = successResults.map(r =>
-    buildBizeventPayload(r.span, r.metric, r.evalResult, runId, judgeProvider, judgeModel, evalConfig.scope.service),
+    buildBizeventPayload(r.span, r.metric, r.evalResult, runId, judgeProvider, judgeModel, evalConfig.scope.service, r.evalInput),
   );
 
   const t0Ingest = Date.now();
