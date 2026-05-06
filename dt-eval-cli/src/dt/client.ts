@@ -119,8 +119,40 @@ export class DynatraceClient {
     throw new Error(`Unexpected DQL response state: ${data.state}`);
   }
 
+  /**
+   * Probe whether the configured token can read a given storage table by
+   * issuing `fetch <table> | limit 1` and inspecting the response for a
+   * MISSING_BUCKET_PERMISSIONS notification (which Grail returns as a
+   * SUCCEEDED-with-empty-records, not a 4xx). Used by `validate` to catch
+   * scope problems on the origin tenant before a run is attempted.
+   */
+  async probeBucketRead(table: string): Promise<{ ok: true } | { ok: false; reason: string }> {
+    const query = `fetch ${table} | limit 1`;
+    const url = `${this.environmentUrl}/platform/storage/query/v1/query:execute`;
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: this.authHeaders(),
+        body: JSON.stringify({ query, requestTimeoutMilliseconds: 10_000, fetchTimeoutSeconds: 10 }),
+      });
+    } catch (err) {
+      return { ok: false, reason: (err as Error).message };
+    }
+    if (!response.ok) {
+      return { ok: false, reason: `HTTP ${response.status}` };
+    }
+    const data = (await response.json()) as DqlExecuteResponse;
+    const notifications = data.result?.metadata?.grail?.notifications ?? [];
+    const missing = notifications.find(n => n.notificationType === 'MISSING_BUCKET_PERMISSIONS');
+    if (missing) {
+      return { ok: false, reason: missing.message ?? 'MISSING_BUCKET_PERMISSIONS' };
+    }
+    return { ok: true };
+  }
+
   async ingestBizevents(events: object[]): Promise<void> {
-    const url = `${this.environmentUrl}/platform/ingest/v1/bizevents`;
+    const url = `${this.environmentUrl}/platform/classic/environment-api/v2/bizevents/ingest`;
     const response = await fetch(url, {
       method: 'POST',
       headers: this.authHeaders(),
@@ -134,7 +166,7 @@ export class DynatraceClient {
   }
 
   async ingestMetrics(lines: string): Promise<void> {
-    const url = `${this.environmentUrl}/api/v2/metrics/ingest`;
+    const url = `${this.environmentUrl}/platform/classic/environment-api/v2/metrics/ingest`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { ...this.authHeaders(), 'Content-Type': 'text/plain' },

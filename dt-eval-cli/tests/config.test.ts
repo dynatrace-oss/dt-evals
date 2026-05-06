@@ -207,7 +207,7 @@ describe('config', () => {
       expect(() => validateConfig(makeValidConfig())).not.toThrow();
     });
 
-    it('throws ConfigValidationError for missing dynatrace.environmentUrl', () => {
+    it('throws ConfigValidationError when no origin/destination URL can be resolved', () => {
       const config = makeValidConfig();
       config.dynatrace.environmentUrl = '';
 
@@ -215,9 +215,9 @@ describe('config', () => {
       try {
         validateConfig(config);
       } catch (err) {
-        expect((err as InstanceType<typeof ConfigValidationError>).issues).toContain(
-          'dynatrace.environmentUrl is required',
-        );
+        const issues = (err as InstanceType<typeof ConfigValidationError>).issues;
+        expect(issues.some(i => i.includes('origin.environmentUrl'))).toBe(true);
+        expect(issues.some(i => i.includes('destination.environmentUrl'))).toBe(true);
       }
     });
 
@@ -238,7 +238,7 @@ describe('config', () => {
         validateConfig(config);
       } catch (err) {
         const issues = (err as InstanceType<typeof ConfigValidationError>).issues;
-        expect(issues.some(i => i.includes('valid URL'))).toBe(true);
+        expect(issues.some(i => i.includes('http(s)://'))).toBe(true);
       }
     });
 
@@ -254,6 +254,77 @@ describe('config', () => {
       config.scope.since = 'invalid';
 
       expect(() => validateConfig(config)).toThrowError(ConfigValidationError);
+    });
+
+    it('passes when only origin/destination are set (no top-level url)', async () => {
+      const { resolveEndpoints } = await import('../src/config/schema.js');
+      const config = makeValidConfig();
+      config.dynatrace = {
+        origin: { environmentUrl: 'https://read.live.dynatrace.com', apiToken: 'r' },
+        destination: { environmentUrl: 'https://write.live.dynatrace.com', apiToken: 'w' },
+      };
+
+      expect(() => validateConfig(config)).not.toThrow();
+      const { origin, destination } = resolveEndpoints(config.dynatrace);
+      expect(origin.environmentUrl).toBe('https://read.live.dynatrace.com');
+      expect(destination.environmentUrl).toBe('https://write.live.dynatrace.com');
+    });
+  });
+
+  describe('resolveEndpoints', () => {
+    it('uses top-level fields as fallback for both sides (single-tenant config)', async () => {
+      const { resolveEndpoints } = await import('../src/config/schema.js');
+      const { origin, destination } = resolveEndpoints({
+        environmentUrl: 'https://shared.live.dynatrace.com',
+        apiToken: 'shared-token',
+      });
+      expect(origin.environmentUrl).toBe('https://shared.live.dynatrace.com');
+      expect(origin.apiToken).toBe('shared-token');
+      expect(destination.environmentUrl).toBe('https://shared.live.dynatrace.com');
+      expect(destination.apiToken).toBe('shared-token');
+    });
+
+    it('per-side overrides win over top-level fallback', async () => {
+      const { resolveEndpoints } = await import('../src/config/schema.js');
+      const { origin, destination } = resolveEndpoints({
+        environmentUrl: 'https://shared.live.dynatrace.com',
+        apiToken: 'shared-token',
+        origin: { apiToken: 'read-token' },
+        destination: { environmentUrl: 'https://write.live.dynatrace.com' },
+      });
+      expect(origin.environmentUrl).toBe('https://shared.live.dynatrace.com');
+      expect(origin.apiToken).toBe('read-token');
+      expect(destination.environmentUrl).toBe('https://write.live.dynatrace.com');
+      expect(destination.apiToken).toBe('shared-token');
+    });
+  });
+
+  describe('cross-tenant env vars', () => {
+    it('DT_ORIGIN_API_TOKEN / DT_DESTINATION_API_TOKEN flow through to the resolved endpoints', async () => {
+      const { resolveEndpoints } = await import('../src/config/schema.js');
+      writeFileSync(
+        PROJECT_CONFIG_PATH,
+        stringifyYaml({
+          dynatrace: {
+            origin: { environmentUrl: 'https://read.live.dynatrace.com' },
+            destination: { environmentUrl: 'https://write.live.dynatrace.com' },
+          },
+          judge: { provider: 'openai', apiKey: 'k', model: 'gpt-4o', timeout: 30000, maxRetries: 2 },
+          scope: { since: '1h' },
+          metrics: { enabled: ['toxicity'] },
+        }),
+        'utf-8',
+      );
+      vi.stubEnv('DT_ORIGIN_API_TOKEN', 'origin-tok');
+      vi.stubEnv('DT_DESTINATION_API_TOKEN', 'dest-tok');
+      try {
+        const config = loadConfig({ globalFile: GLOBAL_CONFIG_PATH, projectFile: PROJECT_CONFIG_PATH });
+        const { origin, destination } = resolveEndpoints(config.dynatrace);
+        expect(origin.apiToken).toBe('origin-tok');
+        expect(destination.apiToken).toBe('dest-tok');
+      } finally {
+        vi.unstubAllEnvs();
+      }
     });
   });
 

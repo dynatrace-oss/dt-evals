@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { loadConfig, validateConfig } from '../../config/index.js';
 import { DEFAULT_JUDGE_MODELS } from '../../config/defaults.js';
 import { DynatraceClient } from '../../dt/client.js';
+import { resolveEndpoints } from '../../config/schema.js';
 import { listPrompts } from '@dynatrace-oss/dt-eval-lib';
 import { logger } from '../../logger/index.js';
 
@@ -12,6 +13,18 @@ async function testDynatraceConnection(environmentUrl: string, apiToken: string)
     return true;
   } catch {
     return false;
+  }
+}
+
+async function probeOriginSpansRead(
+  environmentUrl: string,
+  apiToken: string,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  try {
+    const client = new DynatraceClient({ environmentUrl, apiToken });
+    return await client.probeBucketRead('spans');
+  } catch (err) {
+    return { ok: false, reason: (err as Error).message };
   }
 }
 
@@ -100,17 +113,35 @@ export function createValidateCommand(): Command {
       process.exit(1);
     }
 
-    // 2. DT connection
-    const apiToken = config.dynatrace.apiToken;
-    if (!apiToken) {
-      logger.error('Dynatrace API token not set');
-    } else {
-      process.stdout.write('');
-      const dtOk = await testDynatraceConnection(config.dynatrace.environmentUrl, apiToken);
+    // 2. DT connection — test origin (read) and destination (write) separately
+    const { origin, destination } = resolveEndpoints(config.dynatrace);
+    const sides: Array<['origin' | 'destination', { environmentUrl: string; apiToken?: string }]> = [
+      ['origin', origin],
+      ['destination', destination],
+    ];
+    for (const [label, side] of sides) {
+      if (!side.apiToken) {
+        logger.error(`${label} API token not set  (${side.environmentUrl || 'no url'})`);
+        continue;
+      }
+      const dtOk = await testDynatraceConnection(side.environmentUrl, side.apiToken);
       if (dtOk) {
-        logger.success(`Dynatrace connection  (${config.dynatrace.environmentUrl})`);
+        logger.success(`${label} connection  (${side.environmentUrl})`);
       } else {
-        logger.error(`Dynatrace connection failed  (${config.dynatrace.environmentUrl})`);
+        logger.error(`${label} connection failed  (${side.environmentUrl})`);
+        continue;
+      }
+
+      // Origin must be able to read the spans bucket — Grail returns
+      // SUCCEEDED-with-empty-records on missing scope, so probe explicitly.
+      if (label === 'origin') {
+        const probe = await probeOriginSpansRead(side.environmentUrl, side.apiToken);
+        if (probe.ok) {
+          logger.success(`origin can read spans bucket`);
+        } else {
+          logger.error(`origin cannot read spans bucket: ${probe.reason}`);
+          logger.error(`  → token needs storage:spans:read (and storage:buckets:read)`);
+        }
       }
     }
 

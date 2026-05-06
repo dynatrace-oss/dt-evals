@@ -153,7 +153,7 @@ describe('DynatraceClient', () => {
 
     expect(mockFetch).toHaveBeenCalledOnce();
     const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe('https://test.live.dynatrace.com/platform/ingest/v1/bizevents');
+    expect(url).toBe('https://test.live.dynatrace.com/platform/classic/environment-api/v2/bizevents/ingest');
     expect(JSON.parse(init.body as string)).toEqual(events);
   });
 
@@ -250,6 +250,51 @@ describe('DynatraceClient', () => {
     expect(warnSpy).toHaveBeenCalledOnce();
     expect(warnSpy.mock.calls[0]?.[0]).toContain('MISSING_BUCKET_PERMISSIONS');
     expect(warnSpy.mock.calls[0]?.[0]).toContain('No bucket permissions for table spans.');
+  });
+
+  it('probeBucketRead returns ok=true on a clean SUCCEEDED response', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      makeSuccessResponse({ state: 'SUCCEEDED', result: { records: [] } }),
+    );
+    const client = new DynatraceClient({
+      environmentUrl: 'https://test.live.dynatrace.com',
+      apiToken: PLATFORM_TOKEN,
+    });
+
+    const result = await client.probeBucketRead('spans');
+    expect(result).toEqual({ ok: true });
+  });
+
+  it('probeBucketRead surfaces MISSING_BUCKET_PERMISSIONS as a failure', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      makeSuccessResponse({
+        state: 'SUCCEEDED',
+        result: {
+          records: [],
+          metadata: {
+            grail: {
+              notifications: [
+                {
+                  severity: 'WARNING',
+                  notificationType: 'MISSING_BUCKET_PERMISSIONS',
+                  message: 'No bucket permissions for table spans.',
+                },
+              ],
+            },
+          },
+        },
+      }),
+    );
+    const client = new DynatraceClient({
+      environmentUrl: 'https://test.live.dynatrace.com',
+      apiToken: PLATFORM_TOKEN,
+    });
+
+    const result = await client.probeBucketRead('spans');
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toContain('No bucket permissions');
+    }
   });
 
   it('does not log when no notifications are present', async () => {
