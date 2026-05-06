@@ -1,8 +1,31 @@
 import { logger } from '../logger/index.js';
 
+/**
+ * Pick the right Authorization scheme for a Dynatrace token.
+ * - `dt0s*` → platform token, requires `Bearer`
+ * - `dt0c*` → classic API token, requires `Api-Token`
+ * Defaults to `Bearer` (current platform direction).
+ */
+function authScheme(token: string): 'Bearer' | 'Api-Token' {
+  if (token.startsWith('dt0c')) return 'Api-Token';
+  return 'Bearer';
+}
+
 export interface DynatraceClientConfig {
   environmentUrl: string;
   apiToken?: string;
+}
+
+interface DqlNotification {
+  severity?: string;
+  notificationType?: string;
+  message?: string;
+}
+
+interface DqlResultMetadata {
+  grail?: {
+    notifications?: DqlNotification[];
+  };
 }
 
 interface DqlExecuteResponse {
@@ -10,6 +33,7 @@ interface DqlExecuteResponse {
   state?: string;
   result?: {
     records: unknown[];
+    metadata?: DqlResultMetadata;
   };
 }
 
@@ -17,7 +41,29 @@ interface DqlPollResponse {
   state: string;
   result?: {
     records: unknown[];
+    metadata?: DqlResultMetadata;
   };
+}
+
+/**
+ * Surface Grail notifications attached to a DQL response. Warnings such as
+ * MISSING_BUCKET_PERMISSIONS arrive on a SUCCEEDED state with empty records,
+ * so without this they would be silently swallowed.
+ */
+function logDqlNotifications(metadata: DqlResultMetadata | undefined): void {
+  const notifications = metadata?.grail?.notifications;
+  if (!notifications?.length) return;
+  for (const n of notifications) {
+    const tag = n.notificationType ? `[${n.notificationType}] ` : '';
+    const message = n.message ?? n.notificationType ?? 'unknown';
+    const severity = (n.severity ?? 'INFO').toUpperCase();
+    const line = `DQL ${severity}: ${tag}${message}`;
+    if (severity === 'WARNING' || severity === 'ERROR') {
+      logger.warn(line);
+    } else {
+      logger.debug(line);
+    }
+  }
 }
 
 const POLL_INTERVAL_MS = 1000;
@@ -34,7 +80,7 @@ export class DynatraceClient {
 
   private authHeaders(): Record<string, string> {
     return {
-      Authorization: `Api-Token ${this.apiToken}`,
+      Authorization: `${authScheme(this.apiToken)} ${this.apiToken}`,
       'Content-Type': 'application/json',
       Accept: 'application/json',
     };
@@ -66,6 +112,7 @@ export class DynatraceClient {
     }
 
     if (data.state === 'SUCCEEDED' || data.result) {
+      logDqlNotifications(data.result?.metadata);
       return data.result?.records ?? [];
     }
 
@@ -124,6 +171,7 @@ export class DynatraceClient {
       logger.debug(`DQL poll #${pollCount} state=${data.state} ${Date.now() - t0}ms`);
 
       if (data.state === 'SUCCEEDED') {
+        logDqlNotifications(data.result?.metadata);
         return data.result?.records ?? [];
       }
 
