@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { PromptDefinition, PromptStore } from "dt-eval-lib";
+import type { PromptDefinition, PromptStore } from "@dynatrace-oss/dt-eval-lib";
 
 const CUSTOM_PROMPTS_DIR = join(homedir(), ".config", "dt-eval");
 const CUSTOM_PROMPTS_FILE = join(CUSTOM_PROMPTS_DIR, "custom-prompts.json");

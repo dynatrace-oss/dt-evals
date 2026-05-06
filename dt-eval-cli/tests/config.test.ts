@@ -304,14 +304,14 @@ describe('config', () => {
         dynatrace: { environmentUrl: 'https://test.dynatrace.com' },
         judge: { provider: 'anthropic' as const, model: 'claude-3-opus' },
         scope: { since: '24h', sampling: { strategy: 'latest' as const, count: 50 } },
-        metrics: { enabled: ['coherence'] },
+        metrics: { enabled: ['user-frustration'] },
       };
 
       const resolved = resolveEffectiveConfig(partial);
       expect(resolved.judge.provider).toBe('anthropic');
       expect(resolved.judge.model).toBe('claude-3-opus');
       expect(resolved.scope.since).toBe('24h');
-      expect(resolved.metrics.enabled).toEqual(['coherence']);
+      expect(resolved.metrics.enabled).toEqual(['user-frustration']);
     });
   });
 });

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { buildBizeventPayload, BizeventWriter } from '../../src/dt/bizevent.js';
 import type { GenAiSpan } from '../../src/dt/types.js';
-import type { EvalResult } from 'dt-eval-lib';
+import type { EvalResult } from '@dynatrace-oss/dt-eval-lib';
 
 function makeSpan(overrides?: Partial<GenAiSpan>): GenAiSpan {
   return {
@@ -58,7 +58,7 @@ describe('buildBizeventPayload', () => {
 
   it('uses the exact score.value from EvalResult', () => {
     const result = makeEvalResult(0.75, 'pass');
-    const payload = buildBizeventPayload(makeSpan(), 'coherence', result, 'run-1', 'openai', 'gpt-4o');
+    const payload = buildBizeventPayload(makeSpan(), 'user-frustration', result, 'run-1', 'openai', 'gpt-4o');
     expect(payload['gen_ai.evaluation.score.value']).toBe(0.75);
   });
 

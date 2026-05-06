@@ -189,12 +189,12 @@ describe("evaluate() — happy path", () => {
     expect(result.score).toEqual({ value: 0.8, label: "pass" });
   });
 
-  it("likert scoring: score 4 → pass", async () => {
+  it("user-frustration binary: score 1 → pass (ok)", async () => {
     vi.mocked(createProvider).mockResolvedValue(
-      mockProvider({ scoreValue: 4, summary: "coherent", reasoning: "well structured" }),
+      mockProvider({ scoreValue: 1, summary: "not frustrated", reasoning: "user left satisfied" }),
     );
-    const result = await evaluate(BuiltInMetric.Coherence, baseInput, baseConfig);
-    expect(result.score).toEqual({ value: 4, label: "pass" });
+    const result = await evaluate(BuiltInMetric.UserFrustration, baseInput, baseConfig);
+    expect(result.score).toEqual({ value: 1, label: "pass" });
   });
 
   it("thresholdOverride: continuous with custom threshold 0.9 — score 0.8 → fail", async () => {

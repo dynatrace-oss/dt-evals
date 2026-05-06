@@ -1,6 +1,6 @@
 import { Command } from 'commander';
-import { listPrompts, getPrompt, createCustomPrompt, deleteCustomPrompt, evaluate } from 'dt-eval-lib';
-import type { EvalConfig } from 'dt-eval-lib';
+import { listPrompts, getPrompt, createCustomPrompt, deleteCustomPrompt, evaluate } from '@dynatrace-oss/dt-eval-lib';
+import type { EvalConfig } from '@dynatrace-oss/dt-eval-lib';
 import { loadConfig } from '../../config/index.js';
 import { renderTable } from '../../ui/table.js';
 import { Spinner } from '../../ui/spinner.js';

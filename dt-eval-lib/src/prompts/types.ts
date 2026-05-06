@@ -8,7 +8,7 @@ export enum BuiltInMetric {
   PiiLeakage = "pii-leakage",
   Relevance = "relevance",
   FactualAccuracy = "factual-accuracy",
-  Coherence = "coherence",
+  UserFrustration = "user-frustration",
   ContextRelevance = "context-relevance",
   AnswerCompleteness = "answer-completeness",
   PromptInjection = "prompt-injection",

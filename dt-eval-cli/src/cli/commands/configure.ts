@@ -8,7 +8,7 @@ import { stringify as stringifyYaml } from 'yaml';
 import { redactSecrets } from '../../ui/format.js';
 import { logger } from '../../logger/index.js';
 import { printBanner } from '../../ui/banner.js';
-import { listPrompts, DRIFT_METRIC_ID } from 'dt-eval-lib';
+import { listPrompts, DRIFT_METRIC_ID } from '@dynatrace-oss/dt-eval-lib';
 import { DynatraceClient } from '../../dt/client.js';
 
 // Per-million-token pricing [input, output] in USD

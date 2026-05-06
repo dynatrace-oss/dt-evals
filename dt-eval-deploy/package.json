@@ -10,7 +10,12 @@
   },
   "license": "Apache-2.0",
   "dependencies": {
-    "dt-eval-lib": "*"
+    "@dynatrace-oss/dt-eval-lib": "^0.0.12-alpha",
+    "@anthropic-ai/sdk": "^0.32.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.0.0",
+    "@google/genai": "^1.0.0",
+    "openai": "^4.73.0"
+
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.0",

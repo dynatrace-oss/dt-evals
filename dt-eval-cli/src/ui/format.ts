@@ -42,6 +42,7 @@ export function redactSecrets(config: DtEvalConfig): DtEvalConfig {
     judge: {
       ...config.judge,
       apiKey: config.judge.apiKey ? '***' : undefined,
+      secretKey: config.judge.secretKey ? '***' : undefined,
     },
   };
 }

@@ -13,29 +13,30 @@ jobs:
   ci:
     runs-on: ubuntu-24.04
     name: Test & Build
+    defaults:
+      run:
+        shell: bash
+        working-directory: dt-eval-deploy
+    env:
+      FOLDER: dt-eval-deploy
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
-          node-version: "20"
+          node-version-file: "${{ env.FOLDER }}/.nvmrc"
+          registry-url: https://registry.npmjs.org
           cache: "npm"
+          cache-dependency-path: "${{ env.FOLDER }}/package-lock.json"
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build dt-eval-lib
-        working-directory: dt-eval-lib
-        run: npm run build
-
       - name: Test
-        working-directory: dt-eval-deploy
         run: npm test
 
       - name: Build
-        working-directory: dt-eval-deploy
         run: npm run build
 
       - name: Docker build (smoke test)
-        working-directory: dt-eval-deploy
         run: docker build -t dt-eval-engine:ci .

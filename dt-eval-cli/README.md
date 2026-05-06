@@ -377,7 +377,7 @@ Drift results are written back as the same event type with `gen_ai.evaluation.ty
 | `pii-leakage` | Personally identifiable information in the answer | `input`, `output` |
 | `relevance` | Whether the answer addresses the user request | `input`, `output` |
 | `factual-accuracy` | Accuracy against a reference answer | `input`, `output`, `expectedOutput` |
-| `coherence` | Structure, clarity, and logical flow | `input`, `output` |
+| `user-frustration` | Whether the user was left frustrated at the end of the conversation | `input` |
 | `context-relevance` | Retrieval quality for supplied context | `input`, `context` |
 | `answer-completeness` | Whether all parts of the request were answered | `input`, `output` |
 | `prompt-injection` | Prompt injection attempts in the input | `input`, `output` |
@@ -398,7 +398,7 @@ The repository includes `dt-eval-lib` for programmatic usage.
 ### Basic example
 
 ```ts
-import { evaluate, BuiltInMetric } from "dt-eval-lib";
+import { evaluate, BuiltInMetric } from "@dynatrace-oss/dt-eval-lib";
 
 const result = await evaluate(
   BuiltInMetric.Faithfulness,
@@ -426,7 +426,7 @@ console.log(result.explanation.reasoning);
 ### Inspect the evaluator catalog
 
 ```ts
-import { listPrompts, getPrompt, BuiltInMetric } from "dt-eval-lib";
+import { listPrompts, getPrompt, BuiltInMetric } from "@dynatrace-oss/dt-eval-lib";
 
 const prompts = listPrompts();
 const relevance = getPrompt(BuiltInMetric.Relevance);
@@ -438,7 +438,7 @@ console.log(relevance.requiredFields);
 ### Override thresholds in code
 
 ```ts
-import { evaluate, BuiltInMetric } from "dt-eval-lib";
+import { evaluate, BuiltInMetric } from "@dynatrace-oss/dt-eval-lib";
 
 const result = await evaluate(
   BuiltInMetric.Relevance,
@@ -463,7 +463,7 @@ console.log(result.score.label);
 ### Use a custom gateway or proxy
 
 ```ts
-import { evaluate, BuiltInMetric } from "dt-eval-lib";
+import { evaluate, BuiltInMetric } from "@dynatrace-oss/dt-eval-lib";
 
 await evaluate(
   BuiltInMetric.Toxicity,

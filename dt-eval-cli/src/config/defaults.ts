@@ -9,7 +9,7 @@ export const ALL_METRICS = [
   'pii-leakage',
   'relevance',
   'factual-accuracy',
-  'coherence',
+  'user-frustration',
   'context-relevance',
   'answer-completeness',
   'prompt-injection',

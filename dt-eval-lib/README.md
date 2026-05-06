@@ -53,7 +53,7 @@ console.log(result.explanation); // { summary: "...", reasoning: "..." }
 | `pii-leakage` | `BuiltInMetric.PiiLeakage` | binary | input, output |
 | `relevance` | `BuiltInMetric.Relevance` | continuous | input, output |
 | `factual-accuracy` | `BuiltInMetric.FactualAccuracy` | continuous | input, output, expectedOutput |
-| `coherence` | `BuiltInMetric.Coherence` | likert (1-5) | input, output |
+| `user-frustration` | `BuiltInMetric.UserFrustration` | binary | input |
 | `context-relevance` | `BuiltInMetric.ContextRelevance` | continuous | input, context |
 | `answer-completeness` | `BuiltInMetric.AnswerCompleteness` | continuous | input, output |
 | `prompt-injection` | `BuiltInMetric.PromptInjection` | binary | input, output |
