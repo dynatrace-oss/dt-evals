@@ -4,8 +4,6 @@ export const CURRENT_SCHEMA_VERSION = 1;
 export interface DynatraceEndpoint {
   environmentUrl: string;
   apiToken?: string;
-  /** Optional dtctl context name — informational; does not affect auth. */
-  dtctlContext?: string;
 }
 
 /**
@@ -81,12 +79,10 @@ export function resolveEndpoints(dt: DynatraceConfig): {
   const fallback: Partial<DynatraceEndpoint> = {
     environmentUrl: dt.environmentUrl,
     apiToken: dt.apiToken,
-    dtctlContext: dt.dtctlContext,
   };
   const merge = (side: Partial<DynatraceEndpoint> | undefined): DynatraceEndpoint => ({
     environmentUrl: side?.environmentUrl ?? fallback.environmentUrl ?? '',
     apiToken: side?.apiToken ?? fallback.apiToken,
-    dtctlContext: side?.dtctlContext ?? fallback.dtctlContext,
   });
   return { origin: merge(dt.origin), destination: merge(dt.destination) };
 }
