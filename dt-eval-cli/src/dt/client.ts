@@ -1,14 +1,8 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { logger } from '../logger/index.js';
-
-const execFileAsync = promisify(execFile);
 
 export interface DynatraceClientConfig {
   environmentUrl: string;
   apiToken?: string;
-  /** dtctl context name — when set, Bearer auth is obtained from dtctl for all requests. */
-  dtctlContext?: string;
 }
 
 interface DqlExecuteResponse {
@@ -28,81 +22,25 @@ interface DqlPollResponse {
 
 const POLL_INTERVAL_MS = 1000;
 const POLL_TIMEOUT_MS = 60_000;
-// Cache the Bearer token for 5 min to avoid a dtctl subprocess on every call
-const TOKEN_TTL_MS = 5 * 60 * 1000;
 
 export class DynatraceClient {
   private readonly environmentUrl: string;
-  private readonly apiToken?: string;
-  private readonly dtctlContext?: string;
-
-  private cachedToken?: string;
-  private tokenExpiresAt = 0;
+  private readonly apiToken: string;
 
   constructor(config: DynatraceClientConfig) {
     this.environmentUrl = config.environmentUrl.replace(/\/$/, '');
-    this.apiToken = config.apiToken;
-    this.dtctlContext = config.dtctlContext;
+    this.apiToken = config.apiToken ?? '';
   }
 
-  /** Resolve auth headers — Bearer via dtctl when available, Api-Token otherwise. */
-  private async authHeaders(): Promise<Record<string, string>> {
-    if (this.dtctlContext) {
-      const token = await this.getBearerToken();
-      return {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      };
-    }
+  private authHeaders(): Record<string, string> {
     return {
-      Authorization: `Api-Token ${this.apiToken ?? ''}`,
+      Authorization: `Api-Token ${this.apiToken}`,
       'Content-Type': 'application/json',
       Accept: 'application/json',
     };
   }
 
-  private async getBearerToken(): Promise<string> {
-    if (this.cachedToken && Date.now() < this.tokenExpiresAt) {
-      return this.cachedToken;
-    }
-    const args = ['token', '--context', this.dtctlContext!];
-    logger.debug(`Fetching Bearer token via dtctl context=${this.dtctlContext}`);
-    const { stdout } = await execFileAsync('dtctl', args, { timeout: 10_000 });
-    const raw = stdout.trim();
-    // dtctl may return JSON or a plain token string
-    let token: string;
-    try {
-      const parsed = JSON.parse(raw) as { access_token?: string; token?: string };
-      token = parsed.access_token ?? parsed.token ?? raw;
-    } catch {
-      token = raw;
-    }
-    if (!token) throw new Error('dtctl returned an empty token');
-    this.cachedToken = token;
-    this.tokenExpiresAt = Date.now() + TOKEN_TTL_MS;
-    return token;
-  }
-
   async executeDql(query: string): Promise<unknown> {
-    if (this.dtctlContext) {
-      return this.executeDqlViaDtctl(query);
-    }
-    return this.executeDqlViaApi(query);
-  }
-
-  private async executeDqlViaDtctl(query: string): Promise<unknown> {
-    const args = ['query', query, '--context', this.dtctlContext!, '-o', 'json', '--plain'];
-    logger.debug(`dtctl DQL via context=${this.dtctlContext}`);
-    const t0 = Date.now();
-    const { stdout } = await execFileAsync('dtctl', args, { timeout: 60_000 });
-    const parsed = JSON.parse(stdout) as { records?: unknown[] };
-    const records = parsed.records ?? [];
-    logger.timing('dtctl DQL subprocess', Date.now() - t0, { records: (records as unknown[]).length });
-    return records;
-  }
-
-  private async executeDqlViaApi(query: string): Promise<unknown> {
     const url = `${this.environmentUrl}/platform/storage/query/v1/query:execute`;
     const body = JSON.stringify({
       query,
@@ -112,7 +50,7 @@ export class DynatraceClient {
 
     const response = await fetch(url, {
       method: 'POST',
-      headers: await this.authHeaders(),
+      headers: this.authHeaders(),
       body,
     });
 
@@ -138,7 +76,7 @@ export class DynatraceClient {
     const url = `${this.environmentUrl}/platform/ingest/v1/bizevents`;
     const response = await fetch(url, {
       method: 'POST',
-      headers: await this.authHeaders(),
+      headers: this.authHeaders(),
       body: JSON.stringify(events),
     });
 
@@ -150,10 +88,9 @@ export class DynatraceClient {
 
   async ingestMetrics(lines: string): Promise<void> {
     const url = `${this.environmentUrl}/api/v2/metrics/ingest`;
-    const headers = await this.authHeaders();
     const response = await fetch(url, {
       method: 'POST',
-      headers: { ...headers, 'Content-Type': 'text/plain' },
+      headers: { ...this.authHeaders(), 'Content-Type': 'text/plain' },
       body: lines,
     });
 
@@ -175,7 +112,7 @@ export class DynatraceClient {
       const t0 = Date.now();
       const response = await fetch(url, {
         method: 'GET',
-        headers: await this.authHeaders(),
+        headers: this.authHeaders(),
       });
 
       if (!response.ok) {

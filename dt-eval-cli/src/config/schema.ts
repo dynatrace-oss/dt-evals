@@ -3,8 +3,6 @@ export const CURRENT_SCHEMA_VERSION = 1;
 export interface DynatraceConfig {
   environmentUrl: string;
   apiToken?: string;
-  /** dtctl context name to use for DQL queries via OAuth (avoids Api-Token DQL scope requirement) */
-  dtctlContext?: string;
 }
 
 export interface JudgeConfig {

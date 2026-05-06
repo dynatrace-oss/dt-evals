@@ -86,9 +86,6 @@ function applyEnvVars(config: DtEvalConfig): DtEvalConfig {
   if (process.env['DT_API_TOKEN']) {
     result.dynatrace.apiToken = process.env['DT_API_TOKEN'];
   }
-  if (process.env['DT_DTCTL_CONTEXT']) {
-    result.dynatrace.dtctlContext = process.env['DT_DTCTL_CONTEXT'];
-  }
   if (process.env['JUDGE_PROVIDER']) {
     result.judge.provider = process.env['JUDGE_PROVIDER'] as JudgeConfig['provider'];
   }

@@ -81,11 +81,10 @@ function printCostEstimate(
 async function testServiceSpans(
   environmentUrl: string,
   apiToken: string,
-  dtctlContext: string | undefined,
   serviceName: string,
 ): Promise<number | null> {
   try {
-    const client = new DynatraceClient({ environmentUrl, apiToken, dtctlContext });
+    const client = new DynatraceClient({ environmentUrl, apiToken });
     const query = `fetch spans
 | filter service.name == "${serviceName}" or dt.smartscape.service == "${serviceName}"
 | filter isNotNull(gen_ai.provider.name)
@@ -186,12 +185,7 @@ export function createConfigureCommand(): Command {
       });
 
       const apiToken = await password({
-        message: 'Dynatrace API token',
-      });
-
-      const dtctlContext = await input({
-        message: 'dtctl context name for OAuth DQL  (leave blank to use API token)',
-        default: existing.dynatrace?.dtctlContext ?? '',
+        message: 'Dynatrace API token  (run "dt-evals doctor" to generate one)',
       });
 
       // ── Service ──────────────────────────────────────────
@@ -205,7 +199,6 @@ export function createConfigureCommand(): Command {
       const spanCount = await testServiceSpans(
         envUrl,
         apiToken || (existing.dynatrace?.apiToken ?? ''),
-        dtctlContext || undefined,
         serviceName,
       );
 
@@ -320,7 +313,6 @@ export function createConfigureCommand(): Command {
         dynatrace: {
           environmentUrl: envUrl,
           apiToken: apiToken || existing.dynatrace?.apiToken,
-          ...(dtctlContext ? { dtctlContext } : {}),
         },
         judge: {
           provider,

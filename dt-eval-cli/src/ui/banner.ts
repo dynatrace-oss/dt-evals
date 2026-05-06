@@ -36,5 +36,13 @@ export function printBanner(): void {
   process.stdout.write('\n' + applyGradient(banner) + '\n');
   process.stdout.write('  Welcome to dt-evals\n');
   process.stdout.write('  Evaluate production LLM & agent interactions with Dynatrace AI Observability.\n\n');
+}
 
+export function printDoctorBanner(): void {
+  if (!process.stdout.isTTY) return;
+
+  const banner = figlet.textSync('DT-EVALS-DOCTOR', { font: 'ANSI Shadow' });
+
+  process.stdout.write('\n' + applyGradient(banner) + '\n');
+  process.stdout.write('  Environment health check & guided setup\n\n');
 }
