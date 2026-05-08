@@ -21,14 +21,18 @@ describe('buildGenAiSpanQuery', () => {
     expect(query).toContain('isNotNull(gen_ai.provider.name)');
   });
 
-  it('filters by app when app is provided', () => {
+  it('filters by app via service.name (OTel) and dt.service.name (Dynatrace semconv)', () => {
     const query = buildGenAiSpanQuery({ since: '1h', app: 'my-service' });
     expect(query).toContain('service.name == "my-service"');
+    expect(query).toContain('dt.service.name == "my-service"');
   });
 
-  it('does not compare against dt.smartscape.service (entity ID, not a string)', () => {
+  it('uses toSmartscapeId() so the smartscape branch matches by service name', () => {
     const query = buildGenAiSpanQuery({ since: '1h', app: 'my-service' });
-    expect(query).not.toContain('dt.smartscape.service');
+    expect(query).toContain('dt.smartscape.service == toSmartscapeId("my-service", "service")');
+    // Sanity: the literal string-comparison form (which raises
+    // SMARTSCAPEID_TO_STRING_COMPARISON) is gone.
+    expect(query).not.toContain('dt.smartscape.service == "my-service"');
   });
 
   it('does not include app filter when app is not provided', () => {

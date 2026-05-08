@@ -54,11 +54,17 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
   lines.push(`| filter start_time > now() - ${since}`);
 
   if (app) {
-    // Match by service.name only — `dt.smartscape.service` holds an entity
-    // ID (e.g. `SERVICE-1A2B…`), not a service name, so comparing it to a
-    // string raises a SMARTSCAPEID_TO_STRING_COMPARISON warning from Grail
-    // and matches nothing.
-    lines.push(`| filter service.name == "${app}"`);
+    // Match by either service.name (OTel) or dt.service.name (Dynatrace
+    // semantic dictionary), and resolve the smartscape entity ID via
+    // `toSmartscapeId()` so the smartscape branch matches when the user
+    // gave a service name. Direct string comparison against
+    // `dt.smartscape.service` would otherwise raise a
+    // SMARTSCAPEID_TO_STRING_COMPARISON warning and match nothing.
+    lines.push(
+      `| filter service.name == "${app}"` +
+      ` or dt.service.name == "${app}"` +
+      ` or dt.smartscape.service == toSmartscapeId("${app}", "service")`,
+    );
   }
 
   if (errorsOnly) {
