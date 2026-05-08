@@ -312,13 +312,13 @@ export async function checkMetricsPermission(environmentUrl: string, bearerToken
       signal: AbortSignal.timeout(10_000),
     });
     return {
-      scope: 'metrics:ingest',
-      label: 'Metrics ingest (metrics:ingest)',
+      scope: 'storage:metrics:write',
+      label: 'Metrics ingest (storage:metrics:write)',
       ok: response.status !== 401 && response.status !== 403,
       statusCode: response.status,
     };
   } catch (err) {
-    return { scope: 'metrics:ingest', label: 'Metrics ingest (metrics:ingest)', ok: false, error: (err as Error).message };
+    return { scope: 'storage:metrics:write', label: 'Metrics ingest (storage:metrics:write)', ok: false, error: (err as Error).message };
   }
 }
 
