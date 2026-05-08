@@ -54,16 +54,18 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
   lines.push(`| filter start_time > now() - ${since}`);
 
   if (app) {
-    // Match by either service.name (OTel) or dt.service.name (Dynatrace
-    // semantic dictionary), and resolve the smartscape entity ID via
-    // `toSmartscapeId()` so the smartscape branch matches when the user
-    // gave a service name. Direct string comparison against
-    // `dt.smartscape.service` would otherwise raise a
-    // SMARTSCAPEID_TO_STRING_COMPARISON warning and match nothing.
+    // Match by either service.name (OTel GenAI semconv) or dt.service.name
+    // (Dynatrace semantic dictionary). Both names appear on the same span
+    // depending on the emitter; checking both improves match coverage.
+    //
+    // `dt.smartscape.service` is intentionally not in this list — it stores
+    // a smartscape entity ID (e.g. SERVICE-1A2B…), not a service name, and
+    // `toSmartscapeId()` is a *cast* function (string → smartscape-ID type)
+    // rather than a name-to-ID resolver. Resolving a service name to its
+    // smartscape ID would require a join against the entity table.
     lines.push(
       `| filter service.name == "${app}"` +
-      ` or dt.service.name == "${app}"` +
-      ` or dt.smartscape.service == toSmartscapeId("${app}", "service")`,
+      ` or dt.service.name == "${app}"`,
     );
   }
 

@@ -27,12 +27,13 @@ describe('buildGenAiSpanQuery', () => {
     expect(query).toContain('dt.service.name == "my-service"');
   });
 
-  it('uses toSmartscapeId() so the smartscape branch matches by service name', () => {
+  it('does not compare against dt.smartscape.service (entity-ID type, not a name)', () => {
     const query = buildGenAiSpanQuery({ since: '1h', app: 'my-service' });
-    expect(query).toContain('dt.smartscape.service == toSmartscapeId("my-service", "service")');
-    // Sanity: the literal string-comparison form (which raises
-    // SMARTSCAPEID_TO_STRING_COMPARISON) is gone.
-    expect(query).not.toContain('dt.smartscape.service == "my-service"');
+    // toSmartscapeId() is a string→smartscape-ID *cast*, not a name resolver,
+    // so we omit the smartscape branch entirely — any string comparison
+    // against `dt.smartscape.service` either raises
+    // SMARTSCAPEID_TO_STRING_COMPARISON or fails with TOO_MANY_PARAMETERS.
+    expect(query).not.toContain('dt.smartscape.service');
   });
 
   it('does not include app filter when app is not provided', () => {
