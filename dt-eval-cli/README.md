@@ -328,6 +328,8 @@ different attribute names, point the CLI at them via `scope.spanFields`.
 Each entry accepts a single attribute or a list of candidates; the first
 non-null value wins, with the built-in defaults appended as fallback.
 
+**Example 1 — non-semconv spans:**
+
 ```yaml
 scope:
   service: my-llm-service
@@ -338,6 +340,22 @@ scope:
     systemInstruction: llm.system
     model: llm.model
 ```
+
+**Example 2 — OTel GenAI plural form** (some Bedrock / Vertex SDK
+emitters serialize the full message array under the plural attribute
+name `gen_ai.output.messages` instead of the singular `gen_ai.output.message`):
+
+```yaml
+scope:
+  service: pydantic-ai-music-agent
+  spanFields:
+    output: gen_ai.output.messages     # JSON-encoded array of {role, parts}
+```
+
+The runner stringifies whatever it finds, so a JSON array under
+`gen_ai.output.messages` reaches the judge as the assistant turn(s).
+This is convention-friendly: list every variant you've seen and the
+parser walks them in order.
 
 ### Per-metric input routing
 
