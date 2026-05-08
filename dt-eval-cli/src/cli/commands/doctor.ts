@@ -515,7 +515,17 @@ export function createDoctorCommand(): Command {
     } else {
       const scopesToGrant = grantedScopes.length > 0
         ? grantedScopes
-        : ['storage:spans:read', 'storage:events:read', 'storage:events:write'];
+        : [
+            // Origin reads (DQL fetch spans + Grail bucket prerequisite)
+            'storage:spans:read',
+            'storage:buckets:read',
+            // Destination reads + writes (eval bizevents, drift metrics)
+            'storage:events:read',
+            'storage:events:write',
+            'storage:metrics:write',
+            // validate's destination connectivity probe
+            'storage:logs:read',
+          ];
 
       if (existingToken) {
         console.log(`  Existing token found (${existingToken.slice(0, 8)}...)`);
@@ -891,6 +901,18 @@ function createDoctorCreateCommand(): Command {
     } else {
       info(`${metricsCheck.label} — not available (optional, skipping)`);
     }
+
+    // Foundational scopes that aren't probed individually but are required
+    // by the runtime — included unconditionally so a doctor-minted token
+    // can actually pass `dt-eval validate` and run end-to-end:
+    //   - storage:buckets:read: Grail prerequisite for any storage table
+    //     read; without it `fetch spans|logs|bizevents` returns
+    //     SUCCEEDED-with-empty-records (silent failure).
+    //   - storage:logs:read: validate's destination connectivity probe
+    //     issues `fetch logs | limit 1`; without it the destination check
+    //     fails even when writes work.
+    if (!scopes.includes('storage:buckets:read')) scopes.push('storage:buckets:read');
+    if (!scopes.includes('storage:logs:read')) scopes.push('storage:logs:read');
 
     if (scopes.length === 0) {
       fail('No permissions available — cannot create a usable token');
