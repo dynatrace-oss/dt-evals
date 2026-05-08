@@ -316,3 +316,72 @@ describe('spanFields configuration', () => {
     expect(spans[0]!.requestModel).toBe('claude-sonnet');
   });
 });
+
+describe('JSON-stringified message arrays (OTel GenAI evolved form)', () => {
+  const inputJson = JSON.stringify([
+    { role: 'system', parts: [{ type: 'text', content: 'You are a music historian.' }] },
+    { role: 'user', parts: [{ type: 'text', content: 'What about Bach?' }] },
+  ]);
+  const outputJson = JSON.stringify([
+    { role: 'assistant', parts: [{ type: 'text', content: 'Bach was prolific…' }] },
+  ]);
+
+  it('extracts systemInstruction and userPrompt from JSON-encoded messages array', () => {
+    const records = [
+      {
+        'trace.id': 'json-msgs',
+        'gen_ai.input.messages': inputJson,
+        'gen_ai.output.messages': outputJson,
+      },
+    ];
+    const spans = parseSpanResults(records, { spanFields: { output: 'gen_ai.output.messages' } });
+    expect(spans).toHaveLength(1);
+    const s = spans[0]!;
+    expect(s.systemInstruction).toBe('You are a music historian.');
+    expect(s.userPrompt).toBe('What about Bach?');
+    expect(s.output).toBe('Bach was prolific…');
+  });
+
+  it('handles `content` strings (no parts array)', () => {
+    const records = [
+      {
+        'trace.id': 'json-content',
+        'gen_ai.input.messages': JSON.stringify([
+          { role: 'system', content: 'sys instructions' },
+          { role: 'user', content: 'hello' },
+        ]),
+        'gen_ai.output.message': 'hi back',
+      },
+    ];
+    const spans = parseSpanResults(records);
+    expect(spans[0]!.systemInstruction).toBe('sys instructions');
+    expect(spans[0]!.userPrompt).toBe('hello');
+  });
+
+  it('falls through unchanged when input is plain text (not JSON)', () => {
+    const records = [
+      {
+        'trace.id': 'plain',
+        'gen_ai.input.messages': 'just a plain question',
+        'gen_ai.output.message': 'an answer',
+      },
+    ];
+    const spans = parseSpanResults(records);
+    expect(spans[0]!.input).toBe('just a plain question');
+    expect(spans[0]!.systemInstruction).toBeUndefined();
+    expect(spans[0]!.userPrompt).toBeUndefined();
+  });
+
+  it('explicit prompt slots win over JSON extraction (system instruction)', () => {
+    const records = [
+      {
+        'trace.id': 'mixed',
+        'gen_ai.system_instruction': 'explicit system',
+        'gen_ai.input.messages': inputJson,
+        'gen_ai.output.message': 'answer',
+      },
+    ];
+    const spans = parseSpanResults(records);
+    expect(spans[0]!.systemInstruction).toBe('explicit system');
+  });
+});

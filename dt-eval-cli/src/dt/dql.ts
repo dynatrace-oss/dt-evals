@@ -109,6 +109,71 @@ function pickFirst(record: Record<string, unknown>, candidates: string[]): strin
   return undefined;
 }
 
+/**
+ * Newer OTel GenAI emitters serialize the full conversation as a JSON array
+ * under `gen_ai.input.messages` / `gen_ai.output.messages`, e.g.
+ *   [{"role":"system","parts":[{"type":"text","content":"You are…"}]},
+ *    {"role":"user","parts":[{"type":"text","content":"hello"}]}]
+ * — the system + user + assistant turns are inlined rather than split across
+ * separate prompt slots. Without parsing the JSON, the runner can't surface
+ * `systemInstruction` (context) or `userPrompt`, so context-needing metrics
+ * (faithfulness, hallucination, fluency, context-relevance) all error with
+ * "Missing required fields: context" on these spans.
+ *
+ * Returns the extracted system / user / assistant content when the input is
+ * a valid JSON array of role-tagged messages; otherwise `undefined` so the
+ * caller falls through to the default treatment.
+ */
+function extractRolesFromJsonMessages(value: string | undefined):
+  | { system?: string; user?: string; assistant?: string }
+  | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed.startsWith('[') && !trimmed.startsWith('{')) return undefined;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    return undefined;
+  }
+  const arr = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray((parsed as { messages?: unknown[] })?.messages)
+      ? (parsed as { messages: unknown[] }).messages
+      : undefined;
+  if (!arr) return undefined;
+
+  const out: { system?: string; user?: string; assistant?: string } = {};
+  for (const item of arr) {
+    if (!item || typeof item !== 'object') continue;
+    const m = item as { role?: unknown; content?: unknown; parts?: unknown };
+    const role = typeof m.role === 'string' ? m.role : undefined;
+    if (!role) continue;
+    let content: string | undefined;
+    if (typeof m.content === 'string') {
+      content = m.content;
+    } else if (Array.isArray(m.parts)) {
+      // OTel GenAI multimodal: { parts: [{type:"text", content:"…"}, …] }
+      const text: string[] = [];
+      for (const p of m.parts) {
+        if (p && typeof p === 'object') {
+          const pp = p as { content?: unknown; text?: unknown };
+          if (typeof pp.content === 'string') text.push(pp.content);
+          else if (typeof pp.text === 'string') text.push(pp.text);
+        }
+      }
+      if (text.length) content = text.join('\n');
+    } else if (m.content !== undefined && m.content !== null) {
+      content = JSON.stringify(m.content);
+    }
+    if (!content) continue;
+    if (role === 'system') out.system ??= content;
+    else if (role === 'user') out.user = content; // last wins
+    else if (role === 'assistant') out.assistant = content; // last wins
+  }
+  return out;
+}
+
 export function parseSpanResults(
   records: unknown[],
   options: ParseSpanOptions = {},
@@ -148,7 +213,24 @@ export function parseSpanResults(
       input = messages.join('\n');
     }
 
-    const output = pickFirst(r, fields.output);
+    // OTel GenAI evolved form: input is a JSON array of role-tagged messages
+    // (system + user + …) inlined under one attribute. Extract the system
+    // role into systemInstruction and the user role into userPrompt so
+    // context-needing metrics work and per-metric input routing to
+    // `userPrompt` doesn't fall back to the joined transcript.
+    const inputRoles = extractRolesFromJsonMessages(input);
+    if (inputRoles) {
+      systemInstruction ??= inputRoles.system;
+      userPrompt ??= inputRoles.user;
+    }
+
+    let output = pickFirst(r, fields.output);
+    // Same shape on the output side: `gen_ai.output.messages` may be a JSON
+    // array of one or more {role: "assistant", …} messages. Flatten to text.
+    const outputRoles = extractRolesFromJsonMessages(output);
+    if (outputRoles?.assistant) {
+      output = outputRoles.assistant;
+    }
 
     // Skip spans with no usable input or output
     if (!input || !output) continue;
