@@ -153,7 +153,7 @@ describe('DynatraceClient', () => {
 
     expect(mockFetch).toHaveBeenCalledOnce();
     const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe('https://test.live.dynatrace.com/platform/classic/environment-api/v2/bizevents/ingest');
+    expect(url).toBe('https://test.live.dynatrace.com/api/v2/bizevents/ingest');
     expect(JSON.parse(init.body as string)).toEqual(events);
   });
 
