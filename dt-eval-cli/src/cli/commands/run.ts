@@ -29,7 +29,9 @@ export function createRunCommand(): Command {
 
   cmd.argument('[config]', 'Path to eval config file (e.g. travel-advisor.dt-eval.yaml)');
   cmd.option('--config <path>', 'Path to eval config file (alias for positional argument)');
-  cmd.option('--since <duration>', 'Time window for trace fetch (e.g. 1h, 6h, 24h)', '1h');
+  // No default — when omitted, runEvals falls back to scope.since from the
+  // yaml. A CLI default would silently override a yaml `since: 24h`.
+  cmd.option('--since <duration>', 'Time window for trace fetch (e.g. 1h, 6h, 24h). Falls back to scope.since in the config when omitted.');
   cmd.option('--sample <percent>', 'Override sampling: percentage of traces to evaluate (0-100). When omitted, uses the strategy from your config file.', parseFloat);
   cmd.option('--metric <name>', 'Run a specific evaluator only');
   cmd.option('--dry-run', 'Fetch and transform traces, print payloads, do not send');
@@ -39,7 +41,7 @@ export function createRunCommand(): Command {
 
   cmd.action(async (configArg: string | undefined, options: {
     config?: string;
-    since: string;
+    since?: string;
     sample: number;
     metric?: string;
     dryRun?: boolean;
