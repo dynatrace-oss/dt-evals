@@ -282,8 +282,15 @@ export async function countGenAiSpans(
   }
 }
 
+/** Translate `*.apps.dynatrace.com` → `*.live.dynatrace.com` for ingest probes;
+ *  matches the runtime client. Idempotent on other hosts. */
+function liveSubdomain(url: string): string {
+  return url.replace(/^(https?:\/\/[^/]+?)\.apps\.dynatrace\.com/, '$1.live.dynatrace.com');
+}
+
 export async function checkBizeventPermission(environmentUrl: string, bearerToken: string): Promise<PermissionCheck> {
-  const url = `${environmentUrl.replace(/\/$/, '')}/platform/ingest/v1/bizevents`;
+  // Probe the same URL the runtime client posts to.
+  const url = `${liveSubdomain(environmentUrl.replace(/\/$/, ''))}/api/v2/bizevents/ingest`;
   try {
     const response = await fetch(url, {
       method: 'POST',
@@ -303,7 +310,7 @@ export async function checkBizeventPermission(environmentUrl: string, bearerToke
 }
 
 export async function checkMetricsPermission(environmentUrl: string, bearerToken: string): Promise<PermissionCheck> {
-  const url = `${environmentUrl.replace(/\/$/, '')}/api/v2/metrics/ingest`;
+  const url = `${liveSubdomain(environmentUrl.replace(/\/$/, ''))}/api/v2/metrics/ingest`;
   try {
     const response = await fetch(url, {
       method: 'POST',
@@ -312,13 +319,13 @@ export async function checkMetricsPermission(environmentUrl: string, bearerToken
       signal: AbortSignal.timeout(10_000),
     });
     return {
-      scope: 'metrics:ingest',
-      label: 'Metrics ingest (metrics:ingest)',
+      scope: 'storage:metrics:write',
+      label: 'Metrics ingest (storage:metrics:write)',
       ok: response.status !== 401 && response.status !== 403,
       statusCode: response.status,
     };
   } catch (err) {
-    return { scope: 'metrics:ingest', label: 'Metrics ingest (metrics:ingest)', ok: false, error: (err as Error).message };
+    return { scope: 'storage:metrics:write', label: 'Metrics ingest (storage:metrics:write)', ok: false, error: (err as Error).message };
   }
 }
 

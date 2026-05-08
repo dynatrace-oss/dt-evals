@@ -69,12 +69,33 @@ function logDqlNotifications(metadata: DqlResultMetadata | undefined): void {
 const POLL_INTERVAL_MS = 1000;
 const POLL_TIMEOUT_MS = 60_000;
 
+/**
+ * Translate `*.apps.dynatrace.com` → `*.live.dynatrace.com`.
+ *
+ * Modern Dynatrace platform splits its surface across two subdomains:
+ *   - `.apps.` hosts the platform-storage / DQL APIs (`/platform/storage/...`).
+ *   - `.live.` hosts the classic environment APIs (`/api/v2/...`).
+ *
+ * Users supply a single `environmentUrl` for the tenant — by convention the
+ * `.apps.` form (because DQL is the entry point). For ingest endpoints
+ * (`/api/v2/bizevents/ingest`, `/api/v2/metrics/ingest`) we need to redirect
+ * to `.live.`, otherwise the apps gateway returns 400 *Invalid app context*.
+ *
+ * Idempotent on URLs that already point at `.live.` or any other host
+ * (cluster-managed, on-prem, dev sandboxes), so it's safe to call always.
+ */
+function liveSubdomain(url: string): string {
+  return url.replace(/^(https?:\/\/[^/]+?)\.apps\.dynatrace\.com/, '$1.live.dynatrace.com');
+}
+
 export class DynatraceClient {
   private readonly environmentUrl: string;
+  private readonly liveBaseUrl: string;
   private readonly apiToken: string;
 
   constructor(config: DynatraceClientConfig) {
     this.environmentUrl = config.environmentUrl.replace(/\/$/, '');
+    this.liveBaseUrl = liveSubdomain(this.environmentUrl);
     this.apiToken = config.apiToken ?? '';
   }
 
@@ -152,7 +173,8 @@ export class DynatraceClient {
   }
 
   async ingestBizevents(events: object[]): Promise<void> {
-    const url = `${this.environmentUrl}/platform/classic/environment-api/v2/bizevents/ingest`;
+    // Classic env-api on `.live.` subdomain. See `liveSubdomain()` for why.
+    const url = `${this.liveBaseUrl}/api/v2/bizevents/ingest`;
     const response = await fetch(url, {
       method: 'POST',
       headers: this.authHeaders(),
@@ -166,7 +188,8 @@ export class DynatraceClient {
   }
 
   async ingestMetrics(lines: string): Promise<void> {
-    const url = `${this.environmentUrl}/platform/classic/environment-api/v2/metrics/ingest`;
+    // Classic env-api on `.live.` subdomain. See `liveSubdomain()` for why.
+    const url = `${this.liveBaseUrl}/api/v2/metrics/ingest`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { ...this.authHeaders(), 'Content-Type': 'text/plain' },

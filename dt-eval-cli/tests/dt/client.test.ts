@@ -168,7 +168,7 @@ describe('DynatraceClient', () => {
     await expect(client.ingestBizevents([{}])).rejects.toThrow('403');
   });
 
-  it('ingestMetrics sends text/plain content-type', async () => {
+  it('ingestMetrics sends text/plain content-type to /api/v2/metrics/ingest', async () => {
     const mockFetch = vi.fn().mockResolvedValue(new Response('', { status: 202 }));
     globalThis.fetch = mockFetch;
 
@@ -180,8 +180,67 @@ describe('DynatraceClient', () => {
     await client.ingestMetrics('my.metric 1.0');
 
     expect(mockFetch).toHaveBeenCalledOnce();
-    const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://test.live.dynatrace.com/api/v2/metrics/ingest');
     expect((init.headers as Record<string, string>)['Content-Type']).toBe('text/plain');
+  });
+
+  it('ingest endpoints rewrite *.apps.dynatrace.com → *.live.dynatrace.com', async () => {
+    // DQL lives on .apps.; classic env-api ingest lives on .live. Users supply
+    // a single .apps. environmentUrl, so the client redirects ingest calls
+    // to the matching .live. host.
+    const mockFetch = vi.fn().mockResolvedValue(new Response('', { status: 202 }));
+    globalThis.fetch = mockFetch;
+
+    const client = new DynatraceClient({
+      environmentUrl: 'https://abc12345.apps.dynatrace.com',
+      apiToken: PLATFORM_TOKEN,
+    });
+
+    await client.ingestBizevents([{ 'event.type': 'x' }]);
+    await client.ingestMetrics('my.metric 1.0');
+
+    const bizUrl = mockFetch.mock.calls[0]?.[0];
+    const metricsUrl = mockFetch.mock.calls[1]?.[0];
+    expect(bizUrl).toBe('https://abc12345.live.dynatrace.com/api/v2/bizevents/ingest');
+    expect(metricsUrl).toBe('https://abc12345.live.dynatrace.com/api/v2/metrics/ingest');
+  });
+
+  it('ingest endpoints leave non-.apps. environmentUrls unchanged', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(new Response('', { status: 202 }));
+    globalThis.fetch = mockFetch;
+
+    // Already on .live., or cluster-managed, or on-prem — pass through.
+    for (const envUrl of [
+      'https://my-cluster.live.dynatrace.com',
+      'https://my-managed.dynatrace-managed.com',
+      'https://localhost:8443',
+    ]) {
+      mockFetch.mockClear();
+      const client = new DynatraceClient({ environmentUrl: envUrl, apiToken: PLATFORM_TOKEN });
+      await client.ingestBizevents([{ 'event.type': 'x' }]);
+      const url = mockFetch.mock.calls[0]?.[0] as string;
+      expect(url).toBe(`${envUrl.replace(/\/$/, '')}/api/v2/bizevents/ingest`);
+    }
+  });
+
+  it('DQL queries stay on the original (not-rewritten) host', async () => {
+    // The translation only applies to ingest. DQL must keep .apps.
+    const mockFetch = vi.fn().mockResolvedValue(
+      makeSuccessResponse({ state: 'SUCCEEDED', result: { records: [] } }),
+    );
+    globalThis.fetch = mockFetch;
+
+    const client = new DynatraceClient({
+      environmentUrl: 'https://abc12345.apps.dynatrace.com',
+      apiToken: PLATFORM_TOKEN,
+    });
+
+    await client.executeDql('fetch spans | limit 1');
+
+    const url = mockFetch.mock.calls[0]?.[0] as string;
+    expect(url).toBe('https://abc12345.apps.dynatrace.com/platform/storage/query/v1/query:execute');
+    expect(url).not.toContain('.live.');
   });
 
   it('platform tokens (dt0s*) use Bearer scheme', async () => {
