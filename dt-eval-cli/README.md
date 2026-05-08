@@ -383,6 +383,58 @@ Available canonical fields: `input`, `output`, `systemInstruction`, `model`,
 given span, the slot falls back to `span.input` / `span.output` /
 `span.systemInstruction` so a single misconfiguration doesn't drop spans.
 
+### Full example
+
+A complete `.dt-eval.yaml` combining everything — schema bump, custom
+span field mapping, per-metric input routing, sampling, alerts:
+
+```yaml
+schemaVersion: 2
+name: travel-assistant-prod
+
+dynatrace:
+  environmentUrl: https://your-env.live.dynatrace.com
+  # apiToken loaded from DT_API_TOKEN env var
+
+judge:
+  provider: azure-openai
+  model: gpt-4.1-mini
+  # apiKey, baseUrl, apiVersion loaded from AZURE_OPENAI_* env vars
+
+scope:
+  service: travel-assistant
+  since: 1h
+  sampling:
+    strategy: latest
+    count: 50
+  # Map custom span attributes to canonical fields. Defaults handle OTel
+  # GenAI semconv + OpenLLMetry; override only what you need.
+  spanFields:
+    output: [gen_ai.output.message, gen_ai.output.messages]
+    # input, systemInstruction, model use built-in defaults
+
+metrics:
+  enabled:
+    # Plain string form — uses span.input / span.output / span.systemInstruction
+    - faithfulness
+    - relevance
+    - hallucination
+    - answer-completeness
+    # Object form — overrides which canonical span field feeds the
+    # evaluator's `input` slot. user-frustration scores the user's turn
+    # alone instead of the full joined transcript.
+    - id: user-frustration
+      inputs:
+        input: userPrompt
+
+alerts:
+  thresholds:
+    faithfulness: 0.7
+    relevance: 0.7
+    answer-completeness: 0.8
+    user-frustration: 1
+```
+
 Useful environment variables:
 
 ```bash
