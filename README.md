@@ -20,12 +20,14 @@ End-to-end LLM evaluation toolkit for Dynatrace AI Observability.
 | [`dt-evals`](dt-eval-cli) | CLI — configure, run, schedule, inspect, and deploy evals |
 | [`dt-eval-lib`](dt-eval-lib) | TypeScript library — run judge-based evals in code, tests, and CI |
 | [`dt-eval-deploy`](dt-eval-deploy) | Deployment resources — Docker image and serverless runners |
+| [`dt-ai-ingest`](dt-ai-ingest) | Python library — ingest 3rd party LLM spans and eval results into Dynatrace |
 
 > **Early Development**: This project is in active development. If you encounter any bugs or issues, please [file a GitHub issue](https://github.com/dynatrace-oss/dt-evals/issues/new). Contributions and feedback are welcome!
 
 ## Requirements
 
-- Node.js `>=20`
+- Node.js `>=20` (dt-eval, dt-eval-lib, dt-eval-deploy)
+- Python `>=3.10` (dt-ai-ingest)
 - A Dynatrace environment with GenAI spans (`gen_ai.*` OTEL attributes)
 - [`dtctl`](https://docs.dynatrace.com/docs/deliver/dynatrace-cli) installed for first-time setup (OAuth token generation)
 - Credentials for your judge provider (OpenAI, Anthropic, Google, AWS Bedrock, or Azure OpenAI)
@@ -310,7 +312,8 @@ DT_API_TOKEN=dt0c01.xxxxx
 | `faithfulness` | Answer grounded in provided context |
 | `hallucination` | Unsupported or fabricated claims |
 | `relevance` | Answer addresses the user request |
-| `coherence` | Structure, clarity, and logical flow |
+| `user-frustration` | Frustration signals in the user's input |
+| `fluency` | Grammar, clarity, and natural language quality |
 | `factual-accuracy` | Accuracy against a reference answer |
 | `answer-completeness` | All parts of the request answered |
 | `context-relevance` | Retrieval quality for supplied context |
