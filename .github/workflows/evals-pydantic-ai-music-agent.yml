@@ -1,0 +1,58 @@
+---
+name: Evals — pydantic-ai-music-agent
+
+on:
+  schedule:
+    - cron: "0 6 * * *"           # 06:00 UTC daily
+  workflow_dispatch:
+    inputs:
+      since:
+        description: "Time window (e.g. 1h, 6h, 24h)"
+        required: false
+        default: "24h"
+      sample:
+        description: "Sample percentage (overrides config)"
+        required: false
+      dry_run:
+        description: "Run without writing bizevents"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  run-evals:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      DT_ENV_URL: ${{ secrets.DT_ENV_URL }}
+      DT_API_TOKEN: ${{ secrets.DT_API_TOKEN }}
+      AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+      AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version: "20"
+
+      - name: Install @dynatrace-oss/dt-evals
+        run: npm install -g "@dynatrace-oss/dt-evals@alpha"
+
+      - name: Run evaluations
+        run: |
+          set -euo pipefail
+          ARGS=(run \
+            --config evals/pydantic-ai-music-agent.dt-eval.yaml \
+            --since "${{ inputs.since || '24h' }}" \
+            --ci)
+          if [[ -n "${{ inputs.sample }}" ]]; then
+            ARGS+=(--sample "${{ inputs.sample }}")
+          fi
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            ARGS+=(--dry-run)
+          fi
+          dt-evals "${ARGS[@]}"

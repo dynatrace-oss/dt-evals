@@ -1,0 +1,32 @@
+# Used by .github/workflows/evals-pydantic-ai-music-agent.yml.
+
+schemaVersion: 2
+name: pydantic-ai-music-agent
+
+dynatrace: {}
+
+judge:
+  provider: azure-openai
+  model: gpt-5.4-mini
+  apiVersion: 2025-04-01-preview
+  timeout: 60000
+  maxRetries: 2
+
+scope:
+  service: pydantic-ai-music-agent
+  sampling:
+    strategy: random
+    percent: 100
+  spanFields:
+    # Some Bedrock / Vertex SDK emitters serialize the assistant turn(s) under
+    # the plural attribute name; route output reads through it.
+    output: gen_ai.output.messages
+
+metrics:
+  enabled:
+    - fluency
+    - toxicity
+    - relevance
+    - user-frustration
+    - prompt-injection
+    - bias
