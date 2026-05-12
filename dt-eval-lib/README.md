@@ -5,7 +5,7 @@ Minimal TypeScript library for running LLM-as-a-judge evaluations.
 ## Install
 
 ```bash
-npm install
+npm install @dynatrace-oss/dt-eval-lib
 ```
 
 ## Build
@@ -23,7 +23,7 @@ npm test
 ## Quick Usage
 
 ```ts
-import { evaluate, BuiltInMetric } from "dt-eval-lib";
+import { evaluate, BuiltInMetric } from "@dynatrace-oss/dt-eval-lib";
 
 const result = await evaluate(
   BuiltInMetric.Toxicity,
@@ -148,7 +148,7 @@ await evaluate(BuiltInMetric.Toxicity, input, {
 Metrics are identified by the `BuiltInMetric` enum. You can also pass a custom `PromptDefinition` object directly:
 
 ```ts
-import { evaluate, BuiltInMetric } from "dt-eval-lib";
+import { evaluate, BuiltInMetric } from "@dynatrace-oss/dt-eval-lib";
 
 await evaluate(BuiltInMetric.Toxicity, input, config);   // built-in metric via enum
 await evaluate(myCustomPrompt, input, config);             // custom PromptDefinition object
@@ -157,7 +157,7 @@ await evaluate(myCustomPrompt, input, config);             // custom PromptDefin
 Use `listPrompts()` and `getPrompt()` to discover available metrics:
 
 ```ts
-import { listPrompts, getPrompt, BuiltInMetric } from "dt-eval-lib";
+import { listPrompts, getPrompt, BuiltInMetric } from "@dynatrace-oss/dt-eval-lib";
 
 const all = listPrompts();                        // all 13 built-in metrics
 const tox = getPrompt(BuiltInMetric.Toxicity);    // single metric by ID
@@ -166,7 +166,7 @@ const tox = getPrompt(BuiltInMetric.Toxicity);    // single metric by ID
 ## Configuration
 
 ```ts
-import type { EvalConfig } from "dt-eval-lib";
+import type { EvalConfig } from "@dynatrace-oss/dt-eval-lib";
 
 const config: EvalConfig = {
   provider: {
