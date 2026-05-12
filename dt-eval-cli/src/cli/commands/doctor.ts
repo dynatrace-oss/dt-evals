@@ -758,7 +758,7 @@ export function createDoctorCommand(): Command {
         console.log(`  Next step: ${pc.cyan('dt-evals run')}\n`);
       } else {
         if (hasTokenIssue) {
-          console.log(`\n  To generate a platform token:  ${pc.cyan('dt-evals doctor create')}`);
+          console.log(`\n  To generate a platform token:  ${pc.cyan('dt-evals doctor create-token')}`);
         }
         console.log(`  Re-run full check:  ${pc.cyan('dt-evals doctor')}\n`);
       }
@@ -770,10 +770,10 @@ export function createDoctorCommand(): Command {
   return cmd;
 }
 
-// ─── doctor create ────────────────────────────────────────────────────────────
+// ─── doctor create-token ──────────────────────────────────────────────────────
 
 function createDoctorCreateCommand(): Command {
-  const sub = new Command('create');
+  const sub = new Command('create-token');
   sub.description('Generate a scoped Dynatrace platform token via dtctl and write it to .env');
   sub.option('--context <name>', 'dtctl context to use');
   sub.option('--env-url <url>', 'Dynatrace environment URL (overrides config)');
