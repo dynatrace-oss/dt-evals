@@ -20,6 +20,7 @@ End-to-end LLM evaluation toolkit for Dynatrace AI Observability.
 
 - Node.js `>=20`
 - A Dynatrace environment with GenAI spans (`gen_ai.*` OTEL attributes)
+- [`dtctl`](https://docs.dynatrace.com/docs/deliver/dynatrace-cli) installed for first-time setup (OAuth token generation)
 - Credentials for your judge provider (OpenAI, Anthropic, Google, AWS Bedrock, or Azure OpenAI)
 
 ## Install
@@ -37,11 +38,12 @@ npx github:dynatrace-oss/dt-evals <command>
 ## Quick Start
 
 ```bash
-# 1. Configure credentials and provider interactively
-dt-eval configure
+# 1. Run the doctor — authenticates via dtctl (browser OAuth), checks permissions,
+#    generates a platform token, and writes it to your .env
+dt-eval doctor
 
-# 2. Validate connectivity end-to-end
-dt-eval validate
+# 2. Configure your service and judge provider
+dt-eval configure
 
 # 3. Run evals on the last hour of traces
 dt-eval run --since 1h --sample 10
@@ -50,6 +52,46 @@ dt-eval run --since 1h --sample 10
 ---
 
 ## CLI Reference
+
+### `doctor`
+
+Diagnose your environment end-to-end. Uses `dtctl` for browser-based OAuth, checks all required Dynatrace permissions, generates a scoped platform token, and writes it to your `.env`. Run this once on first setup or whenever something breaks.
+
+```bash
+# Full interactive check (recommended for first-time setup)
+dt-eval doctor
+
+# Generate a platform token only (skips the full health check)
+dt-eval doctor create-token
+
+# Use an existing dtctl context
+dt-eval doctor --context my-env
+dt-eval doctor create-token --context my-env
+
+# Point at a specific environment URL
+dt-eval doctor --env-url https://abc12345.apps.dynatrace.com
+
+# Skip token generation (if you already have DT_API_TOKEN set)
+dt-eval doctor --skip-token
+
+# Config, provider, and run history only — no dtctl auth required
+dt-eval doctor --skip-auth
+```
+
+**What it checks:**
+
+| Section | Checks |
+|---------|--------|
+| Dependencies | Node.js ≥18, dtctl installed and version |
+| Authentication | dtctl context selection or creation, browser OAuth flow |
+| Permissions | DQL read, bizevent write, metrics ingest, GenAI span count (last 24h) |
+| Platform Token | Creates a scoped API token, writes `DT_API_TOKEN` and `DT_ENV_URL` to `.env` |
+| AI Provider | API key presence and provider reachability |
+| Config & Runs | Config schema validation, last run status, failure rate over 7 days |
+
+Each section produces a pass/warn/fail result with actionable steps for anything that needs attention.
+
+---
 
 ### `configure`
 
@@ -217,6 +259,37 @@ dt-eval deploy --teardown          # Destroy deployed resources
 ```
 
 See [`dt-eval-deploy`](dt-eval-deploy) for Docker-based deployment.
+
+---
+
+## Required Dynatrace Permissions
+
+### dt-eval CLI
+
+The platform token (or OAuth scope) used by the CLI needs the following permissions:
+
+| Scope | Required for | Notes |
+|-------|-------------|-------|
+| `storage:spans:read` | `dt-eval run` | Fetches GenAI OTel spans via DQL (`fetch spans`) |
+| `storage:events:read` | `dt-eval run` with drift | Reads historical evaluation results for drift baseline (`fetch bizevents`) |
+| `storage:events:write` | `dt-eval run` | Writes evaluation results back as business events |
+| `metrics:ingest` | Optional | Writes evaluation metrics to Dynatrace metrics API |
+
+Run `dt-eval doctor create-token` to generate a token with exactly these scopes via OAuth.
+
+**Manually create a token** in Dynatrace → Settings → Access Tokens with the scopes above, then set:
+
+```bash
+DT_ENV_URL=https://your-env.apps.dynatrace.com
+DT_API_TOKEN=dt0c01.xxxxx
+```
+
+### dt-ai-ingest (Python library)
+
+| Scope | Required for |
+|-------|-------------|
+| `storage:events:write` | Sending evaluation results as business events |
+| `openTelemetryTrace.ingest` | Exporting OTel traces from MLflow / Langfuse |
 
 ---
 

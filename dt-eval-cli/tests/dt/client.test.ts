@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { DynatraceClient } from '../../src/dt/client.js';
+import { logger } from '../../src/logger/index.js';
+
+const PLATFORM_TOKEN = 'dt0s16.AAAA.BBBB';
+const CLASSIC_TOKEN = 'dt0c01.AAAA.BBBB';
 
 function makeMockFetch(responses: Array<() => Response>): ReturnType<typeof vi.fn> {
   let callIndex = 0;
@@ -41,7 +45,7 @@ describe('DynatraceClient', () => {
 
     const client = new DynatraceClient({
       environmentUrl: 'https://test.live.dynatrace.com',
-      apiToken: 'test-token-123',
+      apiToken: PLATFORM_TOKEN,
     });
 
     await client.executeDql('fetch spans | limit 1');
@@ -49,7 +53,7 @@ describe('DynatraceClient', () => {
     expect(mockFetch).toHaveBeenCalledOnce();
     const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('https://test.live.dynatrace.com/platform/storage/query/v1/query:execute');
-    expect((init.headers as Record<string, string>)['Authorization']).toBe('Api-Token test-token-123');
+    expect((init.headers as Record<string, string>)['Authorization']).toBe(`Bearer ${PLATFORM_TOKEN}`);
     expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json');
   });
 
@@ -149,7 +153,7 @@ describe('DynatraceClient', () => {
 
     expect(mockFetch).toHaveBeenCalledOnce();
     const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe('https://test.live.dynatrace.com/platform/ingest/v1/bizevents');
+    expect(url).toBe('https://test.live.dynatrace.com/api/v2/bizevents/ingest');
     expect(JSON.parse(init.body as string)).toEqual(events);
   });
 
@@ -164,7 +168,7 @@ describe('DynatraceClient', () => {
     await expect(client.ingestBizevents([{}])).rejects.toThrow('403');
   });
 
-  it('ingestMetrics sends text/plain content-type', async () => {
+  it('ingestMetrics sends text/plain content-type to /api/v2/metrics/ingest', async () => {
     const mockFetch = vi.fn().mockResolvedValue(new Response('', { status: 202 }));
     globalThis.fetch = mockFetch;
 
@@ -176,11 +180,70 @@ describe('DynatraceClient', () => {
     await client.ingestMetrics('my.metric 1.0');
 
     expect(mockFetch).toHaveBeenCalledOnce();
-    const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://test.live.dynatrace.com/api/v2/metrics/ingest');
     expect((init.headers as Record<string, string>)['Content-Type']).toBe('text/plain');
   });
 
-  it('authorization header uses Api-Token format', async () => {
+  it('ingest endpoints rewrite *.apps.dynatrace.com → *.live.dynatrace.com', async () => {
+    // DQL lives on .apps.; classic env-api ingest lives on .live. Users supply
+    // a single .apps. environmentUrl, so the client redirects ingest calls
+    // to the matching .live. host.
+    const mockFetch = vi.fn().mockResolvedValue(new Response('', { status: 202 }));
+    globalThis.fetch = mockFetch;
+
+    const client = new DynatraceClient({
+      environmentUrl: 'https://abc12345.apps.dynatrace.com',
+      apiToken: PLATFORM_TOKEN,
+    });
+
+    await client.ingestBizevents([{ 'event.type': 'x' }]);
+    await client.ingestMetrics('my.metric 1.0');
+
+    const bizUrl = mockFetch.mock.calls[0]?.[0];
+    const metricsUrl = mockFetch.mock.calls[1]?.[0];
+    expect(bizUrl).toBe('https://abc12345.live.dynatrace.com/api/v2/bizevents/ingest');
+    expect(metricsUrl).toBe('https://abc12345.live.dynatrace.com/api/v2/metrics/ingest');
+  });
+
+  it('ingest endpoints leave non-.apps. environmentUrls unchanged', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(new Response('', { status: 202 }));
+    globalThis.fetch = mockFetch;
+
+    // Already on .live., or cluster-managed, or on-prem — pass through.
+    for (const envUrl of [
+      'https://my-cluster.live.dynatrace.com',
+      'https://my-managed.dynatrace-managed.com',
+      'https://localhost:8443',
+    ]) {
+      mockFetch.mockClear();
+      const client = new DynatraceClient({ environmentUrl: envUrl, apiToken: PLATFORM_TOKEN });
+      await client.ingestBizevents([{ 'event.type': 'x' }]);
+      const url = mockFetch.mock.calls[0]?.[0] as string;
+      expect(url).toBe(`${envUrl.replace(/\/$/, '')}/api/v2/bizevents/ingest`);
+    }
+  });
+
+  it('DQL queries stay on the original (not-rewritten) host', async () => {
+    // The translation only applies to ingest. DQL must keep .apps.
+    const mockFetch = vi.fn().mockResolvedValue(
+      makeSuccessResponse({ state: 'SUCCEEDED', result: { records: [] } }),
+    );
+    globalThis.fetch = mockFetch;
+
+    const client = new DynatraceClient({
+      environmentUrl: 'https://abc12345.apps.dynatrace.com',
+      apiToken: PLATFORM_TOKEN,
+    });
+
+    await client.executeDql('fetch spans | limit 1');
+
+    const url = mockFetch.mock.calls[0]?.[0] as string;
+    expect(url).toBe('https://abc12345.apps.dynatrace.com/platform/storage/query/v1/query:execute');
+    expect(url).not.toContain('.live.');
+  });
+
+  it('platform tokens (dt0s*) use Bearer scheme', async () => {
     const mockFetch = vi.fn().mockResolvedValue(
       makeSuccessResponse({ state: 'SUCCEEDED', result: { records: [] } }),
     );
@@ -188,13 +251,125 @@ describe('DynatraceClient', () => {
 
     const client = new DynatraceClient({
       environmentUrl: 'https://test.live.dynatrace.com',
-      apiToken: 'my-secret-token',
+      apiToken: PLATFORM_TOKEN,
     });
 
     await client.executeDql('fetch spans | limit 1');
 
     const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect((init.headers as Record<string, string>)['Authorization']).toBe('Api-Token my-secret-token');
+    expect((init.headers as Record<string, string>)['Authorization']).toBe(`Bearer ${PLATFORM_TOKEN}`);
+  });
+
+  it('classic API tokens (dt0c*) use Api-Token scheme', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      makeSuccessResponse({ state: 'SUCCEEDED', result: { records: [] } }),
+    );
+    globalThis.fetch = mockFetch;
+
+    const client = new DynatraceClient({
+      environmentUrl: 'https://test.live.dynatrace.com',
+      apiToken: CLASSIC_TOKEN,
+    });
+
+    await client.executeDql('fetch spans | limit 1');
+
+    const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect((init.headers as Record<string, string>)['Authorization']).toBe(`Api-Token ${CLASSIC_TOKEN}`);
+  });
+
+  it('logs WARNING-severity Grail notifications via logger.warn', async () => {
+    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      makeSuccessResponse({
+        state: 'SUCCEEDED',
+        result: {
+          records: [],
+          metadata: {
+            grail: {
+              notifications: [
+                {
+                  severity: 'WARNING',
+                  notificationType: 'MISSING_BUCKET_PERMISSIONS',
+                  message: 'No bucket permissions for table spans.',
+                },
+              ],
+            },
+          },
+        },
+      }),
+    );
+
+    const client = new DynatraceClient({
+      environmentUrl: 'https://test.live.dynatrace.com',
+      apiToken: PLATFORM_TOKEN,
+    });
+
+    await client.executeDql('fetch spans | limit 1');
+
+    expect(warnSpy).toHaveBeenCalledOnce();
+    expect(warnSpy.mock.calls[0]?.[0]).toContain('MISSING_BUCKET_PERMISSIONS');
+    expect(warnSpy.mock.calls[0]?.[0]).toContain('No bucket permissions for table spans.');
+  });
+
+  it('probeBucketRead returns ok=true on a clean SUCCEEDED response', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      makeSuccessResponse({ state: 'SUCCEEDED', result: { records: [] } }),
+    );
+    const client = new DynatraceClient({
+      environmentUrl: 'https://test.live.dynatrace.com',
+      apiToken: PLATFORM_TOKEN,
+    });
+
+    const result = await client.probeBucketRead('spans');
+    expect(result).toEqual({ ok: true });
+  });
+
+  it('probeBucketRead surfaces MISSING_BUCKET_PERMISSIONS as a failure', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      makeSuccessResponse({
+        state: 'SUCCEEDED',
+        result: {
+          records: [],
+          metadata: {
+            grail: {
+              notifications: [
+                {
+                  severity: 'WARNING',
+                  notificationType: 'MISSING_BUCKET_PERMISSIONS',
+                  message: 'No bucket permissions for table spans.',
+                },
+              ],
+            },
+          },
+        },
+      }),
+    );
+    const client = new DynatraceClient({
+      environmentUrl: 'https://test.live.dynatrace.com',
+      apiToken: PLATFORM_TOKEN,
+    });
+
+    const result = await client.probeBucketRead('spans');
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toContain('No bucket permissions');
+    }
+  });
+
+  it('does not log when no notifications are present', async () => {
+    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      makeSuccessResponse({ state: 'SUCCEEDED', result: { records: [] } }),
+    );
+
+    const client = new DynatraceClient({
+      environmentUrl: 'https://test.live.dynatrace.com',
+      apiToken: PLATFORM_TOKEN,
+    });
+
+    await client.executeDql('fetch spans | limit 1');
+
+    expect(warnSpy).not.toHaveBeenCalled();
   });
 
   it('trailing slash in environmentUrl is stripped', async () => {

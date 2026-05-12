@@ -3,7 +3,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { loadConfig } from '../../config/index.js';
-import { metricId } from '../../config/schema.js';
+import { resolveEndpoints, metricId } from '../../config/schema.js';
 import { printBanner } from '../../ui/banner.js';
 
 interface RunLogEntry {
@@ -82,14 +82,23 @@ export function createStatusCommand(): Command {
     console.log(`  Global file:    ${existsSync(globalConfigPath) ? globalConfigPath : '(not found)'}`);
     console.log(`  Schema version: ${config.schemaVersion}`);
 
-    console.log('\nDynatrace:');
-    console.log(`  Environment: ${config.dynatrace.environmentUrl || '(not set)'}`);
-    console.log(`  API token:   ${config.dynatrace.apiToken ? '***' : '(not set)'}`);
+    const { origin, destination } = resolveEndpoints(config.dynatrace);
+    const sameTenant = origin.environmentUrl === destination.environmentUrl;
 
-    process.stdout.write('  Connection:  checking...');
-    const connected = await checkDtConnection(config.dynatrace.environmentUrl, config.dynatrace.apiToken);
-    const connLabel = connected === true ? 'OK' : connected === null ? 'OK (token needs storage:logs:read scope for DQL)' : 'FAILED';
-    process.stdout.write(`\r  Connection:  ${connLabel}     \n`);
+    console.log('\nDynatrace:');
+    console.log(`  Origin (read):       ${origin.environmentUrl || '(not set)'}`);
+    console.log(`  Origin token:        ${origin.apiToken ? '***' : '(not set)'}`);
+    if (!sameTenant) {
+      console.log(`  Destination (write): ${destination.environmentUrl || '(not set)'}`);
+      console.log(`  Destination token:   ${destination.apiToken ? '***' : '(not set)'}`);
+    }
+
+    for (const [label, side] of (sameTenant ? [['Connection', origin]] : [['Origin', origin], ['Destination', destination]]) as Array<['Origin' | 'Destination' | 'Connection', { environmentUrl: string; apiToken?: string }]>) {
+      process.stdout.write(`  ${label}:  checking...`);
+      const connected = await checkDtConnection(side.environmentUrl, side.apiToken ?? '');
+      const connLabel = connected === true ? 'OK' : connected === null ? 'OK (token needs storage:logs:read scope for DQL)' : 'FAILED';
+      process.stdout.write(`\r  ${label}:  ${connLabel}     \n`);
+    }
 
     console.log('\nEvaluator:');
     console.log(`  Provider: ${config.judge.provider}`);

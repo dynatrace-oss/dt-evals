@@ -6,6 +6,7 @@ import { createScheduleCommand } from './commands/schedule.js';
 import { createEvaluatorsCommand } from './commands/evaluators.js';
 import { createRunsCommand } from './commands/runs.js';
 import { createValidateCommand } from './commands/validate.js';
+import { createDoctorCommand } from './commands/doctor.js';
 import { configureLogger } from '../logger/index.js';
 import { printBanner } from '../ui/banner.js';
 
@@ -32,6 +33,7 @@ export function createCli(): Command {
     if (opts.json) configureLogger({ json: true });
   });
 
+  program.addCommand(createDoctorCommand());
   program.addCommand(createConfigureCommand());
   program.addCommand(createRunCommand());
   program.addCommand(createStatusCommand());

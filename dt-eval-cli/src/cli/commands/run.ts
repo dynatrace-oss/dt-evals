@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { loadConfig, validateConfig } from '../../config/index.js';
-import { metricId } from '../../config/schema.js';
+import { resolveEndpoints, metricId } from '../../config/schema.js';
 import { DynatraceClient } from '../../dt/client.js';
 import { runEvals } from '../../runner/index.js';
 import { Spinner } from '../../ui/spinner.js';
@@ -67,10 +67,12 @@ export function createRunCommand(): Command {
       process.exit(1);
     }
 
-    const apiToken = config.dynatrace.apiToken;
-    const dtctlContext = config.dynatrace.dtctlContext;
-    if (!apiToken && !dtctlContext) {
-      const msg = 'Authentication required: set dynatrace.apiToken, DT_API_TOKEN env var, or configure a dtctlContext.';
+    const { origin, destination } = resolveEndpoints(config.dynatrace);
+    const missing: string[] = [];
+    if (!origin.apiToken) missing.push('origin (set DT_ORIGIN_API_TOKEN or dynatrace.origin.apiToken / DT_API_TOKEN)');
+    if (!destination.apiToken) missing.push('destination (set DT_DESTINATION_API_TOKEN or dynatrace.destination.apiToken / DT_API_TOKEN)');
+    if (missing.length > 0) {
+      const msg = `Authentication required for: ${missing.join('; ')}`;
       if (options.ci) {
         console.log(JSON.stringify({ error: msg }));
       } else {
@@ -79,17 +81,19 @@ export function createRunCommand(): Command {
       process.exit(1);
     }
 
-    const dtClient = new DynatraceClient({
-      environmentUrl: config.dynatrace.environmentUrl,
-      apiToken,
-      dtctlContext,
-    });
+    const dtClients = {
+      origin: new DynatraceClient({ environmentUrl: origin.environmentUrl, apiToken: origin.apiToken }),
+      destination: new DynatraceClient({ environmentUrl: destination.environmentUrl, apiToken: destination.apiToken }),
+    };
+    if (origin.environmentUrl !== destination.environmentUrl) {
+      logger.info(`Cross-tenant: read ${origin.environmentUrl} → write ${destination.environmentUrl}`);
+    }
 
     const spinner = options.ci ? null : new Spinner('Fetching GenAI spans from Dynatrace...');
     spinner?.start();
 
     try {
-      const result = await runEvals(dtClient, config, {
+      const result = await runEvals(dtClients, config, {
         since: options.since,
         sample: options.sample,
         metrics: options.metric ? [options.metric] : undefined,

@@ -319,6 +319,31 @@ Sampling strategies:
 | Most recent traces | `strategy: latest`, `count: 200` |
 | Error traces only | `strategy: errors-only` |
 
+### Cross-tenant configuration
+
+`dynatrace.environmentUrl` / `dynatrace.apiToken` describe a single tenant
+that handles both reads and writes. To split them — fetch GenAI spans from
+one tenant and write evaluation bizevents to another — use `origin` (read)
+and `destination` (write):
+
+```yaml
+dynatrace:
+  origin:
+    environmentUrl: https://prod.live.dynatrace.com
+    apiToken: dt0s16.xxxxx          # needs storage:spans:read, storage:buckets:read
+  destination:
+    environmentUrl: https://eval-results.dev.apps.dynatracelabs.com
+    apiToken: dt0s16.yyyyy          # needs storage:bizevents:write, storage:metric:write
+```
+
+Top-level `environmentUrl` / `apiToken` (if present) act as fallbacks — if
+either side omits a field, the top-level value is used. So a single-tenant
+config is just the cross-tenant form with both sides empty.
+
+The `validate` command probes each side separately, including a real
+`fetch spans | limit 1` against the origin to catch missing
+`storage:spans:read` scope before a run is attempted.
+
 ### Custom span field mapping
 
 By default, the CLI reads OTel GenAI semconv (`gen_ai.input.messages`,
@@ -441,6 +466,12 @@ Useful environment variables:
 DT_ENV_URL=https://your-env.live.dynatrace.com
 DT_API_TOKEN=dt0c01.xxxxx
 DT_DTCTL_CONTEXT=my-prod-context
+
+# Cross-tenant overrides (optional — when set, these win over the top-level pair)
+DT_ORIGIN_ENV_URL=https://prod.live.dynatrace.com
+DT_ORIGIN_API_TOKEN=dt0s16.xxxxx
+DT_DESTINATION_ENV_URL=https://eval-results.dev.apps.dynatracelabs.com
+DT_DESTINATION_API_TOKEN=dt0s16.yyyyy
 
 JUDGE_PROVIDER=openai
 JUDGE_MODEL=gpt-4.1

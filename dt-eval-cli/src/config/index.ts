@@ -4,6 +4,7 @@ import { join, dirname } from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import {
   CURRENT_SCHEMA_VERSION,
+  resolveEndpoints,
   type DtEvalConfig,
   type DynatraceConfig,
   type JudgeConfig,
@@ -86,8 +87,20 @@ function applyEnvVars(config: DtEvalConfig): DtEvalConfig {
   if (process.env['DT_API_TOKEN']) {
     result.dynatrace.apiToken = process.env['DT_API_TOKEN'];
   }
-  if (process.env['DT_DTCTL_CONTEXT']) {
-    result.dynatrace.dtctlContext = process.env['DT_DTCTL_CONTEXT'];
+  // Cross-tenant overrides
+  if (process.env['DT_ORIGIN_ENV_URL'] || process.env['DT_ORIGIN_API_TOKEN']) {
+    result.dynatrace.origin = {
+      ...(result.dynatrace.origin ?? {}),
+      ...(process.env['DT_ORIGIN_ENV_URL'] ? { environmentUrl: process.env['DT_ORIGIN_ENV_URL'] } : {}),
+      ...(process.env['DT_ORIGIN_API_TOKEN'] ? { apiToken: process.env['DT_ORIGIN_API_TOKEN'] } : {}),
+    };
+  }
+  if (process.env['DT_DESTINATION_ENV_URL'] || process.env['DT_DESTINATION_API_TOKEN']) {
+    result.dynatrace.destination = {
+      ...(result.dynatrace.destination ?? {}),
+      ...(process.env['DT_DESTINATION_ENV_URL'] ? { environmentUrl: process.env['DT_DESTINATION_ENV_URL'] } : {}),
+      ...(process.env['DT_DESTINATION_API_TOKEN'] ? { apiToken: process.env['DT_DESTINATION_API_TOKEN'] } : {}),
+    };
   }
   if (process.env['JUDGE_PROVIDER']) {
     result.judge.provider = process.env['JUDGE_PROVIDER'] as JudgeConfig['provider'];
@@ -168,10 +181,19 @@ export function saveConfig(config: DtEvalConfig, filePath: string): void {
 export function validateConfig(config: DtEvalConfig): void {
   const issues: string[] = [];
 
-  if (!config.dynatrace?.environmentUrl) {
-    issues.push('dynatrace.environmentUrl is required');
-  } else if (!/^https?:\/\//.test(config.dynatrace.environmentUrl)) {
-    issues.push('dynatrace.environmentUrl must be a valid URL starting with http:// or https://');
+  // Validate concrete origin/destination after resolution. Either side may be
+  // satisfied by top-level fields or by its own block.
+  if (config.dynatrace) {
+    const { origin, destination } = resolveEndpoints(config.dynatrace);
+    const urlOk = (u?: string) => !!u && /^https?:\/\//.test(u);
+    if (!urlOk(origin.environmentUrl)) {
+      issues.push('dynatrace.origin.environmentUrl (or dynatrace.environmentUrl) is required and must be http(s)://');
+    }
+    if (!urlOk(destination.environmentUrl)) {
+      issues.push('dynatrace.destination.environmentUrl (or dynatrace.environmentUrl) is required and must be http(s)://');
+    }
+  } else {
+    issues.push('dynatrace config is required');
   }
 
   if (!config.judge?.provider) {

@@ -77,11 +77,20 @@ interface EvalTaskResult {
 
 export type { EvalResult };
 
+export interface DtClients {
+  /** Tenant for fetching GenAI spans (DQL read). */
+  origin: DynatraceClient;
+  /** Tenant for writing eval bizevents/metrics. */
+  destination: DynatraceClient;
+}
+
 export async function runEvals(
-  dtClient: DynatraceClient,
+  clients: DtClients | DynatraceClient,
   evalConfig: DtEvalConfig,
   opts: RunOptions,
 ): Promise<RunResult> {
+  const { origin: readClient, destination: writeClient } =
+    'origin' in clients ? clients : { origin: clients, destination: clients };
   const startTime = Date.now();
   const runId = `run-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}-${randomUUID().slice(0, 8)}`;
 
@@ -100,7 +109,7 @@ export async function runEvals(
   logger.debug(`DQL query:\n${query}`);
 
   const t0Dql = Date.now();
-  const rawRecords = await dtClient.executeDql(query) as unknown[];
+  const rawRecords = await readClient.executeDql(query) as unknown[];
   logger.timing('DQL fetch', Date.now() - t0Dql, { rawRecords: (rawRecords as unknown[]).length });
 
   const t0Parse = Date.now();
@@ -210,7 +219,7 @@ export async function runEvals(
 
   // 8. Write bizevents
   logger.step('Writing bizevents...');
-  const writer = new BizeventWriter(dtClient);
+  const writer = new BizeventWriter(writeClient);
   const payloads: BizeventPayload[] = successResults.map(r =>
     buildBizeventPayload(r.span, r.metric, r.evalResult, runId, judgeProvider, judgeModel, evalConfig.scope.service, r.evalInput),
   );
@@ -226,8 +235,10 @@ export async function runEvals(
     for (const r of successResults) {
       (currentScores[r.metric] ??= []).push(r.evalResult.score.value);
     }
+    // Drift compares current run against historical eval bizevents on the
+    // destination tenant (where eval results live).
     const driftResults = await runDriftDetection(
-      dtClient,
+      writeClient,
       currentScores,
       evalConfig.scope.service,
       runId,
@@ -235,7 +246,7 @@ export async function runEvals(
     );
     if (driftResults.length > 0) {
       const driftEvents = buildDriftBizevents(driftResults, runId, evalConfig.scope.service);
-      await dtClient.ingestBizevents(driftEvents);
+      await writeClient.ingestBizevents(driftEvents);
       logger.timing('Drift ingest', 0, { events: driftEvents.length });
     }
   }
