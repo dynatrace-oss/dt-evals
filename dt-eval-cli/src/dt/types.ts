@@ -7,6 +7,9 @@ export interface GenAiSpan {
   systemInstruction?: string; // gen_ai.system_instruction
   system?: string;            // gen_ai.provider.name (e.g. "openai")
   requestModel?: string;      // gen_ai.request.model
+  /** Latest user-role prompt content. Useful for metrics that should score
+   * the user's turn alone (e.g. user-frustration). */
+  userPrompt?: string;
   isError?: boolean;
 }
 

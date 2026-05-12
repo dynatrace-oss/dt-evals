@@ -23,6 +23,17 @@ function scoringFormat(scoreValue: number): string {
   return scoreValue > 1 ? 'score_1_to_5' : 'score_0_to_1';
 }
 
+/**
+ * Subset of `EvalInput` from dt-eval-lib — what the judge actually saw,
+ * which may differ from the raw span when per-metric inputs routing is in
+ * effect (e.g. user-frustration scoring only the user-role prompt slot).
+ */
+export interface JudgeInputs {
+  input?: string;
+  output?: string;
+  context?: string;
+}
+
 export function buildBizeventPayload(
   span: GenAiSpan,
   metric: string,
@@ -31,7 +42,15 @@ export function buildBizeventPayload(
   judgeProvider: string,
   judgeModel: string,
   serviceName?: string,
+  judgeInputs?: JudgeInputs,
 ): BizeventPayload {
+  // Record what the judge actually evaluated, not the raw span — they
+  // diverge when per-metric inputs routing maps a canonical field
+  // (e.g. userPrompt) onto an evaluator slot.
+  const question = judgeInputs?.input ?? span.input;
+  const answer = judgeInputs?.output ?? span.output;
+  const systemPrompt = judgeInputs?.context ?? span.systemInstruction;
+
   const payload: BizeventPayload = {
     'event.type': 'gen_ai.evaluation.result',
     'event.provider': CLIENT_NAME,
@@ -46,8 +65,8 @@ export function buildBizeventPayload(
     'gen_ai.evaluation.score.label': result.score.label,
     'gen_ai.evaluation.explanation': result.explanation.summary,
     'gen_ai.evaluation.method': 'llm_as_judge',
-    'gen_ai.evaluation.input.question': span.input,
-    'gen_ai.evaluation.input.answer': span.output,
+    'gen_ai.evaluation.input.question': question,
+    'gen_ai.evaluation.input.answer': answer,
     'gen_ai.request.model': judgeModel,
     'gen_ai.provider.name': judgeProvider,
     ...(serviceName ? { 'dt.service.name': serviceName } : {}),
@@ -61,8 +80,8 @@ export function buildBizeventPayload(
     payload['gen_ai.response.id'] = span.spanId;
   }
 
-  if (span.systemInstruction) {
-    payload['gen_ai.evaluation.input.system_prompt'] = span.systemInstruction;
+  if (systemPrompt) {
+    payload['gen_ai.evaluation.input.system_prompt'] = systemPrompt;
   }
 
   return payload;

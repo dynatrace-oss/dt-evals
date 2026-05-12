@@ -139,4 +139,58 @@ describe('BizeventWriter', () => {
     await writer.writeBatch([]);
     expect(mockClient.ingestBizevents).not.toHaveBeenCalled();
   });
+
+  describe('judgeInputs override', () => {
+    it('records the routed judge input over span.input when supplied', () => {
+      const span = makeSpan({
+        input: 'system: be nice\nuser: i am angry\nassistant: I understand',
+        output: 'I understand',
+        systemInstruction: 'be nice',
+      });
+      const payload = buildBizeventPayload(
+        span,
+        'user-frustration',
+        makeEvalResult(0, 'fail'),
+        'run-1',
+        'openai',
+        'gpt-4o',
+        'my-service',
+        { input: 'i am angry', output: 'I understand', context: 'be nice' },
+      );
+      expect(payload['gen_ai.evaluation.input.question']).toBe('i am angry');
+      expect(payload['gen_ai.evaluation.input.answer']).toBe('I understand');
+      expect(payload['gen_ai.evaluation.input.system_prompt']).toBe('be nice');
+    });
+
+    it('falls back to span fields when judgeInputs is not supplied', () => {
+      const span = makeSpan({ systemInstruction: 'be helpful' });
+      const payload = buildBizeventPayload(
+        span,
+        'relevance',
+        makeEvalResult(),
+        'run-1',
+        'openai',
+        'gpt-4o',
+      );
+      expect(payload['gen_ai.evaluation.input.question']).toBe(span.input);
+      expect(payload['gen_ai.evaluation.input.answer']).toBe(span.output);
+      expect(payload['gen_ai.evaluation.input.system_prompt']).toBe('be helpful');
+    });
+
+    it('falls back to span fields per-slot when judgeInputs only overrides some slots', () => {
+      const span = makeSpan();
+      const payload = buildBizeventPayload(
+        span,
+        'user-frustration',
+        makeEvalResult(),
+        'run-1',
+        'openai',
+        'gpt-4o',
+        undefined,
+        { input: 'just the user turn' }, // output / context not routed
+      );
+      expect(payload['gen_ai.evaluation.input.question']).toBe('just the user turn');
+      expect(payload['gen_ai.evaluation.input.answer']).toBe(span.output);
+    });
+  });
 });

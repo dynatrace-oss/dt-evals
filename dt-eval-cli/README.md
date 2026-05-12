@@ -275,7 +275,7 @@ Config is resolved in this order:
 ### Example config
 
 ```yaml
-schemaVersion: 1
+schemaVersion: 2
 name: travel-assistant-prod
 
 dynatrace:
@@ -343,6 +343,122 @@ config is just the cross-tenant form with both sides empty.
 The `validate` command probes each side separately, including a real
 `fetch spans | limit 1` against the origin to catch missing
 `storage:spans:read` scope before a run is attempted.
+
+### Custom span field mapping
+
+By default, the CLI reads OTel GenAI semconv (`gen_ai.input.messages`,
+`gen_ai.output.message`, …) and OpenLLMetry conventions (`gen_ai.prompt.N.*`,
+`gen_ai.completion.0.content`). If your spans expose the LLM I/O under
+different attribute names, point the CLI at them via `scope.spanFields`.
+Each entry accepts a single attribute or a list of candidates; the first
+non-null value wins, with the built-in defaults appended as fallback.
+
+**Example 1 — non-semconv spans:**
+
+```yaml
+scope:
+  service: my-llm-service
+  since: 30m
+  spanFields:
+    input: llm.user_input              # or [llm.user_input, my.custom.input]
+    output: llm.response
+    systemInstruction: llm.system
+    model: llm.model
+```
+
+**Example 2 — OTel GenAI plural form** (some Bedrock / Vertex SDK
+emitters serialize the full message array under the plural attribute
+name `gen_ai.output.messages` instead of the singular `gen_ai.output.message`):
+
+```yaml
+scope:
+  service: pydantic-ai-music-agent
+  spanFields:
+    output: gen_ai.output.messages     # JSON-encoded array of {role, parts}
+```
+
+The runner stringifies whatever it finds, so a JSON array under
+`gen_ai.output.messages` reaches the judge as the assistant turn(s).
+This is convention-friendly: list every variant you've seen and the
+parser walks them in order.
+
+### Per-metric input routing
+
+Metric entries in `metrics.enabled` accept either a string id (the legacy
+form) or an object with `inputs` that overrides which canonical span field
+feeds each evaluator input slot. This is useful when a metric should score
+only part of the conversation — e.g. `user-frustration` evaluates the user's
+turn in isolation, not the joined transcript:
+
+```yaml
+metrics:
+  enabled:
+    - faithfulness                                  # legacy string form
+    - id: user-frustration
+      inputs:
+        input: userPrompt                           # latest user-role prompt slot
+    - id: hallucination
+      inputs:
+        context: systemInstruction                  # use system prompt as context
+```
+
+Available canonical fields: `input`, `output`, `systemInstruction`, `model`,
+`userPrompt` (latest user-role prompt slot, extracted from
+`gen_ai.prompt.N.role == "user"`). When the requested field is empty on a
+given span, the slot falls back to `span.input` / `span.output` /
+`span.systemInstruction` so a single misconfiguration doesn't drop spans.
+
+### Full example
+
+A complete `.dt-eval.yaml` combining everything — schema bump, custom
+span field mapping, per-metric input routing, sampling, alerts:
+
+```yaml
+schemaVersion: 2
+name: travel-assistant-prod
+
+dynatrace:
+  environmentUrl: https://your-env.live.dynatrace.com
+  # apiToken loaded from DT_API_TOKEN env var
+
+judge:
+  provider: azure-openai
+  model: gpt-4.1-mini
+  # apiKey, baseUrl, apiVersion loaded from AZURE_OPENAI_* env vars
+
+scope:
+  service: travel-assistant
+  since: 1h
+  sampling:
+    strategy: latest
+    count: 50
+  # Map custom span attributes to canonical fields. Defaults handle OTel
+  # GenAI semconv + OpenLLMetry; override only what you need.
+  spanFields:
+    output: [gen_ai.output.message, gen_ai.output.messages]
+    # input, systemInstruction, model use built-in defaults
+
+metrics:
+  enabled:
+    # Plain string form — uses span.input / span.output / span.systemInstruction
+    - faithfulness
+    - relevance
+    - hallucination
+    - answer-completeness
+    # Object form — overrides which canonical span field feeds the
+    # evaluator's `input` slot. user-frustration scores the user's turn
+    # alone instead of the full joined transcript.
+    - id: user-frustration
+      inputs:
+        input: userPrompt
+
+alerts:
+  thresholds:
+    faithfulness: 0.7
+    relevance: 0.7
+    answer-completeness: 0.8
+    user-frustration: 1
+```
 
 Useful environment variables:
 

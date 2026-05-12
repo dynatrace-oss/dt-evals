@@ -3,7 +3,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { loadConfig } from '../../config/index.js';
-import { resolveEndpoints } from '../../config/schema.js';
+import { resolveEndpoints, metricId } from '../../config/schema.js';
 import { printBanner } from '../../ui/banner.js';
 
 interface RunLogEntry {
@@ -117,7 +117,7 @@ export function createStatusCommand(): Command {
     })`);
 
     console.log('\nEvaluators:');
-    console.log(`  Enabled: ${config.metrics.enabled.join(', ')}`);
+    console.log(`  Enabled: ${config.metrics.enabled.map(metricId).join(', ')}`);
 
     const lastRun = getLastRunSummary();
     console.log('\nLast evaluation run:');
