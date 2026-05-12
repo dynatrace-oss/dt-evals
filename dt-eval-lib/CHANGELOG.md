@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.0.13-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.12-alpha...dt-eval-lib-v0.0.13-alpha) (2026-05-12)
+
+
+### ✨ New Features
+
+* add user frustration metrics replacing coherence ([#49](https://github.com/dynatrace-oss/dt-evals/issues/49)) ([1f58925](https://github.com/dynatrace-oss/dt-evals/commit/1f589251835867fb354ff20358b7efe84d149d79))
+
+
+### 🐛 Bug Fixes
+
+* package structure for the CI ([#56](https://github.com/dynatrace-oss/dt-evals/issues/56)) ([9de7d55](https://github.com/dynatrace-oss/dt-evals/commit/9de7d55befa04d6deb8aead22f4313bd3406070e))
+* update optimized prompts for user frustration, bias and conciseness ([#58](https://github.com/dynatrace-oss/dt-evals/issues/58)) ([233323d](https://github.com/dynatrace-oss/dt-evals/commit/233323d2dd2065685f1e12eaf8115033d98e5bd4))
+* updating prompts multiple eval metrics ([#45](https://github.com/dynatrace-oss/dt-evals/issues/45)) ([3168c8d](https://github.com/dynatrace-oss/dt-evals/commit/3168c8dd977dd2df23850b4fbd9306888ce092cc))
+
 ## [0.0.12-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.11-alpha...dt-eval-lib-v0.0.12-alpha) (2026-04-20)
 
 
