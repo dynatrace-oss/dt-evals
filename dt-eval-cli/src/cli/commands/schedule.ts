@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { loadConfig, validateConfig } from '../../config/index.js';
+import { resolveEndpoints } from '../../config/schema.js';
 import { DynatraceClient } from '../../dt/client.js';
 import { runEvals } from '../../runner/index.js';
 import { renderTable } from '../../ui/table.js';
@@ -201,19 +202,19 @@ export function createScheduleCommand(): Command {
       process.exit(1);
     }
 
-    const apiToken = config.dynatrace.apiToken;
-    if (!apiToken) {
-      logger.error('dynatrace.apiToken is required');
+    const { origin, destination } = resolveEndpoints(config.dynatrace);
+    if (!origin.apiToken || !destination.apiToken) {
+      logger.error('dynatrace api token(s) required for origin and destination');
       process.exit(1);
     }
 
-    const dtClient = new DynatraceClient({
-      environmentUrl: config.dynatrace.environmentUrl,
-      apiToken,
-    });
+    const dtClients = {
+      origin: new DynatraceClient({ environmentUrl: origin.environmentUrl, apiToken: origin.apiToken }),
+      destination: new DynatraceClient({ environmentUrl: destination.environmentUrl, apiToken: destination.apiToken }),
+    };
 
     try {
-      const result = await runEvals(dtClient, config, {
+      const result = await runEvals(dtClients, config, {
         since: schedule.since,
         sample: schedule.sample,
         metrics: schedule.metrics,

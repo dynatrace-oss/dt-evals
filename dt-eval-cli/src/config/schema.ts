@@ -1,8 +1,23 @@
 export const CURRENT_SCHEMA_VERSION = 1;
 
-export interface DynatraceConfig {
+/** A single Dynatrace tenant endpoint (origin for reads, destination for writes). */
+export interface DynatraceEndpoint {
   environmentUrl: string;
   apiToken?: string;
+}
+
+/**
+ * Dynatrace connectivity. Two shapes are supported and merged:
+ *
+ *   1. Single-tenant (legacy): `environmentUrl` + `apiToken` at the top level.
+ *   2. Cross-tenant: `origin` (read) and `destination` (write) endpoints. When
+ *      either is omitted, the top-level fields are used as a fallback.
+ */
+export interface DynatraceConfig extends Partial<DynatraceEndpoint> {
+  /** Tenant to fetch GenAI spans from (DQL read). Falls back to the top-level fields. */
+  origin?: Partial<DynatraceEndpoint>;
+  /** Tenant to write evaluation bizevents/metrics to. Falls back to the top-level fields. */
+  destination?: Partial<DynatraceEndpoint>;
 }
 
 export interface JudgeConfig {
@@ -50,4 +65,24 @@ export interface DtEvalConfig {
   scope: ScopeConfig;
   metrics: MetricsConfig;
   alerts?: AlertsConfig;
+}
+
+/**
+ * Resolve concrete origin (read) and destination (write) endpoints from a
+ * config block. Top-level `environmentUrl`/`apiToken` act as defaults for
+ * either side when `origin` or `destination` is partial or missing.
+ */
+export function resolveEndpoints(dt: DynatraceConfig): {
+  origin: DynatraceEndpoint;
+  destination: DynatraceEndpoint;
+} {
+  const fallback: Partial<DynatraceEndpoint> = {
+    environmentUrl: dt.environmentUrl,
+    apiToken: dt.apiToken,
+  };
+  const merge = (side: Partial<DynatraceEndpoint> | undefined): DynatraceEndpoint => ({
+    environmentUrl: side?.environmentUrl ?? fallback.environmentUrl ?? '',
+    apiToken: side?.apiToken ?? fallback.apiToken,
+  });
+  return { origin: merge(dt.origin), destination: merge(dt.destination) };
 }
