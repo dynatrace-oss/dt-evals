@@ -38,7 +38,7 @@
     "@inquirer/prompts": "^7.10.1",
     "@types/figlet": "^1.7.0",
     "commander": "^12.0.0",
-    "@dynatrace-oss/dt-eval-lib": "^0.0.12-alpha",
+    "@dynatrace-oss/dt-eval-lib": "^0.0.13-alpha",
     "figlet": "^1.11.0",
     "picocolors": "^1.1.1",
     "yaml": "^2.4.0"
