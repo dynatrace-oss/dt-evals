@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.1.4-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.1.3-alpha...v0.1.4-alpha) (2026-05-12)
+
+
+### ✨ New Features
+
+* add user frustration metrics replacing coherence ([#49](https://github.com/dynatrace-oss/dt-evals/issues/49)) ([1f58925](https://github.com/dynatrace-oss/dt-evals/commit/1f589251835867fb354ff20358b7efe84d149d79))
+* configurable span field mapping and per-metric input routing ([#60](https://github.com/dynatrace-oss/dt-evals/issues/60)) ([1de09ae](https://github.com/dynatrace-oss/dt-evals/commit/1de09ae3ccf3a30ad31deccbb1e5719478af7242))
+* platform tokens as primary auth, add dt-evals doctor command ([#59](https://github.com/dynatrace-oss/dt-evals/issues/59)) ([30e5567](https://github.com/dynatrace-oss/dt-evals/commit/30e55670cf5c584c22bc243cc7dde99cad5803b6))
+
+
+### 🐛 Bug Fixes
+
+* package structure for the CI ([#56](https://github.com/dynatrace-oss/dt-evals/issues/56)) ([9de7d55](https://github.com/dynatrace-oss/dt-evals/commit/9de7d55befa04d6deb8aead22f4313bd3406070e))
+
+
+### 🧹 Chore
+
+* bump @dynatrace-oss/dt-eval-lib to ^0.0.13-alpha ([#64](https://github.com/dynatrace-oss/dt-evals/issues/64)) ([81235bd](https://github.com/dynatrace-oss/dt-evals/commit/81235bd855a1655134434aba363b7fa5dced88cb))
+
 ## [0.1.3-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.1.2-alpha...v0.1.3-alpha) (2026-04-30)
 
 
