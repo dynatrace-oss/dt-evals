@@ -6,10 +6,10 @@
     "pull-request-title-pattern": "chore: release${component} ${version}",
     "packages": {
         "dt-eval-cli": {
-            "package-name": "dt-eval",
+            "package-name": "dt-evals",
             "changelog-path": "CHANGELOG.md",
             "release-type": "node",
-            "monorepo-tags": "dt-eval",
+            "monorepo-tags": "dt-evals",
             "prerelease": true,
             "prerelease-type": "alpha",
             "include-component-in-tag": false,
