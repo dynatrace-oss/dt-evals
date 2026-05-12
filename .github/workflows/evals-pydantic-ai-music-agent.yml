@@ -39,8 +39,17 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install @dynatrace-oss/dt-evals
-        run: npm install -g "@dynatrace-oss/dt-evals@alpha"
+      # Workaround for dynatrace-oss/dt-evals#69: the CLI's lib code
+      # imports the openai SDK lazily for the azure-openai/openai providers,
+      # but the SDK is declared as an optional peer dep on the lib and
+      # nothing in the CLI's own dependencies pulls it in. Install both
+      # packages locally so they hoist as siblings → resolution works.
+      - name: Install @dynatrace-oss/dt-evals + Azure OpenAI SDK
+        run: |
+          npm init -y --silent >/dev/null
+          npm install \
+            "@dynatrace-oss/dt-evals@alpha" \
+            "openai@^4.73.0"
 
       - name: Run evaluations
         run: |
@@ -55,4 +64,4 @@ jobs:
           if [[ "${{ inputs.dry_run }}" == "true" ]]; then
             ARGS+=(--dry-run)
           fi
-          dt-evals "${ARGS[@]}"
+          ./node_modules/.bin/dt-evals "${ARGS[@]}"
