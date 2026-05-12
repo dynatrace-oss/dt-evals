@@ -62,11 +62,11 @@ Diagnose your environment end-to-end. Uses `dtctl` for browser-based OAuth, chec
 dt-eval doctor
 
 # Generate a platform token only (skips the full health check)
-dt-eval doctor create
+dt-eval doctor create-token
 
 # Use an existing dtctl context
 dt-eval doctor --context my-env
-dt-eval doctor create --context my-env
+dt-eval doctor create-token --context my-env
 
 # Point at a specific environment URL
 dt-eval doctor --env-url https://abc12345.apps.dynatrace.com
@@ -275,7 +275,7 @@ The platform token (or OAuth scope) used by the CLI needs the following permissi
 | `storage:events:write` | `dt-eval run` | Writes evaluation results back as business events |
 | `metrics:ingest` | Optional | Writes evaluation metrics to Dynatrace metrics API |
 
-Run `dt-eval doctor create` to generate a token with exactly these scopes via OAuth.
+Run `dt-eval doctor create-token` to generate a token with exactly these scopes via OAuth.
 
 **Manually create a token** in Dynatrace → Settings → Access Tokens with the scopes above, then set:
 
