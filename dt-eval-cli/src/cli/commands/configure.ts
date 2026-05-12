@@ -372,11 +372,11 @@ export function createConfigureCommand(): Command {
       });
 
       if (runNow) {
-        console.log(`\n  Running: dt-eval run ${basename(outputPath)}\n`);
+        console.log(`\n  Running: dt-evals run ${basename(outputPath)}\n`);
         spawnSync(process.execPath, [process.argv[1], 'run', outputPath], { stdio: 'inherit' });
       } else {
         console.log(`  Copy this to run the newly created config:`);
-        console.log(`  dt-eval run ${basename(outputPath)}\n`);
+        console.log(`  dt-evals run ${basename(outputPath)}\n`);
       }
 
       return;
@@ -413,14 +413,14 @@ export function createConfigureCommand(): Command {
       validateConfig(updated);
     } catch (err) {
       console.warn(`Warning: config has validation issues — ${(err as Error).message}`);
-      console.warn('Config saved anyway. Run "dt-eval-cli validate" to check.');
+      console.warn('Config saved anyway. Run "dt-evals validate" to check.');
     }
 
     try {
       saveConfig(updated, outputPath);
       console.log(`Config saved to ${outputPath}`);
       console.log(`\n  Copy this to run the newly created config:`);
-      console.log(`  dt-eval run ${basename(outputPath)}\n`);
+      console.log(`  dt-evals run ${basename(outputPath)}\n`);
     } catch (err) {
       console.error(`Failed to save config: ${(err as Error).message}`);
       process.exit(1);

@@ -68,7 +68,7 @@ export function createStatusCommand(): Command {
     } catch (err) {
       console.log('Status: config not found or invalid');
       console.log(`  Error: ${(err as Error).message}`);
-      console.log('  Run "dt-eval-cli configure" to set up your configuration.');
+      console.log('  Run "dt-evals configure" to set up your configuration.');
       return;
     }
 

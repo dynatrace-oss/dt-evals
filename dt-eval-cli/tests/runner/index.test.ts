@@ -8,6 +8,15 @@ vi.mock('@dynatrace-oss/dt-eval-lib', () => ({
     score: { value: 0.9, label: 'pass' },
     explanation: { summary: 'Looks good', reasoning: 'No issues' },
   }),
+  getPrompt: vi.fn((id: string) => ({
+    id,
+    name: id,
+    version: '1',
+    description: '',
+    prompt: '',
+    requiredFields: ['input', 'output'],
+    scoring: { type: 'continuous', range: [0, 1], threshold: 0.7 },
+  })),
   DRIFT_METRIC_ID: 'drift',
 }));
 
@@ -297,7 +306,7 @@ describe('runEvals', () => {
 
     expect(evaluate).toHaveBeenCalledOnce();
     const callArgs = evaluate.mock.calls[0] as unknown[];
-    expect(callArgs[0]).toBe('user-frustration');
+    expect((callArgs[0] as { id: string }).id).toBe('user-frustration');
     const evalInput = callArgs[1] as { input: string };
     expect(evalInput.input).toBe('i am angry');
   });
@@ -324,7 +333,7 @@ describe('runEvals', () => {
     const calls = evaluate.mock.calls as unknown[][];
     const byMetric: Record<string, { input: string }> = {};
     for (const c of calls) {
-      byMetric[c[0] as string] = c[1] as { input: string };
+      byMetric[(c[0] as { id: string }).id] = c[1] as { input: string };
     }
     expect(byMetric['toxicity']!.input).toBe(span.input);
     expect(byMetric['user-frustration']!.input).toBe('just the user turn');

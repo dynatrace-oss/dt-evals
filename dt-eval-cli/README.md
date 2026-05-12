@@ -1,12 +1,12 @@
-# dt-eval - Dynatrace Evaluation CLI tool
+# dt-evals - Dynatrace Evaluation CLI tool
 
 **Open source continuous evals for LLM applications, with production prompt traces as the dataset.**
 
-[![npm version](https://img.shields.io/npm/v/dt-eval)](https://www.npmjs.com/package/dt-eval)
+[![npm version](https://img.shields.io/npm/v/@dynatrace-oss/dt-evals)](https://www.npmjs.com/package/@dynatrace-oss/dt-evals)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 [![CI](https://github.com/dynatrace-oss/dt-evals/actions/workflows/ci.yml/badge.svg)](https://github.com/dynatrace-oss/dt-evals/actions)
 
-`dt-eval` is for teams shipping chat, RAG, copilots, and agent workflows who want evals to run on real traffic, not just curated test sets.
+`dt-evals` is for teams shipping chat, RAG, copilots, and agent workflows who want evals to run on real traffic, not just curated test sets.
 
 Today, the CLI uses Dynatrace as both the trace source and the evaluation result store. It pulls gen_ai.* spans from your live environment, masks sensitive data in memory, scores real production interactions with an LLM judge, detects score drift over time, and writes structured evaluation results back to Dynatrace as business events.
 
@@ -17,10 +17,10 @@ In practice, this gives AI engineers a closed loop for evaluation, observability
 The repository also includes `dt-eval-lib`, a reusable TypeScript evaluation engine for running the same judge-based metrics directly in code, using either the built-in evaluator catalog or your own custom prompt definitions. It also fits cleanly into broader evaluation workflows and observability stacks such as Ragas, MLflow, or Langfuse when you want to orchestrate or track evals in those systems alongside this library.
 
 ```bash
-npx dt-eval configure
-npx dt-eval validate
-npx dt-eval run --since 1h --sample 10
-npx dt-eval deploy --provider aws
+npx @dynatrace-oss/dt-evals configure
+npx @dynatrace-oss/dt-evals validate
+npx @dynatrace-oss/dt-evals run --since 1h --sample 10
+npx @dynatrace-oss/dt-evals deploy --provider aws
 ```
 
 ## Why Teams Use It
@@ -39,7 +39,7 @@ npx dt-eval deploy --provider aws
 
 | Package | What it is for |
 |---------|-----------------|
-| `dt-eval` | Continuous evaluation runs against production GenAI traces in Dynatrace |
+| `dt-evals` | Continuous evaluation runs against production GenAI traces in Dynatrace |
 | `dt-eval-lib` | TypeScript library for judge-based evals inside tests, scripts, and app code |
 | `dt-eval-engine` | Core runtime for deployed eval workers and serverless runners |
 
@@ -79,13 +79,13 @@ The current CLI path is Dynatrace specific. The product positioning is broader: 
 ## Install
 
 ```bash
-npm install -g dt-eval
+npm install -g @dynatrace-oss/dt-evals
 ```
 
 Or run without installing:
 
 ```bash
-npx dt-eval <command>
+npx @dynatrace-oss/dt-evals <command>
 ```
 
 The CLI also auto-loads a local `.env` file from the current working directory.
@@ -97,13 +97,13 @@ The CLI also auto-loads a local `.env` file from the current working directory.
 Interactive setup:
 
 ```bash
-dt-eval configure
+dt-evals configure
 ```
 
 Non-interactive setup:
 
 ```bash
-dt-eval configure \
+dt-evals configure \
   --env-url https://your-env.live.dynatrace.com \
   --api-token "$DT_API_TOKEN" \
   --provider openai \
@@ -116,7 +116,7 @@ dt-eval configure \
 ### 2. Validate the setup
 
 ```bash
-dt-eval validate
+dt-evals validate
 ```
 
 This checks:
@@ -129,19 +129,19 @@ This checks:
 ### 3. Run evals on recent traces
 
 ```bash
-dt-eval run --since 1h --sample 10 --concurrency 5
+dt-evals run --since 1h --sample 10 --concurrency 5
 ```
 
 Run only one evaluator:
 
 ```bash
-dt-eval run --since 6h --metric faithfulness
+dt-evals run --since 6h --metric faithfulness
 ```
 
 Preview the work without calling the judge or writing results:
 
 ```bash
-dt-eval run --since 1h --sample 5 --dry-run
+dt-evals run --since 1h --sample 5 --dry-run
 ```
 
 ## CLI Workflows
@@ -149,7 +149,7 @@ dt-eval run --since 1h --sample 5 --dry-run
 ### Production eval run
 
 ```bash
-dt-eval run \
+dt-evals run \
   --since 2h \
   --sample 20 \
   --concurrency 8 \
@@ -159,7 +159,7 @@ dt-eval run \
 ### CI gate on quality regressions
 
 ```bash
-dt-eval run --since 6h --metric relevance --ci
+dt-evals run --since 6h --metric relevance --ci
 ```
 
 - exit code `0`: no threshold breaches
@@ -169,7 +169,7 @@ Example GitHub Actions step:
 
 ```yaml
 - name: Run LLM eval gate
-  run: npx dt-eval run --since 6h --metric faithfulness --ci
+  run: npx @dynatrace-oss/dt-evals run --since 6h --metric faithfulness --ci
   env:
     DT_ENV_URL: ${{ secrets.DT_ENV_URL }}
     DT_API_TOKEN: ${{ secrets.DT_API_TOKEN }}
@@ -179,7 +179,7 @@ Example GitHub Actions step:
 ### Run drift detection only
 
 ```bash
-dt-eval run --metric drift --since 24h
+dt-evals run --metric drift --since 24h
 ```
 
 This uses prior evaluation results already written to Dynatrace and compares the recent window against a 7 day baseline.
@@ -187,24 +187,24 @@ This uses prior evaluation results already written to Dynatrace and compares the
 ### Inspect available evaluators
 
 ```bash
-dt-eval evaluators list
-dt-eval evaluators show faithfulness
-dt-eval evaluators test relevance
+dt-evals evaluators list
+dt-evals evaluators show faithfulness
+dt-evals evaluators test relevance
 ```
 
 Create or remove a custom evaluator:
 
 ```bash
-dt-eval evaluators add
-dt-eval evaluators delete my-custom-eval
+dt-evals evaluators add
+dt-evals evaluators delete my-custom-eval
 ```
 
 ### Manage run history
 
 ```bash
-dt-eval runs list --limit 20
-dt-eval runs show run-2026-04-10T12-00-00-ab12cd34
-dt-eval runs export --format csv --output runs.csv
+dt-evals runs list --limit 20
+dt-evals runs show run-2026-04-10T12-00-00-ab12cd34
+dt-evals runs export --format csv --output runs.csv
 ```
 
 Run records are stored locally in `~/.dt-eval/runs.json`.
@@ -212,12 +212,12 @@ Run records are stored locally in `~/.dt-eval/runs.json`.
 ### Schedule recurring runs
 
 ```bash
-dt-eval schedule add --name hourly-rag --cron "0 * * * *" --since 1h --sample 10
-dt-eval schedule list
-dt-eval schedule run <schedule-id>
-dt-eval schedule disable <schedule-id>
-dt-eval schedule enable <schedule-id>
-dt-eval schedule delete <schedule-id>
+dt-evals schedule add --name hourly-rag --cron "0 * * * *" --since 1h --sample 10
+dt-evals schedule list
+dt-evals schedule run <schedule-id>
+dt-evals schedule disable <schedule-id>
+dt-evals schedule enable <schedule-id>
+dt-evals schedule delete <schedule-id>
 ```
 
 Schedules are stored locally in `~/.dt-eval/schedules.json`.
@@ -225,8 +225,8 @@ Schedules are stored locally in `~/.dt-eval/schedules.json`.
 ### Check current status
 
 ```bash
-dt-eval status
-dt-eval configure --show
+dt-evals status
+dt-evals configure --show
 ```
 
 ## Commands
@@ -514,7 +514,7 @@ Drift results are written back as the same event type with `gen_ai.evaluation.ty
 
 ## Built-in Evaluators
 
-`dt-eval` ships with 13 built-in LLM judge evaluators, plus drift detection as a separate statistical metric.
+`dt-evals` ships with 13 built-in LLM judge evaluators, plus drift detection as a separate statistical metric.
 
 | Evaluator | Measures | Required fields |
 |-----------|----------|-----------------|

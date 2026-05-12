@@ -5,7 +5,7 @@ export type LogLevel = 'silent' | 'error' | 'warn' | 'info' | 'debug';
 export interface LoggerOptions {
   level?: LogLevel;   // default 'info'
   json?: boolean;     // structured JSON output (for --ci/--json)
-  prefix?: string;    // e.g. '[dt-eval]'
+  prefix?: string;    // e.g. '[dt-evals]'
 }
 
 const LEVEL_PRIORITY: Record<LogLevel, number> = {

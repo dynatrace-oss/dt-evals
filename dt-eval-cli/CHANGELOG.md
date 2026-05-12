@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.0-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.1.4-alpha...v0.2.0-alpha) (2026-05-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* rename CLI to dt-evals and resolve tsc strict-mode errors ([#65](https://github.com/dynatrace-oss/dt-evals/issues/65))
+
+### ✨ New Features
+
+* rename CLI to dt-evals and resolve tsc strict-mode errors ([#65](https://github.com/dynatrace-oss/dt-evals/issues/65)) ([06222a7](https://github.com/dynatrace-oss/dt-evals/commit/06222a73100981af08cfcb109f923c8721033dff))
+
 ## [0.1.4-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.1.3-alpha...v0.1.4-alpha) (2026-05-12)
 
 

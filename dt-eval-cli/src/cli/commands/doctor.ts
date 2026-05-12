@@ -1,13 +1,17 @@
 import { Command } from 'commander';
+import { execFile } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
+import { promisify } from 'node:util';
 import pc from 'picocolors';
 import { Spinner } from '../../ui/spinner.js';
 import { loadConfig, validateConfig } from '../../config/index.js';
 import { DEFAULT_JUDGE_MODELS } from '../../config/defaults.js';
 import * as dtctl from '../../dtctl/index.js';
 import { printDoctorBanner } from '../../ui/banner.js';
+
+const execFileAsync = promisify(execFile);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -278,7 +282,7 @@ export function createDoctorCommand(): Command {
         console.log(`  Found ${contexts.length} context${contexts.length !== 1 ? 's' : ''}:`);
         contexts.forEach((c, i) => {
           const label = c.environmentUrl ? `${c.name}  (${c.environmentUrl})` : c.name;
-          const marker = c.isDefault ? pc.dim(' [default]') : '';
+          const marker = c.isCurrent ? pc.dim(' [current]') : '';
           console.log(`    ${i + 1}. ${label}${marker}`);
         });
       }
@@ -466,8 +470,8 @@ export function createDoctorCommand(): Command {
         }
       }
 
-      // Count GenAI spans
-      if (dqlCheck.ok) {
+      // Count GenAI spans (only when the spans-read scope is granted)
+      if (spansCheck.ok) {
         const spanSpinner = new Spinner('Querying GenAI spans (last 24h)...');
         spanSpinner.start();
         const service = existingConfig?.scope?.service;
@@ -904,7 +908,7 @@ function createDoctorCreateCommand(): Command {
 
     // Foundational scopes that aren't probed individually but are required
     // by the runtime — included unconditionally so a doctor-minted token
-    // can actually pass `dt-eval validate` and run end-to-end:
+    // can actually pass `dt-evals validate` and run end-to-end:
     //   - storage:buckets:read: Grail prerequisite for any storage table
     //     read; without it `fetch spans|logs|bizevents` returns
     //     SUCCEEDED-with-empty-records (silent failure).
