@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { listPrompts, getPrompt, createCustomPrompt, deleteCustomPrompt, evaluate } from '@dynatrace-oss/dt-eval-lib';
-import type { EvalConfig } from '@dynatrace-oss/dt-eval-lib';
+import type { EvalConfig, Provider } from '@dynatrace-oss/dt-eval-lib';
 import { loadConfig } from '../../config/index.js';
 import { renderTable } from '../../ui/table.js';
 import { Spinner } from '../../ui/spinner.js';
@@ -50,9 +50,7 @@ export function createEvaluatorsCommand(): Command {
       console.log(`Description: ${prompt.description}`);
       console.log(`Required Fields: ${prompt.requiredFields.join(', ')}`);
       console.log(`Scoring Scale: ${prompt.scoring.type}`);
-      if ('threshold' in prompt.scoring) {
-        console.log(`Pass Threshold: ${(prompt.scoring as Record<string, unknown>)['threshold']}`);
-      }
+      console.log(`Pass Threshold: ${prompt.scoring.threshold}`);
       console.log(`\nPrompt Template:\n${prompt.prompt}`);
     } catch (err) {
       logger.error((err as Error).message);
@@ -82,7 +80,7 @@ export function createEvaluatorsCommand(): Command {
       { name: 'input', value: 'input' as const, checked: true },
       { name: 'output', value: 'output' as const, checked: true },
       { name: 'context', value: 'context' as const, checked: false },
-      { name: 'expected_output', value: 'expected_output' as const, checked: false },
+      { name: 'expectedOutput', value: 'expectedOutput' as const, checked: false },
     ];
 
     const requiredFields = await checkbox({
@@ -109,10 +107,11 @@ export function createEvaluatorsCommand(): Command {
     try {
       await createCustomPrompt({
         id,
+        version: '1',
         name,
         description: description || name,
         prompt: template,
-        requiredFields: requiredFields as ('input' | 'output' | 'context' | 'expected_output')[],
+        requiredFields: requiredFields as ('input' | 'output' | 'context' | 'expectedOutput')[],
         scoring: {
           type: scoringType as 'continuous' | 'binary' | 'likert',
           threshold,
@@ -161,8 +160,9 @@ export function createEvaluatorsCommand(): Command {
   testCmd.argument('<id>', 'Evaluator ID');
 
   testCmd.action(async (id: string) => {
+    let prompt;
     try {
-      await getPrompt(id);
+      prompt = await getPrompt(id);
     } catch (err) {
       logger.error((err as Error).message);
       process.exit(1);
@@ -191,18 +191,24 @@ export function createEvaluatorsCommand(): Command {
     }
 
     const libConfig: EvalConfig = {
-      provider: config.judge.provider,
-      apiKey: config.judge.apiKey,
-      model: config.judge.model,
-      timeout: config.judge.timeout,
-      maxRetries: config.judge.maxRetries,
+      provider: {
+        provider: config.judge.provider as Provider,
+        apiKey: config.judge.apiKey,
+        baseUrl: config.judge.baseUrl,
+        apiVersion: config.judge.apiVersion,
+        region: config.judge.region,
+        secretKey: config.judge.secretKey,
+        model: config.judge.model,
+        timeout: config.judge.timeout,
+        maxRetries: config.judge.maxRetries,
+      },
     };
 
     const spinner = new Spinner(`Running evaluation with ${config.judge.provider}/${config.judge.model ?? 'default'}...`);
     spinner.start();
 
     try {
-      const result = await evaluate(id, {
+      const result = await evaluate(prompt, {
         input: inputText,
         output: outputText,
         context: contextText || undefined,

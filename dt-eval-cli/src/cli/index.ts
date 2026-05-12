@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module';
 import { Command } from 'commander';
 import { createConfigureCommand } from './commands/configure.js';
 import { createRunCommand } from './commands/run.js';
@@ -10,13 +11,26 @@ import { createDoctorCommand } from './commands/doctor.js';
 import { configureLogger } from '../logger/index.js';
 import { printBanner } from '../ui/banner.js';
 
+declare const __CLIENT_VERSION__: string | undefined;
+
+// __CLIENT_VERSION__ is replaced at build time by tsup; fall back to package.json in dev/tsx.
+function resolveVersion(): string {
+  try {
+    if (typeof __CLIENT_VERSION__ !== 'undefined') return __CLIENT_VERSION__;
+  } catch { /* not defined in dev/tsx */ }
+  try {
+    const require = createRequire(import.meta.url);
+    return (require('../../package.json') as { version: string }).version;
+  } catch { return 'dev'; }
+}
+
 export function createCli(): Command {
   const program = new Command();
 
   program
-    .name('dt-eval-cli')
+    .name('dt-evals')
     .description('Run evaluations on your GenAI traces in Dynatrace')
-    .version('0.1.0');
+    .version(resolveVersion());
 
   // Show banner before the help text
   program.addHelpText('beforeAll', () => {

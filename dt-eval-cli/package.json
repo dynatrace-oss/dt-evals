@@ -1,10 +1,10 @@
 {
-  "name": "@dynatrace-oss/dt-eval",
+  "name": "@dynatrace-oss/dt-evals",
   "version": "0.1.4-alpha",
   "description": "Evaluation CLI for AI Observability on Dynatrace",
   "type": "module",
   "bin": {
-    "dt-eval": "./dist/index.js"
+    "dt-evals": "./dist/index.js"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

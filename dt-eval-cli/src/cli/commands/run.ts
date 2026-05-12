@@ -63,7 +63,7 @@ export function createRunCommand(): Command {
         process.exit(1);
       }
       logger.error(`Config error: ${(err as Error).message}`);
-      logger.error('Run "dt-eval-cli configure" to set up your configuration.');
+      logger.error('Run "dt-evals configure" to set up your configuration.');
       process.exit(1);
     }
 

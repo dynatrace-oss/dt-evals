@@ -18,7 +18,7 @@ export const ALL_METRICS = [
   'conciseness',
 ];
 
-// Sensible starter set — users can expand via dt-eval configure
+// Sensible starter set — users can expand via dt-evals configure
 export const DEFAULT_METRICS = ['toxicity', 'relevance', 'faithfulness'];
 
 export const DEFAULT_CONFIG: Omit<DtEvalConfig, 'dynatrace' | 'judge'> & {

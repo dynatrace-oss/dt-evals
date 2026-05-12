@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { evaluate, type EvalConfig, type EvalInput, type EvalResult } from '@dynatrace-oss/dt-eval-lib';
+import { evaluate, getPrompt, type EvalConfig, type EvalInput, type EvalResult } from '@dynatrace-oss/dt-eval-lib';
 import type { DynatraceClient } from '../dt/client.js';
 import type { DtEvalConfig, MetricEntry, MetricInputs, CanonicalSpanField } from '../config/schema.js';
 import { metricId, metricInputs } from '../config/schema.js';
@@ -184,7 +184,7 @@ export async function runEvals(
     async task => {
       const t0 = Date.now();
       const input: EvalInput = buildEvalInput(task.span, task.inputs);
-      const evalResult = await evaluate(task.metric, input, libConfig);
+      const evalResult = await evaluate(getPrompt(task.metric), input, libConfig);
       evalCount++;
       logger.debug(`eval [${evalCount}/${tasks.length}] ${task.metric} trace=${task.span.traceId.slice(0, 8)}… ${Date.now() - t0}ms score=${evalResult.score.value}`);
       return { span: task.span, metric: task.metric, evalResult, evalInput: input };

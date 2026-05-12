@@ -161,8 +161,8 @@ export function createValidateCommand(): Command {
     // 4. Evaluators
     try {
       const prompts = await listPrompts();
-      const builtIn = prompts.filter(p => !((p as Record<string, unknown>)['custom']));
-      const custom = prompts.filter(p => (p as Record<string, unknown>)['custom']);
+      const builtIn = prompts.filter(p => !((p as unknown as Record<string, unknown>)['custom']));
+      const custom = prompts.filter(p => (p as unknown as Record<string, unknown>)['custom']);
       logger.success(`${builtIn.length} built-in evaluators available`);
       logger.success(`${custom.length} custom evaluators loaded`);
     } catch (err) {
@@ -172,7 +172,7 @@ export function createValidateCommand(): Command {
     if (configValid) {
       console.log('\nAll checks passed. Ready to run evaluations.');
     } else {
-      console.log('\nSome checks failed. Run "dt-eval-cli configure" to fix issues.');
+      console.log('\nSome checks failed. Run "dt-evals configure" to fix issues.');
       process.exit(1);
     }
   });
