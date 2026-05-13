@@ -8,6 +8,8 @@
 [![License](https://img.shields.io/badge/license-Apache_2.0-blue?style=flat-square)](LICENSE)
 [![Node](https://img.shields.io/node/v/@dynatrace-oss/dt-evals/alpha?style=flat-square)](package.json)
 
+![dt-evals welcome](../assets/dt-evals-welcome.gif)
+
 `dt-evals` is for teams shipping chat, RAG, copilots, and agent workflows who want evals to run on real traffic, not just curated test sets.
 
 Today, the CLI uses Dynatrace as both the trace source and the evaluation result store. It pulls gen_ai.* spans from your live environment, masks sensitive data in memory, scores real production interactions with an LLM judge, detects score drift over time, and writes structured evaluation results back to Dynatrace as business events.

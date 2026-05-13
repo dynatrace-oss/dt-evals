@@ -11,7 +11,7 @@ End-to-end LLM evaluation toolkit for Dynatrace AI Observability.
 
 `dt-evals` is the main interface. It pulls live `gen_ai.*` spans from your Dynatrace environment, masks sensitive data in memory, scores real production interactions with an LLM judge, and writes structured evaluation results back to Dynatrace as business events — keeping evals, traces, metrics, alerts, and dashboards in one place.
 
-![dt-evals welcome](assets/dt-evals-welcome.png)
+![dt-evals welcome](assets/dt-evals-welcome.gif)
 
 ## Packages
 
