@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.1-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.0-alpha...v0.2.1-alpha) (2026-05-13)
+
+
+### ✨ New Features
+
+* **dt-eval-cli:** make the run spinner reflect the actual phase ([#88](https://github.com/dynatrace-oss/dt-evals/issues/88)) ([1f2b333](https://github.com/dynatrace-oss/dt-evals/commit/1f2b333d6b62a75a29107fdcea8d4249bcf4848e))
+
+
+### 📚 Documentation
+
+* add status badges to root, CLI, and lib READMEs ([#81](https://github.com/dynatrace-oss/dt-evals/issues/81)) ([60914b2](https://github.com/dynatrace-oss/dt-evals/commit/60914b2e6c78baefe8a9a8b5172a7318dc8ea4d4))
+
 ## [0.2.0-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.1.4-alpha...v0.2.0-alpha) (2026-05-12)
 
 
