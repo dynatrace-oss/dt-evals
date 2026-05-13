@@ -359,4 +359,27 @@ describe('runEvals', () => {
     const evalInput = callArgs[1] as { input: string };
     expect(evalInput.input).toBe(span.input);
   });
+
+  it('emits onProgress events for each phase in order', async () => {
+    const spans = [makeSpan({ traceId: 'trace-a' }), makeSpan({ traceId: 'trace-b' })];
+    const dtClient = makeDtClient(spans);
+    const config = makeConfig({ metrics: { enabled: ['toxicity', 'relevance'] } });
+
+    const events: Array<{ phase: string }> = [];
+    await runEvals(
+      dtClient as unknown as import('../../src/dt/client.js').DynatraceClient,
+      config,
+      { since: '1h', onProgress: (e) => events.push(e) },
+    );
+
+    const phases = events.map(e => e.phase);
+    expect(phases[0]).toBe('fetching');
+    expect(phases).toContain('fetched');
+    expect(phases).toContain('preparing');
+    expect(phases).toContain('evaluating-start');
+    expect(phases.filter(p => p === 'eval-completed')).toHaveLength(4); // 2 spans × 2 metrics
+    expect(phases).toContain('evaluating-done');
+    expect(phases).toContain('writing');
+    expect(phases[phases.length - 1]).toBe('written');
+  });
 });

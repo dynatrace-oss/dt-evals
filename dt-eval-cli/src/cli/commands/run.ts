@@ -2,11 +2,55 @@ import { Command } from 'commander';
 import { loadConfig, validateConfig } from '../../config/index.js';
 import { resolveEndpoints, metricId } from '../../config/schema.js';
 import { DynatraceClient } from '../../dt/client.js';
-import { runEvals } from '../../runner/index.js';
+import { runEvals, type RunProgressEvent } from '../../runner/index.js';
 import { Spinner } from '../../ui/spinner.js';
 import { renderTable } from '../../ui/table.js';
 import { formatDuration } from '../../ui/format.js';
 import { logger, configureLogger } from '../../logger/index.js';
+
+/**
+ * Map runner progress events onto a single live spinner so the visible label
+ * matches the work actually in flight (fetch → evaluate → write), and so each
+ * completed phase prints a one-line summary with timing.
+ */
+function buildSpinnerProgress(spinner: Spinner): (event: RunProgressEvent) => void {
+  return (event) => {
+    switch (event.phase) {
+      case 'fetching':
+        spinner.update('Fetching GenAI spans from Dynatrace...');
+        break;
+      case 'fetched':
+        spinner.succeed(`Fetched ${event.spans} span${event.spans === 1 ? '' : 's'} in ${formatDuration(event.durationMs)}`);
+        spinner.update('Sampling and masking spans...').start();
+        break;
+      case 'evaluating-start':
+        spinner.update(`Evaluating 0/${event.tasks} (${event.spans} span${event.spans === 1 ? '' : 's'} × ${event.metrics} metric${event.metrics === 1 ? '' : 's'})...`);
+        break;
+      case 'eval-completed': {
+        const shortTrace = event.traceId.slice(0, 8);
+        const tag = event.error ? '✗' : '•';
+        spinner.update(`Evaluating ${event.completed}/${event.total} ${tag} ${event.metric} trace=${shortTrace}…`);
+        break;
+      }
+      case 'evaluating-done': {
+        const errSuffix = event.errors > 0 ? ` (${event.errors} error${event.errors === 1 ? '' : 's'})` : '';
+        spinner.succeed(`Evaluated ${event.tasks} task${event.tasks === 1 ? '' : 's'} in ${formatDuration(event.durationMs)}${errSuffix}`);
+        break;
+      }
+      case 'writing':
+        spinner.update(`Writing ${event.payloads} result${event.payloads === 1 ? '' : 's'} to Dynatrace...`).start();
+        break;
+      case 'written':
+        spinner.succeed(`Wrote ${event.payloads} result${event.payloads === 1 ? '' : 's'} in ${formatDuration(event.durationMs)}`);
+        break;
+      case 'preparing':
+        // Sampling and masking are sub-millisecond; intentionally don't emit
+        // a separate "succeed" line for them — `evaluating-start` is the next
+        // visible phase.
+        break;
+    }
+  };
+}
 
 function evalErrorHint(messages: string[]): string | null {
   const combined = messages.join(' ').toLowerCase();
@@ -92,6 +136,8 @@ export function createRunCommand(): Command {
     const spinner = options.ci ? null : new Spinner('Fetching GenAI spans from Dynatrace...');
     spinner?.start();
 
+    const onProgress = spinner ? buildSpinnerProgress(spinner) : undefined;
+
     try {
       const result = await runEvals(dtClients, config, {
         since: options.since,
@@ -100,9 +146,12 @@ export function createRunCommand(): Command {
         dryRun: options.dryRun,
         ci: options.ci,
         concurrency: options.concurrency,
+        onProgress,
       });
 
-      spinner?.succeed(`Evaluation run complete in ${formatDuration(result.durationMs)}`);
+      // Each phase already emitted its own success line via onProgress; just
+      // clear any in-flight spinner (e.g. dry-run never reaches `written`).
+      spinner?.stop();
 
       if (!options.ci && !options.dryRun) {
         const metrics = options.metric ? [options.metric] : config.metrics.enabled.map(metricId);

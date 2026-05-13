@@ -15,6 +15,22 @@ import { logger } from '../logger/index.js';
 
 export { logger };
 
+/**
+ * Phase-transition events emitted by `runEvals` so a CLI / UI can render
+ * accurate live progress. Each event names the phase, and where it makes
+ * sense includes timing and counts so the caller can show e.g.
+ * "Fetched 9 spans in 234ms" instead of a static "Fetching..." spinner.
+ */
+export type RunProgressEvent =
+  | { phase: 'fetching' }
+  | { phase: 'fetched'; spans: number; durationMs: number }
+  | { phase: 'preparing'; sampled: number; total: number }
+  | { phase: 'evaluating-start'; tasks: number; spans: number; metrics: number }
+  | { phase: 'eval-completed'; completed: number; total: number; metric: string; traceId: string; durationMs: number; error?: string }
+  | { phase: 'evaluating-done'; tasks: number; errors: number; durationMs: number }
+  | { phase: 'writing'; payloads: number }
+  | { phase: 'written'; payloads: number; durationMs: number };
+
 export interface RunOptions {
   since?: string;
   sample?: number;    // percent 0-100
@@ -22,6 +38,12 @@ export interface RunOptions {
   dryRun?: boolean;
   ci?: boolean;
   concurrency?: number;
+  /**
+   * Receives phase-transition events as the run progresses. Used by the CLI
+   * to drive an accurate spinner. When omitted, the runner falls back to the
+   * static `logger.step` / `logger.info` phase markers it has always emitted.
+   */
+  onProgress?: (event: RunProgressEvent) => void;
 }
 
 export interface RunResult {
@@ -97,9 +119,11 @@ export async function runEvals(
   const since = opts.since ?? evalConfig.scope.since;
   const metricEntries: MetricEntry[] = opts.metrics ?? evalConfig.metrics.enabled;
   const concurrency = opts.concurrency ?? 5;
+  const emit = opts.onProgress;
 
   // 1. Fetch spans via DQL
-  logger.step('Fetching spans...');
+  if (!emit) logger.step('Fetching spans...');
+  emit?.({ phase: 'fetching' });
   const query = buildGenAiSpanQuery({
     app: evalConfig.scope.service,
     since,
@@ -110,14 +134,16 @@ export async function runEvals(
 
   const t0Dql = Date.now();
   const rawRecords = await readClient.executeDql(query) as unknown[];
-  logger.timing('DQL fetch', Date.now() - t0Dql, { rawRecords: (rawRecords as unknown[]).length });
+  const dqlMs = Date.now() - t0Dql;
+  logger.timing('DQL fetch', dqlMs, { rawRecords: (rawRecords as unknown[]).length });
 
   const t0Parse = Date.now();
   const allSpans = parseSpanResults(rawRecords, { spanFields: evalConfig.scope.spanFields });
   logger.timing('Parse spans', Date.now() - t0Parse, { spans: allSpans.length });
+  emit?.({ phase: 'fetched', spans: allSpans.length, durationMs: dqlMs });
 
   // 2. Apply sampling
-  logger.step('Applying sampling...');
+  if (!emit) logger.step('Applying sampling...');
   const scopeConfig = {
     ...evalConfig.scope,
     since,
@@ -130,10 +156,11 @@ export async function runEvals(
   logger.timing('Sampling', Date.now() - t0Sample, { sampled: sampledSpans.length, total: allSpans.length });
 
   // 3. Apply PII masking
-  logger.step('Masking PII...');
+  if (!emit) logger.step('Masking PII...');
   const t0Mask = Date.now();
   const maskedSpans = sampledSpans.map(span => maskSpan(span));
   logger.timing('PII masking', Date.now() - t0Mask, { spans: maskedSpans.length });
+  emit?.({ phase: 'preparing', sampled: maskedSpans.length, total: allSpans.length });
 
   // 4. Build task list (span × metric), excluding drift which runs separately
   const metricIds = metricEntries.map(metricId);
@@ -176,22 +203,56 @@ export async function runEvals(
   };
 
   // 6. Evaluate via dt-eval-lib in parallel batches
-  logger.info(`Evaluating ${maskedSpans.length} spans × ${metricIds.length} metrics...`);
+  if (!emit) logger.info(`Evaluating ${maskedSpans.length} spans × ${metricIds.length} metrics...`);
+  emit?.({
+    phase: 'evaluating-start',
+    tasks: tasks.length,
+    spans: maskedSpans.length,
+    metrics: evalEntries.length,
+  });
   const t0Eval = Date.now();
   let evalCount = 0;
+  let evalErrors = 0;
   const batchResults = await processBatch<EvalTask, EvalTaskResult>(
     tasks,
     async task => {
       const t0 = Date.now();
       const input: EvalInput = buildEvalInput(task.span, task.inputs);
-      const evalResult = await evaluate(getPrompt(task.metric), input, libConfig);
-      evalCount++;
-      logger.debug(`eval [${evalCount}/${tasks.length}] ${task.metric} trace=${task.span.traceId.slice(0, 8)}… ${Date.now() - t0}ms score=${evalResult.score.value}`);
-      return { span: task.span, metric: task.metric, evalResult, evalInput: input };
+      try {
+        const evalResult = await evaluate(getPrompt(task.metric), input, libConfig);
+        evalCount++;
+        const elapsed = Date.now() - t0;
+        logger.debug(`eval [${evalCount}/${tasks.length}] ${task.metric} trace=${task.span.traceId.slice(0, 8)}… ${elapsed}ms score=${evalResult.score.value}`);
+        emit?.({
+          phase: 'eval-completed',
+          completed: evalCount,
+          total: tasks.length,
+          metric: task.metric,
+          traceId: task.span.traceId,
+          durationMs: elapsed,
+        });
+        return { span: task.span, metric: task.metric, evalResult, evalInput: input };
+      } catch (err) {
+        evalCount++;
+        evalErrors++;
+        const elapsed = Date.now() - t0;
+        emit?.({
+          phase: 'eval-completed',
+          completed: evalCount,
+          total: tasks.length,
+          metric: task.metric,
+          traceId: task.span.traceId,
+          durationMs: elapsed,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        throw err;
+      }
     },
     { concurrency },
   );
-  logger.timing('Eval batch', Date.now() - t0Eval, { tasks: tasks.length, concurrency });
+  const evalMs = Date.now() - t0Eval;
+  logger.timing('Eval batch', evalMs, { tasks: tasks.length, concurrency });
+  emit?.({ phase: 'evaluating-done', tasks: tasks.length, errors: evalErrors, durationMs: evalMs });
 
   // 7. Collect results and errors
   const successResults: EvalTaskResult[] = [];
@@ -218,15 +279,18 @@ export async function runEvals(
     .map(([msg, count]) => count > 1 ? `${msg} (×${count})` : msg);
 
   // 8. Write bizevents
-  logger.step('Writing bizevents...');
+  if (!emit) logger.step('Writing bizevents...');
   const writer = new BizeventWriter(writeClient);
   const payloads: BizeventPayload[] = successResults.map(r =>
     buildBizeventPayload(r.span, r.metric, r.evalResult, runId, judgeProvider, judgeModel, evalConfig.scope.service, r.evalInput),
   );
+  emit?.({ phase: 'writing', payloads: payloads.length });
 
   const t0Ingest = Date.now();
   await writer.writeBatch(payloads);
-  logger.timing('Bizevent ingest', Date.now() - t0Ingest, { payloads: payloads.length });
+  const writeMs = Date.now() - t0Ingest;
+  logger.timing('Bizevent ingest', writeMs, { payloads: payloads.length });
+  emit?.({ phase: 'written', payloads: payloads.length, durationMs: writeMs });
 
   // 9. Run drift detection (if selected as a metric)
   if (runDrift && !opts.dryRun) {
@@ -276,7 +340,7 @@ export async function runEvals(
     durationMs: Date.now() - startTime,
   };
 
-  logger.success(`Run complete: ${payloads.length} results written`);
+  if (!emit) logger.success(`Run complete: ${payloads.length} results written`);
 
   if (opts.ci) {
     console.log(JSON.stringify(result));
