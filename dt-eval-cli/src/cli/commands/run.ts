@@ -21,7 +21,7 @@ function buildSpinnerProgress(spinner: Spinner): (event: RunProgressEvent) => vo
         break;
       case 'fetched':
         spinner.succeed(`Fetched ${event.spans} span${event.spans === 1 ? '' : 's'} in ${formatDuration(event.durationMs)}`);
-        spinner.update('Sampling and masking spans...').start();
+        spinner.start('Sampling and masking spans...');
         break;
       case 'evaluating-start':
         spinner.update(`Evaluating 0/${event.tasks} (${event.spans} span${event.spans === 1 ? '' : 's'} × ${event.metrics} metric${event.metrics === 1 ? '' : 's'})...`);
@@ -38,7 +38,7 @@ function buildSpinnerProgress(spinner: Spinner): (event: RunProgressEvent) => vo
         break;
       }
       case 'writing':
-        spinner.update(`Writing ${event.payloads} result${event.payloads === 1 ? '' : 's'} to Dynatrace...`).start();
+        spinner.start(`Writing ${event.payloads} result${event.payloads === 1 ? '' : 's'} to Dynatrace...`);
         break;
       case 'written':
         spinner.succeed(`Wrote ${event.payloads} result${event.payloads === 1 ? '' : 's'} in ${formatDuration(event.durationMs)}`);
@@ -149,9 +149,13 @@ export function createRunCommand(): Command {
         onProgress,
       });
 
-      // Each phase already emitted its own success line via onProgress; just
-      // clear any in-flight spinner (e.g. dry-run never reaches `written`).
-      spinner?.stop();
+      if (options.dryRun) {
+        spinner?.succeed(`Dry run complete in ${formatDuration(result.durationMs)}`);
+      } else {
+        // Each phase already emitted its own success line via onProgress; just
+        // clear any in-flight spinner.
+        spinner?.stop();
+      }
 
       if (!options.ci && !options.dryRun) {
         const metrics = options.metric ? [options.metric] : config.metrics.enabled.map(metricId);

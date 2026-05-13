@@ -8,13 +8,21 @@ export class Spinner {
   private frameIndex = 0;
   private interval: ReturnType<typeof setInterval> | null = null;
   private isTTY: boolean;
+  private running = false;
 
   constructor(text: string) {
     this.text = text;
     this.isTTY = process.stderr.isTTY === true;
   }
 
-  start(): this {
+  start(text?: string): this {
+    if (text !== undefined) {
+      this.text = text;
+    }
+    if (this.running) {
+      return this;
+    }
+    this.running = true;
     if (this.isTTY) {
       this.interval = setInterval(() => {
         const frame = SPINNER_FRAMES[this.frameIndex % SPINNER_FRAMES.length];
@@ -29,7 +37,7 @@ export class Spinner {
 
   update(text: string): this {
     this.text = text;
-    if (!this.isTTY) {
+    if (!this.isTTY && !this.running) {
       process.stderr.write(`${text}...\n`);
     }
     return this;
@@ -58,6 +66,7 @@ export class Spinner {
   }
 
   stop(): this {
+    this.running = false;
     if (this.interval !== null) {
       clearInterval(this.interval);
       this.interval = null;
