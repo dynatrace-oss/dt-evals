@@ -92,15 +92,19 @@ export function createValidateCommand(): Command {
   const cmd = new Command('validate');
   cmd.description('Run pre-flight checks on config, connectivity, and evaluator keys');
 
-  cmd.action(async () => {
+  cmd.argument('[config]', 'Path to eval config file (e.g. my-service.dt-eval.yaml)');
+  cmd.option('--config <path>', 'Path to eval config file (alias for positional argument)');
+
+  cmd.action(async (configArg: string | undefined, options: { config?: string }) => {
     console.log('Running pre-flight checks...\n');
 
+    const configPath = configArg ?? options.config;
     let config;
     let configValid = false;
 
     // 1. Schema validation
     try {
-      config = loadConfig();
+      config = loadConfig(configPath ? { projectFile: configPath } : undefined);
       validateConfig(config);
       configValid = true;
       logger.success('Config schema valid');
