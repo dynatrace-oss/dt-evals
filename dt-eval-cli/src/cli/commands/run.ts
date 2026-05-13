@@ -80,7 +80,7 @@ export function createRunCommand(): Command {
   cmd.option('--metric <name>', 'Run a specific evaluator only');
   cmd.option('--dry-run', 'Fetch and transform traces, print payloads, do not send');
   cmd.option('--ci', 'Non-interactive mode: JSON stdout, exit 1 on threshold breach');
-  cmd.option('--concurrency <n>', 'Number of parallel evaluation workers', (v) => parseInt(v, 10), 5);
+  cmd.option('--concurrency <n>', 'Number of parallel evaluation workers (overrides judge.concurrency in the config; default 5)', (v) => parseInt(v, 10));
   cmd.option('--debug', 'Enable debug logging with per-step timing');
 
   cmd.action(async (configArg: string | undefined, options: {
@@ -90,7 +90,7 @@ export function createRunCommand(): Command {
     metric?: string;
     dryRun?: boolean;
     ci?: boolean;
-    concurrency: number;
+    concurrency?: number;
     debug?: boolean;
   }) => {
     if (options.debug) {
@@ -145,7 +145,7 @@ export function createRunCommand(): Command {
         metrics: options.metric ? [options.metric] : undefined,
         dryRun: options.dryRun,
         ci: options.ci,
-        concurrency: options.concurrency,
+        concurrency: options.concurrency ?? config.judge.concurrency,
         onProgress,
       });
 

@@ -45,6 +45,11 @@ judge:
   # Number of retries on transient failures (default: 2).
   maxRetries: 2
 
+  # Number of judge calls to run in parallel (default: 5).
+  # Bump this to speed up large runs; lower it if you hit provider rate limits.
+  # Overridable per-invocation with `--concurrency`.
+  concurrency: 5
+
 # ---------------------------------------------------------------------------
 # Scope — which spans to evaluate
 # ---------------------------------------------------------------------------

@@ -23,9 +23,11 @@ The repository also includes `dt-eval-lib`, a reusable TypeScript evaluation eng
 ```bash
 npx @dynatrace-oss/dt-evals configure
 npx @dynatrace-oss/dt-evals validate
-npx @dynatrace-oss/dt-evals run --since 1h --sample 10
+npx @dynatrace-oss/dt-evals run --since 1h --sample 10 --concurrency 10
 npx @dynatrace-oss/dt-evals deploy --provider aws
 ```
+
+Tune `--concurrency` (or `judge.concurrency` in your yaml) to control how many judge calls run in parallel — bump it for faster runs, drop it if the provider rate-limits you. Default is 5.
 
 ## Why Teams Use It
 
@@ -261,7 +263,7 @@ Global flags:
 --metric <name>        Run only one evaluator
 --dry-run              Do not call the judge or write results
 --ci                   JSON result output and exit 1 on threshold breach
---concurrency <n>      Number of parallel evaluation workers
+--concurrency <n>      Parallel judge calls (overrides judge.concurrency in the config; default 5)
 --debug                Per-step timing logs
 ```
 
@@ -292,6 +294,7 @@ judge:
   model: gpt-4.1
   timeout: 30000
   maxRetries: 2
+  concurrency: 5         # parallel judge calls; --concurrency overrides this
 
 scope:
   service: travel-assistant

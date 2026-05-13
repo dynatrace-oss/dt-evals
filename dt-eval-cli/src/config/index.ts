@@ -140,6 +140,7 @@ export function resolveEffectiveConfig(partial: Partial<DtEvalConfig>): DtEvalCo
       provider: DEFAULT_CONFIG.judge.provider ?? 'openai',
       timeout: DEFAULT_CONFIG.judge.timeout,
       maxRetries: DEFAULT_CONFIG.judge.maxRetries,
+      concurrency: DEFAULT_CONFIG.judge.concurrency,
     },
     scope: { ...DEFAULT_CONFIG.scope },
     metrics: { ...DEFAULT_CONFIG.metrics },
@@ -200,6 +201,13 @@ export function validateConfig(config: DtEvalConfig): void {
     issues.push('judge.provider is required');
   } else if (!['openai', 'anthropic', 'azure-openai', 'gemini', 'bedrock'].includes(config.judge.provider)) {
     issues.push(`judge.provider must be one of: openai, anthropic, azure-openai, gemini, bedrock (got "${config.judge.provider}")`);
+  }
+
+  if (config.judge?.concurrency !== undefined) {
+    const c = config.judge.concurrency;
+    if (!Number.isInteger(c) || c < 1) {
+      issues.push(`judge.concurrency must be a positive integer (got ${JSON.stringify(c)})`);
+    }
   }
 
   if (!config.scope?.since) {

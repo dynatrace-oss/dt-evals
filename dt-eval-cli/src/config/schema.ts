@@ -33,6 +33,12 @@ export interface JudgeConfig {
   model?: string;
   timeout?: number;
   maxRetries?: number;
+  /**
+   * Number of judge calls to run in parallel. Higher values speed up large runs
+   * but increase pressure on the provider's rate limits. Default: 5.
+   * Overridable per-invocation with `--concurrency`.
+   */
+  concurrency?: number;
   /** For Bedrock: AWS region (e.g. us-east-1). Falls back to AWS_DEFAULT_REGION / AWS_REGION env vars. */
   region?: string;
 }

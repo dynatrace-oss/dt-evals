@@ -33,6 +33,7 @@ export const DEFAULT_CONFIG: Omit<DtEvalConfig, 'dynatrace' | 'judge'> & {
     provider: 'openai',
     timeout: 30000,
     maxRetries: 2,
+    concurrency: 5,
   },
   scope: {
     since: '1h',
