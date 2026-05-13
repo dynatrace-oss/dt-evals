@@ -45,13 +45,12 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
   const { app, since, limit = 1000, errorsOnly = false, spanFields } = opts;
   const fields = resolveFields(spanFields);
 
-  const lines: string[] = ['fetch spans'];
+  // Use explicit from:/to: timeframe — a filter alone leaves Grail's default
+  // ~2h analysis window in effect even when the filter asks for longer.
+  const lines: string[] = [`fetch spans, from:now() - ${since}, to:now()`];
 
   // Support both OTel GenAI semconv (gen_ai.system) and OpenLLMetry (gen_ai.provider.name)
   lines.push('| filter isNotNull(gen_ai.system) or isNotNull(gen_ai.provider.name)');
-
-  // Spans use start_time, not timestamp
-  lines.push(`| filter start_time > now() - ${since}`);
 
   if (app) {
     // Match by either service.name (OTel GenAI semconv) or dt.service.name

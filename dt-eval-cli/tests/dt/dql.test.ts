@@ -2,17 +2,21 @@ import { describe, it, expect } from 'vitest';
 import { buildGenAiSpanQuery, parseSpanResults } from '../../src/dt/dql.js';
 
 describe('buildGenAiSpanQuery', () => {
-  it('includes start_time filter with the given since value', () => {
+  it('uses explicit from:/to: timeframe (not a filter clause) for the given since value', () => {
     const query = buildGenAiSpanQuery({ since: '1h' });
-    expect(query).toContain('start_time > now() - 1h');
+    expect(query).toContain('fetch spans, from:now() - 1h, to:now()');
+    // The filter-based form leaves Grail's default ~2h scan window in place
+    // regardless of the since value — guard against the old shape being
+    // reintroduced.
+    expect(query).not.toContain('filter start_time');
   });
 
-  it('uses the correct since duration in filter', () => {
+  it('uses the correct since duration in the timeframe clause', () => {
     const query24h = buildGenAiSpanQuery({ since: '24h' });
-    expect(query24h).toContain('start_time > now() - 24h');
+    expect(query24h).toContain('from:now() - 24h, to:now()');
 
     const query6h = buildGenAiSpanQuery({ since: '6h' });
-    expect(query6h).toContain('start_time > now() - 6h');
+    expect(query6h).toContain('from:now() - 6h, to:now()');
   });
 
   it('filters on both gen_ai.system and gen_ai.provider.name', () => {
