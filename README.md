@@ -1,10 +1,9 @@
 # dt-evals
 
-[![Release](https://img.shields.io/github/v/release/dynatrace-oss/dt-evals?style=flat-square&include_prereleases&color=blue)](https://github.com/dynatrace-oss/dt-evals/releases/latest)
-[![CLI on npm](https://img.shields.io/npm/v/@dynatrace-oss/dt-evals?style=flat-square&label=cli&color=cb3837)](https://www.npmjs.com/package/@dynatrace-oss/dt-evals)
-[![Lib on npm](https://img.shields.io/npm/v/@dynatrace-oss/dt-eval-lib?style=flat-square&label=lib&color=cb3837)](https://www.npmjs.com/package/@dynatrace-oss/dt-eval-lib)
-[![Build](https://img.shields.io/github/actions/workflow/status/dynatrace-oss/dt-evals/ci-cli.yml?branch=main&style=flat-square&label=ci)](https://github.com/dynatrace-oss/dt-evals/actions)
-[![License](https://img.shields.io/github/license/dynatrace-oss/dt-evals?style=flat-square)](LICENSE)
+[![CLI on npm](https://img.shields.io/npm/v/@dynatrace-oss/dt-evals/alpha?style=flat-square&label=cli&color=cb3837)](https://www.npmjs.com/package/@dynatrace-oss/dt-evals)
+[![Lib on npm](https://img.shields.io/npm/v/@dynatrace-oss/dt-eval-lib/alpha?style=flat-square&label=lib&color=cb3837)](https://www.npmjs.com/package/@dynatrace-oss/dt-eval-lib)
+[![Build](https://github.com/dynatrace-oss/dt-evals/actions/workflows/ci-cli.yml/badge.svg?branch=main)](https://github.com/dynatrace-oss/dt-evals/actions/workflows/ci-cli.yml)
+[![License](https://img.shields.io/badge/license-Apache_2.0-blue?style=flat-square)](LICENSE)
 
 End-to-end LLM evaluation toolkit for Dynatrace AI Observability.
 

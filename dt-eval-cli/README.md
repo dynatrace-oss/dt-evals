@@ -2,11 +2,11 @@
 
 **Open source continuous evals for LLM applications, with production prompt traces as the dataset.**
 
-[![npm version](https://img.shields.io/npm/v/@dynatrace-oss/dt-evals?style=flat-square&label=npm&color=cb3837)](https://www.npmjs.com/package/@dynatrace-oss/dt-evals)
+[![npm version](https://img.shields.io/npm/v/@dynatrace-oss/dt-evals/alpha?style=flat-square&label=npm&color=cb3837)](https://www.npmjs.com/package/@dynatrace-oss/dt-evals)
 [![npm downloads](https://img.shields.io/npm/dm/@dynatrace-oss/dt-evals?style=flat-square&color=cb3837)](https://www.npmjs.com/package/@dynatrace-oss/dt-evals)
-[![Build](https://img.shields.io/github/actions/workflow/status/dynatrace-oss/dt-evals/ci-cli.yml?branch=main&style=flat-square&label=build)](https://github.com/dynatrace-oss/dt-evals/actions/workflows/ci-cli.yml)
-[![License](https://img.shields.io/github/license/dynatrace-oss/dt-evals?style=flat-square)](LICENSE)
-[![Node](https://img.shields.io/node/v/@dynatrace-oss/dt-evals?style=flat-square)](package.json)
+[![Build](https://github.com/dynatrace-oss/dt-evals/actions/workflows/ci-cli.yml/badge.svg?branch=main)](https://github.com/dynatrace-oss/dt-evals/actions/workflows/ci-cli.yml)
+[![License](https://img.shields.io/badge/license-Apache_2.0-blue?style=flat-square)](LICENSE)
+[![Node](https://img.shields.io/node/v/@dynatrace-oss/dt-evals/alpha?style=flat-square)](package.json)
 
 `dt-evals` is for teams shipping chat, RAG, copilots, and agent workflows who want evals to run on real traffic, not just curated test sets.
 
