@@ -204,6 +204,7 @@ export async function runEvals(
 
   // 6. Evaluate via dt-eval-lib in parallel batches
   if (!emit) logger.info(`Evaluating ${maskedSpans.length} spans × ${metricIds.length} metrics...`);
+  logger.debug(`judge provider=${judgeProvider} model=${judgeModel || '<default>'} concurrency=${concurrency}`);
   emit?.({
     phase: 'evaluating-start',
     tasks: tasks.length,
@@ -222,7 +223,7 @@ export async function runEvals(
         const evalResult = await evaluate(getPrompt(task.metric), input, libConfig);
         evalCount++;
         const elapsed = Date.now() - t0;
-        logger.debug(`eval [${evalCount}/${tasks.length}] ${task.metric} trace=${task.span.traceId.slice(0, 8)}… ${elapsed}ms score=${evalResult.score.value}`);
+        logger.debug(`eval [${evalCount}/${tasks.length}] ${task.metric} ${judgeProvider}/${judgeModel} trace=${task.span.traceId.slice(0, 8)}… ${elapsed}ms score=${evalResult.score.value}`);
         emit?.({
           phase: 'eval-completed',
           completed: evalCount,
