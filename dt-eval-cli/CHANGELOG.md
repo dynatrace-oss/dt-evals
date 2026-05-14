@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.1-alpha...v0.2.2-alpha) (2026-05-14)
+
+
+### 🐛 Bug Fixes
+
+* **dt-eval-cli:** bundle LLM provider SDKs as direct dependencies ([#91](https://github.com/dynatrace-oss/dt-evals/issues/91)) ([11193a7](https://github.com/dynatrace-oss/dt-evals/commit/11193a7f08b8a45405c039649f6976275500d63a))
+
 ## [0.2.1-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.0-alpha...v0.2.1-alpha) (2026-05-13)
 
 
