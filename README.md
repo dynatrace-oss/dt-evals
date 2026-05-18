@@ -26,7 +26,7 @@ End-to-end LLM evaluation toolkit for Dynatrace AI Observability.
 
 ## Requirements
 
-- Node.js `>=20` (dt-eval, dt-eval-lib, dt-eval-deploy)
+- Node.js `>=20` (dt-evals, dt-eval-lib, dt-eval-deploy)
 - Python `>=3.10` (dt-ai-ingest)
 - A Dynatrace environment with GenAI spans (`gen_ai.*` OTEL attributes)
 - [`dtctl`](https://docs.dynatrace.com/docs/deliver/dynatrace-cli) installed for first-time setup (OAuth token generation)
