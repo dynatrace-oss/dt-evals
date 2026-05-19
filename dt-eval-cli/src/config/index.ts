@@ -203,7 +203,7 @@ export function validateConfig(config: DtEvalConfig): void {
     issues.push(`judge.provider must be one of: openai, anthropic, azure-openai, gemini, bedrock (got "${config.judge.provider}")`);
   }
 
-  if (config.judge?.concurrency !== undefined) {
+  if (config.judge?.concurrency) {
     const c = config.judge.concurrency;
     if (!Number.isInteger(c) || c < 1) {
       issues.push(`judge.concurrency must be a positive integer (got ${JSON.stringify(c)})`);
