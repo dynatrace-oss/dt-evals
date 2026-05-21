@@ -1,4 +1,7 @@
 import { Command } from 'commander';
+import { existsSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { loadConfig, validateConfig } from '../../config/index.js';
 import { DEFAULT_JUDGE_MODELS } from '../../config/defaults.js';
 import { DynatraceClient } from '../../dt/client.js';
@@ -98,18 +101,42 @@ export function createValidateCommand(): Command {
   cmd.action(async (configArg: string | undefined, options: { config?: string }) => {
     console.log('Running pre-flight checks...\n');
 
-    const configPath = configArg ?? options.config;
+    const explicitConfigPath = configArg ?? options.config;
+
+    // 0. Surface the no-config-found case loudly. loadConfig() silently
+    //    falls back to built-in defaults, which makes the rest of the report
+    //    look like "wrong provider configured" when the real issue is "no
+    //    config picked up at all". When the user passes an explicit path,
+    //    error out instead — they clearly meant *that* file.
+    let failures = 0;
+    if (explicitConfigPath) {
+      if (!existsSync(explicitConfigPath)) {
+        logger.error(`Config file not found: ${explicitConfigPath}`);
+        process.exit(1);
+      }
+    } else {
+      const projectConfigPath = join(process.cwd(), '.dt-eval.yaml');
+      const globalConfigPath = join(homedir(), '.dt-eval', 'config.yaml');
+      const usingDefaults = !existsSync(projectConfigPath) && !existsSync(globalConfigPath);
+      if (usingDefaults) {
+        logger.warn(
+          `No .dt-eval.yaml in ${process.cwd()} and no ${globalConfigPath} — ` +
+          `running checks against built-in defaults (probably not what you want). ` +
+          `Pass a config path: dt-evals validate <my-service.dt-eval.yaml>`,
+        );
+      }
+    }
+
     let config;
-    let configValid = false;
 
     // 1. Schema validation
     try {
-      config = loadConfig(configPath ? { projectFile: configPath } : undefined);
+      config = loadConfig(explicitConfigPath ? { projectFile: explicitConfigPath } : undefined);
       validateConfig(config);
-      configValid = true;
       logger.success('Config schema valid');
     } catch (err) {
       logger.error(`Config schema invalid: ${(err as Error).message}`);
+      failures++;
     }
 
     if (!config) {
@@ -126,6 +153,7 @@ export function createValidateCommand(): Command {
     for (const [label, side] of sides) {
       if (!side.apiToken) {
         logger.error(`${label} API token not set  (${side.environmentUrl || 'no url'})`);
+        failures++;
         continue;
       }
       const dtOk = await testDynatraceConnection(side.environmentUrl, side.apiToken);
@@ -133,6 +161,7 @@ export function createValidateCommand(): Command {
         logger.success(`${label} connection  (${side.environmentUrl})`);
       } else {
         logger.error(`${label} connection failed  (${side.environmentUrl})`);
+        failures++;
         continue;
       }
 
@@ -145,6 +174,7 @@ export function createValidateCommand(): Command {
         } else {
           logger.error(`origin cannot read spans bucket: ${probe.reason}`);
           logger.error(`  → token needs storage:spans:read (and storage:buckets:read)`);
+          failures++;
         }
       }
     }
@@ -160,6 +190,7 @@ export function createValidateCommand(): Command {
       logger.success(`Evaluator provider reachable  (${config.judge.provider}, model: ${aiModel ?? 'unknown'})`);
     } else {
       logger.error(`Evaluator provider unreachable or API key invalid  (${config.judge.provider})`);
+      failures++;
     }
 
     // 4. Evaluators
@@ -171,12 +202,13 @@ export function createValidateCommand(): Command {
       logger.success(`${custom.length} custom evaluators loaded`);
     } catch (err) {
       logger.error(`Failed to load evaluators: ${(err as Error).message}`);
+      failures++;
     }
 
-    if (configValid) {
+    if (failures === 0) {
       console.log('\nAll checks passed. Ready to run evaluations.');
     } else {
-      console.log('\nSome checks failed. Run "dt-evals configure" to fix issues.');
+      console.log(`\n${failures} check${failures === 1 ? '' : 's'} failed. Run "dt-evals configure" to fix issues.`);
       process.exit(1);
     }
   });
