@@ -7,7 +7,7 @@ import { promisify } from 'node:util';
 import pc from 'picocolors';
 import { Spinner } from '../../ui/spinner.js';
 import { loadConfig, validateConfig } from '../../config/index.js';
-import { DEFAULT_JUDGE_MODELS } from '../../config/defaults.js';
+import { probeProvider } from '../../probe/provider.js';
 import * as dtctl from '../../dtctl/index.js';
 import { printDoctorBanner } from '../../ui/banner.js';
 
@@ -77,60 +77,26 @@ async function getPackageVersion(pkgName: string): Promise<string | null> {
   }
 }
 
+// `testAiProvider` is now a thin shim around the shared `probeProvider` helper
+// so doctor and validate report the same model+key+region failures the runtime
+// will hit. The helper sends a real 1-token inference request, so wrong model
+// ids (e.g. `sonnet` → 404 `model: sonnet`) and bad regions surface as the
+// actual upstream error instead of "API reachable".
 async function testAiProvider(
   provider: string,
   apiKey?: string,
   model?: string,
-  opts?: { baseUrl?: string; region?: string },
+  opts?: { baseUrl?: string; region?: string; apiVersion?: string; secretKey?: string },
 ): Promise<{ ok: boolean; model: string; error?: string }> {
-  const resolvedModel = model ?? DEFAULT_JUDGE_MODELS[provider] ?? 'unknown';
-  try {
-    if (provider === 'openai') {
-      const key = apiKey ?? process.env['OPENAI_API_KEY'];
-      if (!key) return { ok: false, model: resolvedModel, error: 'No API key configured' };
-      const r = await fetch('https://api.openai.com/v1/models', {
-        headers: { Authorization: `Bearer ${key}` },
-        signal: AbortSignal.timeout(8000),
-      });
-      return { ok: r.ok, model: resolvedModel };
-    }
-    if (provider === 'anthropic') {
-      const key = apiKey ?? process.env['ANTHROPIC_API_KEY'];
-      if (!key) return { ok: false, model: resolvedModel, error: 'No API key configured' };
-      const r = await fetch('https://api.anthropic.com/v1/models', {
-        headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-        signal: AbortSignal.timeout(8000),
-      });
-      return { ok: r.ok, model: resolvedModel };
-    }
-    if (provider === 'azure-openai') {
-      const key = apiKey ?? process.env['AZURE_OPENAI_API_KEY'];
-      const endpoint = opts?.baseUrl ?? process.env['AZURE_OPENAI_ENDPOINT'];
-      if (!key || !endpoint) return { ok: false, model: resolvedModel, error: 'API key or endpoint not configured' };
-      const url = `${endpoint.replace(/\/$/, '')}/openai/models?api-version=2024-02-01`;
-      const r = await fetch(url, { headers: { 'api-key': key }, signal: AbortSignal.timeout(8000) });
-      return { ok: r.ok, model: resolvedModel };
-    }
-    if (provider === 'gemini') {
-      const key = apiKey ?? process.env['GEMINI_API_KEY'] ?? process.env['GOOGLE_API_KEY'];
-      if (!key) return { ok: false, model: resolvedModel, error: 'No API key configured' };
-      const r = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`,
-        { signal: AbortSignal.timeout(8000) },
-      );
-      return { ok: r.ok, model: resolvedModel };
-    }
-    if (provider === 'bedrock') {
-      const hasCredentials =
-        !!(process.env['AWS_ACCESS_KEY_ID'] && process.env['AWS_SECRET_ACCESS_KEY']) ||
-        !!process.env['AWS_ROLE_ARN'] ||
-        !!(opts?.region ?? process.env['AWS_REGION'] ?? process.env['AWS_DEFAULT_REGION']);
-      return { ok: hasCredentials, model: resolvedModel, error: hasCredentials ? undefined : 'AWS credentials not found in environment' };
-    }
-    return { ok: false, model: resolvedModel, error: `Unknown provider: ${provider}` };
-  } catch (err) {
-    return { ok: false, model: resolvedModel, error: (err as Error).message };
-  }
+  return probeProvider({
+    provider,
+    apiKey,
+    model,
+    baseUrl: opts?.baseUrl,
+    region: opts?.region,
+    apiVersion: opts?.apiVersion,
+    secretKey: opts?.secretKey,
+  });
 }
 
 function analyzeRunHistory(runsPath: string): {
@@ -605,16 +571,21 @@ export function createDoctorCommand(): Command {
         providerConfig.provider,
         providerConfig.apiKey,
         providerConfig.model,
-        { baseUrl: providerConfig.baseUrl, region: providerConfig.region },
+        {
+          baseUrl: providerConfig.baseUrl,
+          region: providerConfig.region,
+          apiVersion: providerConfig.apiVersion,
+          secretKey: providerConfig.secretKey,
+        },
       );
 
       console.log(`  Provider: ${providerConfig.provider} / ${model}`);
 
       if (providerOk) {
-        ok(`${providerConfig.provider} API reachable`);
+        ok(`${providerConfig.provider} inference probe succeeded`);
         ok(`Model: ${model}`);
       } else {
-        fail(`${providerConfig.provider} API unreachable or API key invalid`);
+        fail(`${providerConfig.provider} inference probe failed  (model: ${model})`);
         if (providerError) info(providerError);
 
         const envVarHints: Record<string, string> = {

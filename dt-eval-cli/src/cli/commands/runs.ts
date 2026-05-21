@@ -76,6 +76,12 @@ export function createRunsCommand(): Command {
     console.log(`Errors:              ${record.errors}`);
     console.log(`Threshold breaches:  ${record.thresholdBreaches}`);
     console.log(`Duration:            ${formatDuration(record.durationMs)}`);
+    if (record.errorSamples && record.errorSamples.length > 0) {
+      console.log(`\nSample errors:`);
+      for (const msg of record.errorSamples) {
+        console.log(`  • ${msg}`);
+      }
+    }
   });
 
   // runs export

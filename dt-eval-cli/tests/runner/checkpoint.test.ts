@@ -69,6 +69,32 @@ describe('checkpoint', () => {
     expect(records[0]!.spansEvaluated).toBe(42);
   });
 
+  it('round-trips errorSamples when set on the record', async () => {
+    const r = makeRecord({
+      runId: 'run-with-errors',
+      errors: 27,
+      errorSamples: [
+        '404 model: sonnet (×9)',
+        "Cannot find package '@anthropic-ai/sdk' (×18)",
+      ],
+    });
+    await appendRunRecord(r, TEST_DIR);
+
+    const records = await readRunRecords(TEST_DIR);
+    expect(records[0]!.errorSamples).toEqual([
+      '404 model: sonnet (×9)',
+      "Cannot find package '@anthropic-ai/sdk' (×18)",
+    ]);
+  });
+
+  it('errorSamples is undefined for older records that omit it', async () => {
+    const r = makeRecord({ runId: 'run-legacy' });
+    await appendRunRecord(r, TEST_DIR);
+
+    const records = await readRunRecords(TEST_DIR);
+    expect(records[0]!.errorSamples).toBeUndefined();
+  });
+
   it('limits to 100 most recent records when appending', async () => {
     // Append 105 records
     for (let i = 0; i < 105; i++) {
