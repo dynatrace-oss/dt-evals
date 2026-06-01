@@ -13,6 +13,11 @@ End-to-end LLM evaluation toolkit for Dynatrace AI Observability.
 
 ![dt-evals welcome](assets/dt-evals-welcome.gif)
 
+> 🎮 **Try it without installing anything** — explore a live `dt-evals` dashboard on our public playground tenant:
+> [**Open the dt-evals playground dashboard →**](http://wkf10640.apps.dynatrace.com/ui/apps/dynatrace.dashboards/dashboard/monaco-2cf9a79b-8b32-3244-aed1-e9d8c6e3e6a8)
+>
+> Shows real evaluation runs against production GenAI traces — scores per metric, drift over time, threshold breaches, and click-through to the originating trace.
+
 ## Packages
 
 | Package | Description |
