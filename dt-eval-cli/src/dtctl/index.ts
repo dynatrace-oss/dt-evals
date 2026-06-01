@@ -187,7 +187,18 @@ export async function authenticateWithBrowser(
   });
 }
 
-// ─── Permission probes (use Bearer token obtained via dtctl) ──────────────────
+// ─── Permission probes ────────────────────────────────────────────────────────
+//
+// Probes accept either:
+//   - a Dynatrace platform / classic API token (`dt0c01....` / `dt0c0...`),
+//     pasted by the user from https://myaccount.dynatrace.com/platformTokens, or
+//   - an OAuth bearer (`dt0s....`) obtained by some other flow.
+//
+// `authScheme` picks the right HTTP scheme so callers don't have to care.
+
+function authScheme(token: string): string {
+  return token.startsWith('dt0c') ? `Api-Token ${token}` : `Bearer ${token}`;
+}
 
 async function probeDql(
   environmentUrl: string,
@@ -200,7 +211,7 @@ async function probeDql(
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${bearerToken}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: authScheme(bearerToken), 'Content-Type': 'application/json' },
       body: JSON.stringify({ query, requestTimeoutMilliseconds: 5000 }),
       signal: AbortSignal.timeout(12_000),
     });
@@ -268,7 +279,7 @@ export async function countGenAiSpans(
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${bearerToken}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: authScheme(bearerToken), 'Content-Type': 'application/json' },
       body: JSON.stringify({ query, requestTimeoutMilliseconds: 15000 }),
       signal: AbortSignal.timeout(20_000),
     });
@@ -294,7 +305,7 @@ export async function checkBizeventPermission(environmentUrl: string, bearerToke
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${bearerToken}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: authScheme(bearerToken), 'Content-Type': 'application/json' },
       body: JSON.stringify([{ 'event.provider': 'dt-evals.doctor.probe', 'event.type': 'connectivity.check' }]),
       signal: AbortSignal.timeout(10_000),
     });
@@ -314,7 +325,7 @@ export async function checkMetricsPermission(environmentUrl: string, bearerToken
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${bearerToken}`, 'Content-Type': 'text/plain' },
+      headers: { Authorization: authScheme(bearerToken), 'Content-Type': 'text/plain' },
       body: 'dt.evals.doctor.probe,probe=true 1',
       signal: AbortSignal.timeout(10_000),
     });
@@ -338,7 +349,7 @@ export async function createPlatformToken(
   const url = `${environmentUrl.replace(/\/$/, '')}/api/v2/apiTokens`;
   const response = await fetch(url, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${bearerToken}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: authScheme(bearerToken), 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, scopes }),
     signal: AbortSignal.timeout(15_000),
   });

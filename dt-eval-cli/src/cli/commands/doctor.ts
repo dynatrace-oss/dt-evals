@@ -9,6 +9,7 @@ import { Spinner } from '../../ui/spinner.js';
 import { loadConfig, validateConfig } from '../../config/index.js';
 import { DEFAULT_JUDGE_MODELS } from '../../config/defaults.js';
 import * as dtctl from '../../dtctl/index.js';
+import * as pasteToken from '../../dtctl/paste-token.js';
 import { printDoctorBanner } from '../../ui/banner.js';
 
 const execFileAsync = promisify(execFile);
@@ -259,133 +260,102 @@ export function createDoctorCommand(): Command {
     }
 
     // ══════════════════════════════════════════════════════════════
-    // SECTION 2: Dynatrace Authentication via dtctl
+    // SECTION 2: Dynatrace Authentication via platform token
     // ══════════════════════════════════════════════════════════════
+    //
+    // History: this used to extract an OAuth bearer from `dtctl -vv auth
+    // whoami` debug output. dtctl 0.24+ redacts the Authorization header
+    // (#89), so that approach is dead and there's no public dtctl command
+    // to print the access token. We replace it with a simple paste-back
+    // flow: open the Dynatrace platform-tokens UI, let the user create a
+    // scoped token themselves, paste it back here. Same end state, one
+    // fewer moving part.
     sectionHeader(2, TOTAL_SECTIONS, 'Dynatrace Authentication');
 
     let bearerToken: string | null = null;
-    let resolvedContextName: string | null = options.context ?? null;
+    const envFilePath = join(process.cwd(), '.env');
+    const preExistingToken = existingConfig?.dynatrace.apiToken ?? process.env['DT_API_TOKEN'];
 
-    if (options.skipAuth || !dtctlInstalled) {
+    if (options.skipAuth) {
       info('Skipping dtctl authentication');
-      if (!options.skipAuth) {
-        info('Install dtctl to enable OAuth-based authentication and token generation');
+    } else if (options.skipToken && preExistingToken) {
+      ok(`DT_API_TOKEN already set (${preExistingToken.slice(0, 8)}...) — using existing token`);
+      bearerToken = preExistingToken;
+    } else if (preExistingToken && !options.skipToken && inquirer) {
+      const reuse = await inquirer.confirm({
+        message: `DT_API_TOKEN already set (${preExistingToken.slice(0, 8)}...). Reuse it?`,
+        default: true,
+      });
+      if (reuse) {
+        ok('Reusing existing DT_API_TOKEN');
+        bearerToken = preExistingToken;
       }
-    } else {
-      // List available contexts
-      const spinner = new Spinner('Fetching dtctl contexts...');
-      spinner.start();
-      const contexts = await dtctl.listContexts();
-      spinner.stop();
+    }
 
-      if (contexts.length > 0) {
-        console.log(`  Found ${contexts.length} context${contexts.length !== 1 ? 's' : ''}:`);
-        contexts.forEach((c, i) => {
-          const label = c.environmentUrl ? `${c.name}  (${c.environmentUrl})` : c.name;
-          const marker = c.isCurrent ? pc.dim(' [current]') : '';
-          console.log(`    ${i + 1}. ${label}${marker}`);
+    if (!bearerToken && !options.skipAuth) {
+      // ── Resolve the environment URL we'll point the user at ──
+      let envUrlForToken =
+        options.envUrl
+        ?? existingConfig?.dynatrace.environmentUrl
+        ?? process.env['DT_ENV_URL']
+        ?? '';
+      if (!envUrlForToken && inquirer) {
+        envUrlForToken = await inquirer.input({
+          message: 'Dynatrace environment URL  (e.g. https://abc12345.apps.dynatrace.com)',
+          validate: v => /^https?:\/\/.+/.test(v.trim()) ? true : 'Enter a valid URL',
         });
       }
+      if (envUrlForToken && !options.envUrl) {
+        options = { ...options, envUrl: envUrlForToken };
+      }
 
-      // ── Context selection ─────────────────────────────────────
-      let contextEnvUrl: string | undefined;
+      // ── Print scopes + URL, then wait for paste ──
+      console.log(`\n  Generate a scoped platform token at ${pc.cyan(pasteToken.PLATFORM_TOKENS_URL)}`);
+      console.log(`  ${pc.dim('Required scopes (select all of these on the token page):')}\n`);
+      console.log(pasteToken.formatScopes());
+      console.log('');
 
-      if (!resolvedContextName && inquirer) {
-        const { select, input } = inquirer;
-        const choices = [
-          ...contexts.map(c => ({
-            name: c.environmentUrl ? `${c.name}  (${c.environmentUrl})` : c.name,
-            value: c.name,
-            short: c.name,
-          })),
-          { name: pc.dim('+ Create new context (opens browser)'), value: '__new__', short: 'new' },
-        ];
-
-        if (contexts.length > 0) {
-          resolvedContextName = await select({
-            message: 'Select a dtctl context',
-            choices,
+      if (inquirer) {
+        const openNow = await inquirer.confirm({
+          message: 'Open the platform-tokens page in your browser now?',
+          default: true,
+        });
+        if (openNow) {
+          await pasteToken.openBrowser(pasteToken.PLATFORM_TOKENS_URL);
+          console.log(`  ${pc.dim('Opening browser…')}\n`);
+        }
+        const pasted = await inquirer.password({
+          message: 'Paste your Dynatrace platform token (or press Enter to skip)',
+          mask: '*',
+          validate: v => {
+            const t = v.trim();
+            if (!t) return true; // empty = skip
+            if (!pasteToken.looksLikePlatformToken(t)) {
+              return 'That does not look like a Dynatrace platform token (expected dt0c01.…).';
+            }
+            return true;
+          },
+        });
+        const trimmed = pasted.trim();
+        if (trimmed) {
+          bearerToken = trimmed;
+          updateEnvFile(envFilePath, {
+            DT_API_TOKEN: trimmed,
+            ...(envUrlForToken ? { DT_ENV_URL: envUrlForToken } : {}),
           });
+          ok(`Token saved to ${envFilePath}`);
+          if (envUrlForToken) ok(`Environment: ${envUrlForToken}`);
         } else {
-          resolvedContextName = '__new__';
-        }
-
-        if (resolvedContextName === '__new__') {
-          resolvedContextName = await input({
-            message: 'New context name',
-            default: 'dt-evals',
-            validate: v => v.trim().length > 0 ? true : 'Context name is required',
-          });
-          // Need env URL to create a new context
-          contextEnvUrl = options.envUrl ?? existingConfig?.dynatrace.environmentUrl ?? process.env['DT_ENV_URL'];
-          if (!contextEnvUrl) {
-            contextEnvUrl = await input({
-              message: 'Dynatrace environment URL  (e.g. https://abc12345.apps.dynatrace.com)',
-              validate: v => /^https?:\/\/.+/.test(v.trim()) ? true : 'Enter a valid URL',
-            });
-          }
-        }
-      } else if (!resolvedContextName) {
-        // Fall back to current dtctl context
-        resolvedContextName = (await dtctl.getCurrentContext()) ?? contexts[0]?.name ?? 'dt-evals';
-        info(`Using context: ${resolvedContextName}`);
-      }
-
-      // Resolve env URL from context list if not already set
-      if (!contextEnvUrl) {
-        contextEnvUrl = contexts.find(c => c.name === resolvedContextName)?.environmentUrl;
-      }
-      // Will be merged into resolvedEnvUrl in section 3
-
-      // ── Token check / login ───────────────────────────────────
-      const tokenSpinner = new Spinner(`Getting token for context "${resolvedContextName}"...`);
-      tokenSpinner.start();
-      try {
-        bearerToken = await dtctl.getBearerToken(resolvedContextName!);
-        tokenSpinner.succeed(`Authenticated via context "${resolvedContextName}"`);
-        if (contextEnvUrl) ok(`Environment: ${contextEnvUrl}`);
-      } catch {
-        tokenSpinner.stop();
-
-        // Need to authenticate — determine env URL first
-        if (!contextEnvUrl) {
-          if (inquirer) {
-            contextEnvUrl = await inquirer.input({
-              message: 'Dynatrace environment URL  (e.g. https://abc12345.apps.dynatrace.com)',
-              default: options.envUrl ?? existingConfig?.dynatrace.environmentUrl ?? process.env['DT_ENV_URL'] ?? '',
-              validate: v => /^https?:\/\/.+/.test(v.trim()) ? true : 'Enter a valid URL',
-            });
-          } else {
-            contextEnvUrl = options.envUrl ?? existingConfig?.dynatrace.environmentUrl ?? process.env['DT_ENV_URL'] ?? '';
-          }
-        }
-
-        console.log(`\n  ${pc.dim(`No active session for "${resolvedContextName}" — opening browser for OAuth...`)}\n`);
-        const authSpinner = new Spinner('Waiting for browser authentication...');
-        authSpinner.start();
-        try {
-          bearerToken = await dtctl.authenticateWithBrowser(
-            resolvedContextName!,
-            contextEnvUrl,
-            (elapsed) => authSpinner.update(`Waiting for browser authentication... (${elapsed}s)`),
-          );
-          authSpinner.succeed('Browser authentication complete');
-          ok(`Authenticated via context "${resolvedContextName}"`);
-        } catch (err) {
-          authSpinner.fail('Authentication failed');
-          fail((err as Error).message);
+          warn('No token provided — permission probes and run history checks will be skipped');
           issues.push({
-            severity: 'error',
+            severity: 'warning',
             section: 'Authentication',
-            message: `Failed to authenticate via dtctl: ${(err as Error).message}`,
-            action: `Run manually: dtctl auth login --context ${resolvedContextName} --environment <your-env-url>`,
+            message: 'No Dynatrace API token configured',
+            action: `Re-run "dt-evals doctor" and paste a token from ${pasteToken.PLATFORM_TOKENS_URL}`,
           });
         }
-      }
-
-      // Surface context env URL for section 3
-      if (contextEnvUrl && !options.envUrl) {
-        options = { ...options, envUrl: contextEnvUrl };
+      } else {
+        info(`Non-interactive mode — open ${pasteToken.PLATFORM_TOKENS_URL} and add DT_API_TOKEN to your .env manually`);
       }
     }
 
@@ -497,84 +467,21 @@ export function createDoctorCommand(): Command {
     }
 
     // ══════════════════════════════════════════════════════════════
-    // SECTION 4: Platform Token Generation
+    // SECTION 4: Platform Token Status
     // ══════════════════════════════════════════════════════════════
+    //
+    // Token acquisition now happens in Section 2 (user pastes a token they
+    // created themselves at myaccount.dynatrace.com/platformTokens). This
+    // section is a no-op confirmation so the 6-section structure stays
+    // stable for users following along.
     sectionHeader(4, TOTAL_SECTIONS, 'Platform Token');
 
-    const envFilePath = join(process.cwd(), '.env');
-    const existingToken = existingConfig?.dynatrace.apiToken ?? process.env['DT_API_TOKEN'];
-
-    if (existingToken && options.skipToken) {
-      ok(`DT_API_TOKEN already set (${existingToken.slice(0, 8)}...)  — skipping token generation`);
-    } else if (!bearerToken || !resolvedEnvUrl) {
-      info('Skipping token generation (no authenticated dtctl session)');
-      if (!existingToken) {
-        issues.push({
-          severity: 'error',
-          section: 'Platform Token',
-          message: 'No Dynatrace API token configured',
-          action: 'Run "dt-evals doctor" with dtctl installed, or manually set DT_API_TOKEN in your .env file',
-        });
-      }
+    if (bearerToken) {
+      ok(`Platform token configured (${bearerToken.slice(0, 8)}...)`);
+      info(`Stored in ${envFilePath}`);
     } else {
-      const scopesToGrant = grantedScopes.length > 0
-        ? grantedScopes
-        : [
-            // Origin reads (DQL fetch spans + Grail bucket prerequisite)
-            'storage:spans:read',
-            'storage:buckets:read',
-            // Destination reads + writes (eval bizevents, drift metrics)
-            'storage:events:read',
-            'storage:events:write',
-            'storage:metrics:write',
-            // validate's destination connectivity probe
-            'storage:logs:read',
-          ];
-
-      if (existingToken) {
-        console.log(`  Existing token found (${existingToken.slice(0, 8)}...)`);
-        let shouldRegenerate = false;
-        if (inquirer) {
-          shouldRegenerate = await inquirer.confirm({
-            message: 'Generate a new platform token and update .env?',
-            default: false,
-          });
-        }
-        if (!shouldRegenerate) {
-          ok('Keeping existing DT_API_TOKEN');
-        }
-      }
-
-      const shouldGenerate = !existingToken || inquirer === null;
-
-      if (shouldGenerate || (inquirer && !existingToken)) {
-        const tokenName = `dt-evals-${new Date().toISOString().slice(0, 10)}`;
-        const tokenSpinner = new Spinner(`Creating platform token "${tokenName}" with scopes: ${scopesToGrant.join(', ')}...`);
-        tokenSpinner.start();
-
-        try {
-          const created = await dtctl.createPlatformToken(resolvedEnvUrl, bearerToken, tokenName, scopesToGrant);
-          tokenSpinner.succeed(`Token created: ${created.token.slice(0, 12)}...`);
-
-          const envUpdates: Record<string, string> = {
-            DT_API_TOKEN: created.token,
-            DT_ENV_URL: resolvedEnvUrl,
-          };
-          updateEnvFile(envFilePath, envUpdates);
-          ok(`DT_API_TOKEN written to ${envFilePath}`);
-          ok(`DT_ENV_URL written to ${envFilePath}`);
-          info('Scopes granted: ' + scopesToGrant.join(', '));
-        } catch (err) {
-          tokenSpinner.fail('Token creation failed');
-          fail((err as Error).message);
-          issues.push({
-            severity: 'error',
-            section: 'Platform Token',
-            message: `Failed to create platform token: ${(err as Error).message}`,
-            action: 'Ensure your dtctl OAuth token has the "apiTokens:write" scope, or create the token manually in Dynatrace Settings → Access Tokens',
-          });
-        }
-      }
+      info('No platform token — Section 2 was skipped or no token was pasted.');
+      info(`Generate one at ${pasteToken.PLATFORM_TOKENS_URL} and re-run "dt-evals doctor"`);
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -778,13 +685,16 @@ export function createDoctorCommand(): Command {
 
 function createDoctorCreateCommand(): Command {
   const sub = new Command('create-token');
-  sub.description('Generate a scoped Dynatrace platform token via dtctl and write it to .env');
-  sub.option('--context <name>', 'dtctl context to use');
+  sub.description('Walk through creating a Dynatrace platform token and save it to .env');
   sub.option('--env-url <url>', 'Dynatrace environment URL (overrides config)');
 
-  sub.action(async (options: { context?: string; envUrl?: string }) => {
+  // dtctl 0.24+ redacts OAuth bearers, so we can't auto-mint a token anymore
+  // (#89). Instead: surface the required scopes, open the Dynatrace token UI
+  // for the user, and wait for them to paste a token back. Same end state,
+  // no broken bearer extraction.
+  sub.action(async (options: { envUrl?: string }) => {
     printDoctorBanner();
-    console.log(pc.bold('  Creating platform token via dtctl OAuth\n'));
+    console.log(pc.bold('  Set up a Dynatrace platform token for dt-evals\n'));
 
     // ── Resolve existing config ────────────────────────────────
     let existingConfig: ReturnType<typeof loadConfig> | null = null;
@@ -793,54 +703,9 @@ function createDoctorCreateCommand(): Command {
     let inquirer: typeof import('@inquirer/prompts') | null = null;
     try { inquirer = await import('@inquirer/prompts'); } catch { /* non-interactive */ }
 
-    // ── Check dtctl ────────────────────────────────────────────
-    const version = await dtctl.getDtctlVersion();
-    if (!version) {
-      fail('dtctl is not installed');
-      info('Install dtctl: https://docs.dynatrace.com/docs/deliver/dynatrace-cli');
-      process.exit(1);
-    }
-    ok(`dtctl found  (${version})`);
-
-    // ── Context selection ──────────────────────────────────────
-    const spinner = new Spinner('Fetching dtctl contexts...');
-    spinner.start();
-    const contexts = await dtctl.listContexts();
-    spinner.stop();
-
-    let resolvedContext = options.context ?? null;
-    let contextEnvUrl: string | undefined;
-
-    if (!resolvedContext && inquirer) {
-      const choices = [
-        ...contexts.map(c => ({
-          name: c.environmentUrl ? `${c.name}  (${c.environmentUrl})` : c.name,
-          value: c.name,
-          short: c.name,
-        })),
-        { name: pc.dim('+ Create new context (opens browser)'), value: '__new__', short: 'new' },
-      ];
-
-      resolvedContext = contexts.length > 0
-        ? await inquirer.select({ message: 'Select a dtctl context', choices })
-        : '__new__';
-
-      if (resolvedContext === '__new__') {
-        resolvedContext = await inquirer.input({
-          message: 'New context name',
-          default: 'dt-evals',
-          validate: v => v.trim().length > 0 ? true : 'Context name is required',
-        });
-      }
-    } else if (!resolvedContext) {
-      resolvedContext = (await dtctl.getCurrentContext()) ?? contexts[0]?.name ?? 'dt-evals';
-    }
-
-    contextEnvUrl = contexts.find(c => c.name === resolvedContext)?.environmentUrl;
-
     // ── Resolve env URL ────────────────────────────────────────
-    let resolvedEnvUrl = options.envUrl
-      ?? contextEnvUrl
+    let resolvedEnvUrl =
+      options.envUrl
       ?? existingConfig?.dynatrace.environmentUrl
       ?? process.env['DT_ENV_URL']
       ?? '';
@@ -852,100 +717,49 @@ function createDoctorCreateCommand(): Command {
       });
     }
 
-    // ── Authenticate ───────────────────────────────────────────
-    const authSpinner = new Spinner(`Getting token for context "${resolvedContext}"...`);
-    authSpinner.start();
-    let bearerToken: string;
-    try {
-      bearerToken = await dtctl.getBearerToken(resolvedContext!);
-      authSpinner.succeed(`Authenticated via "${resolvedContext}"`);
-    } catch {
-      authSpinner.stop();
-      console.log(`\n  ${pc.dim(`No active session — opening browser for "${resolvedContext}"...`)}\n`);
-      const loginSpinner = new Spinner('Waiting for browser authentication...');
-      loginSpinner.start();
-      try {
-        bearerToken = await dtctl.authenticateWithBrowser(
-          resolvedContext!,
-          resolvedEnvUrl,
-          (s) => loginSpinner.update(`Waiting for browser authentication... (${s}s)`),
-        );
-        loginSpinner.succeed('Authenticated');
-      } catch (err) {
-        loginSpinner.fail(`Authentication failed: ${(err as Error).message}`);
-        info(`Run manually: dtctl auth login --context ${resolvedContext} --environment ${resolvedEnvUrl}`);
-        process.exit(1);
-      }
-    }
-
-    // ── Check permissions ──────────────────────────────────────
+    // ── Show scopes + open browser ─────────────────────────────
+    console.log(`  Open ${pc.cyan(pasteToken.PLATFORM_TOKENS_URL)} and create a new platform token.`);
+    console.log(`  ${pc.dim('Select all the scopes below when the page prompts you:')}\n`);
+    console.log(pasteToken.formatScopes());
     console.log('');
-    const permSpinner = new Spinner('Checking Dynatrace permissions...');
-    permSpinner.start();
-    const [spansCheck, eventsReadCheck, bizeventCheck, metricsCheck] = await Promise.all([
-      dtctl.checkSpansPermission(resolvedEnvUrl, bearerToken),
-      dtctl.checkEventsReadPermission(resolvedEnvUrl, bearerToken),
-      dtctl.checkBizeventPermission(resolvedEnvUrl, bearerToken),
-      dtctl.checkMetricsPermission(resolvedEnvUrl, bearerToken),
-    ]);
-    permSpinner.stop();
 
-    const scopes: string[] = [];
-    for (const check of [spansCheck, eventsReadCheck, bizeventCheck]) {
-      if (check.ok) {
-        ok(check.label);
-        scopes.push(check.scope);
-      } else {
-        warn(`${check.label} — not available (required, token will be created without it)`);
-      }
-    }
-    if (metricsCheck.ok) {
-      ok(`${metricsCheck.label} ${pc.dim('(optional)')}`);
-      scopes.push(metricsCheck.scope);
-    } else {
-      info(`${metricsCheck.label} — not available (optional, skipping)`);
+    if (!inquirer) {
+      info('Non-interactive mode — open the URL above and add DT_API_TOKEN to your .env manually');
+      process.exit(0);
     }
 
-    // Foundational scopes that aren't probed individually but are required
-    // by the runtime — included unconditionally so a doctor-minted token
-    // can actually pass `dt-evals validate` and run end-to-end:
-    //   - storage:buckets:read: Grail prerequisite for any storage table
-    //     read; without it `fetch spans|logs|bizevents` returns
-    //     SUCCEEDED-with-empty-records (silent failure).
-    //   - storage:logs:read: validate's destination connectivity probe
-    //     issues `fetch logs | limit 1`; without it the destination check
-    //     fails even when writes work.
-    if (!scopes.includes('storage:buckets:read')) scopes.push('storage:buckets:read');
-    if (!scopes.includes('storage:logs:read')) scopes.push('storage:logs:read');
-
-    if (scopes.length === 0) {
-      fail('No permissions available — cannot create a usable token');
-      info('Ensure your dtctl OAuth session has access to this Dynatrace environment');
-      process.exit(1);
+    const openNow = await inquirer.confirm({
+      message: 'Open the platform-tokens page in your browser now?',
+      default: true,
+    });
+    if (openNow) {
+      await pasteToken.openBrowser(pasteToken.PLATFORM_TOKENS_URL);
+      console.log(`  ${pc.dim('Opening browser…')}\n`);
     }
 
-    // ── Create token ───────────────────────────────────────────
-    console.log('');
-    const tokenName = `dt-evals-${new Date().toISOString().slice(0, 10)}`;
-    const createSpinner = new Spinner(`Creating token "${tokenName}" with scopes: ${scopes.join(', ')}...`);
-    createSpinner.start();
+    const pasted = await inquirer.password({
+      message: 'Paste your Dynatrace platform token',
+      mask: '*',
+      validate: v => {
+        const t = v.trim();
+        if (!t) return 'Token is required';
+        if (!pasteToken.looksLikePlatformToken(t)) {
+          return 'That does not look like a Dynatrace platform token (expected dt0c01.…).';
+        }
+        return true;
+      },
+    });
 
-    try {
-      const created = await dtctl.createPlatformToken(resolvedEnvUrl, bearerToken, tokenName, scopes);
-      createSpinner.succeed(`Token created: ${created.token.slice(0, 12)}...`);
+    const token = pasted.trim();
+    const envFilePath = join(process.cwd(), '.env');
+    updateEnvFile(envFilePath, {
+      DT_API_TOKEN: token,
+      ...(resolvedEnvUrl ? { DT_ENV_URL: resolvedEnvUrl } : {}),
+    });
+    ok(`DT_API_TOKEN written to ${envFilePath}`);
+    if (resolvedEnvUrl) ok(`DT_ENV_URL written to ${envFilePath}`);
 
-      const envFilePath = join(process.cwd(), '.env');
-      updateEnvFile(envFilePath, { DT_API_TOKEN: created.token, DT_ENV_URL: resolvedEnvUrl });
-      ok(`DT_API_TOKEN written to ${envFilePath}`);
-      ok(`DT_ENV_URL written to ${envFilePath}`);
-
-      console.log(`\n  ${pc.bold('Done.')} Run ${pc.cyan('dt-evals doctor')} to verify your full setup.\n`);
-    } catch (err) {
-      createSpinner.fail(`Token creation failed: ${(err as Error).message}`);
-      info('Ensure your OAuth session has the "apiTokens:write" scope');
-      info('Or create the token manually in Dynatrace Settings → Access Tokens');
-      process.exit(1);
-    }
+    console.log(`\n  ${pc.bold('Done.')} Run ${pc.cyan('dt-evals doctor')} to verify your full setup.\n`);
   });
 
   return sub;
