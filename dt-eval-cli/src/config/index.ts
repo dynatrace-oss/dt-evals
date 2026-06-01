@@ -12,6 +12,7 @@ import {
   type MetricsConfig,
 } from './schema.js';
 import { DEFAULT_CONFIG, DEFAULT_JUDGE_MODELS } from './defaults.js';
+import { parseCondition, ConditionParseError } from '../alerts/condition.js';
 
 export class ConfigValidationError extends Error {
   constructor(public readonly issues: string[]) {
@@ -234,6 +235,63 @@ export function validateConfig(config: DtEvalConfig): void {
       } else {
         issues.push(`metrics.enabled[${i}] must be a string or { id, inputs? } object`);
       }
+    }
+  }
+
+  if (config.alerts?.notifications) {
+    for (const [i, n] of config.alerts.notifications.entries()) {
+      const where = `alerts.notifications[${i}]`;
+      if (!n.name?.trim()) issues.push(`${where}.name is required`);
+      if (!n.metric?.trim()) issues.push(`${where}.metric is required`);
+      if (!n.condition?.trim()) {
+        issues.push(`${where}.condition is required (e.g. "avg > 2")`);
+      } else {
+        try { parseCondition(n.condition); }
+        catch (err) {
+          if (err instanceof ConditionParseError) issues.push(`${where}.condition: ${err.message}`);
+          else throw err;
+        }
+      }
+      if (!n.window?.trim()) issues.push(`${where}.window is required (e.g. "15m")`);
+      else if (!/^\d+[smhd]$/.test(n.window)) issues.push(`${where}.window must be like "5m", "1h", "24h"`);
+      if (!n.channel) {
+        issues.push(`${where}.channel is required`);
+      } else {
+        const c = n.channel;
+        if (!['slack', 'email', 'webhook'].includes(c.type)) {
+          issues.push(`${where}.channel.type must be slack | email | webhook (got "${c.type}")`);
+        }
+        if (c.type === 'slack') {
+          if (c.webhookUrl) {
+            issues.push(
+              `${where}.channel: type:slack uses the Dynatrace Slack action; remove webhookUrl and set connection: <name>. ` +
+              `For an inline incoming-webhook URL, use type:webhook instead.`,
+            );
+          }
+          if (!c.connection) {
+            issues.push(`${where}.channel.connection is required for type:slack (the Dynatrace Slack connection name)`);
+          }
+        }
+        if (c.type === 'email') {
+          if (c.webhookUrl) {
+            issues.push(`${where}.channel: email channels use the Dynatrace email action; remove webhookUrl`);
+          }
+          if (!c.to || c.to.length === 0) {
+            issues.push(`${where}.channel.to is required for email`);
+          }
+          // No connection requirement — the Dynatrace email action uses the
+          // tenant's configured outbound mail (Settings → Notifications), not a
+          // per-workflow connection.
+        }
+        if (c.type === 'webhook' && !c.webhookUrl) {
+          issues.push(`${where}.channel.webhookUrl is required for type:webhook`);
+        }
+      }
+    }
+    const names = config.alerts.notifications.map(n => n.name).filter(Boolean);
+    const dupes = names.filter((n, i) => names.indexOf(n) !== i);
+    if (dupes.length > 0) {
+      issues.push(`alerts.notifications: duplicate name(s): ${[...new Set(dupes)].join(', ')}`);
     }
   }
 

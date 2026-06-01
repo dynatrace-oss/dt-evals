@@ -228,6 +228,94 @@ dt-evals schedule delete <schedule-id>
 
 Schedules are stored locally in `~/.dt-eval/schedules.json`.
 
+### Continuous alerts via Dynatrace Workflows
+
+Define one or more notifications in your eval YAML, then deploy them as
+Dynatrace Workflows that poll the eval bizevents and notify Slack / email when
+a threshold is breached.
+
+```yaml
+alerts:
+  notifications:
+    - name: toxicity-spike
+      metric: toxicity
+      condition: avg > 2        # avg | max | min | count | fail_rate
+      window: 15m                # also the polling interval
+      channel:
+        type: slack
+        connection: my-slack-conn
+        channel: "#ai-alerts"
+
+    - name: hallucination-any
+      metric: hallucination
+      condition: count > 0
+      window: 5m
+      channel:
+        type: email
+        connection: smtp-default
+        to: [ai-team@example.com]
+```
+
+```bash
+dt-evals alerts render  my.dt-eval.yaml          # preview workflow YAML, no API calls
+dt-evals alerts apply   my.dt-eval.yaml          # create or update (idempotent)
+dt-evals alerts list    my.dt-eval.yaml          # show deployed alerts for this config
+dt-evals alerts diff    my.dt-eval.yaml          # local vs. remote
+dt-evals alerts delete  my.dt-eval.yaml --name toxicity-spike
+dt-evals alerts delete  my.dt-eval.yaml --all
+```
+
+Apply uses `dtctl apply`; the workflow id for each notification is stored at
+`~/.dt-eval/alerts-<config-hash>.json` so subsequent applies update in place.
+
+**Slack and email require a Dynatrace connection** — `dt-evals alerts apply`
+**does not auto-create them**. Set them up once in the Dynatrace UI before the
+notify task can deliver:
+
+| Channel | How to create the connection | What to reference in YAML |
+|---------|------------------------------|---------------------------|
+| Slack   | Dynatrace → **Settings → Connections → Slack (OAuth)** — install the Dynatrace app into your Slack workspace and name the connection. | `channel: { type: slack, connection: <name>, channel: "#chan" }` |
+| Email   | Dynatrace → **Settings → Connections → Email (SMTP)** — supply SMTP host, port, auth, and a verified `From:` address. | `channel: { type: email, connection: <name>, to: [a@b.com] }` |
+
+If you don't have a Dynatrace Slack connection (e.g. you're not an admin), use
+**`type: webhook`** with an incoming-webhook URL instead. The notify task runs
+a small fetch via the core Run JavaScript action — no extra app install or
+connection required, at the cost of losing the Slack-action form UI:
+
+```yaml
+channel:
+  type: webhook
+  webhookUrl: https://hooks.slack.com/services/T00/B00/XXXX
+```
+
+After every `apply` / `list` the CLI prints a deep link to the Workflows app
+filtered to your dt-evals alerts, so you can review them in the tenant in one
+click.
+
+**Required Dynatrace permissions** (on the dtctl OAuth principal):
+
+| Scope                          | Used by                                     |
+|--------------------------------|---------------------------------------------|
+| `automation:workflows:read`    | `list`, `diff`, idempotent `apply`          |
+| `automation:workflows:write`   | `apply`, `delete`                            |
+| `storage:events:read`          | The deployed workflow's DQL task at runtime |
+| `automation:workflows:run` *(optional)* | Manual execution from the UI       |
+
+The CLI surfaces these in `alerts --help` and in error messages when dtctl
+returns 401 / 403. If you see "Permission denied", ask your Dynatrace admin to
+grant the scopes above to the OAuth client backing `dtctl auth login`.
+
+Condition DSL: `<aggregation> <operator> <value>[%]` where:
+
+- aggregations: `avg`, `max`, `min`, `count` (failing rows), `fail_rate`
+- operators: `>`, `>=`, `<`, `<=`, `==`, `!=`
+- **`fail_rate` is a percentage** — write it with `%` (e.g. `fail_rate > 10%`)
+  or as a ratio between 0 and 1 (e.g. `fail_rate > 0.1`). Bare values outside
+  that range like `fail_rate > 10` are rejected at validate time to avoid the
+  10-vs-10% trap. Rendered alert messages always print the percentage form
+  regardless of which you wrote.
+- `%` is not valid on any other aggregation.
+
 ### Check current status
 
 ```bash
@@ -246,6 +334,7 @@ dt-evals configure --show
 | `evaluators` | List, inspect, test, and manage evaluators |
 | `runs` | View and export historical run records |
 | `schedule` | Create and trigger recurring runs |
+| `alerts` | Deploy Slack/email alerts as Dynatrace Workflows (`render`, `apply`, `list`, `diff`, `delete`) |
 
 Global flags:
 
