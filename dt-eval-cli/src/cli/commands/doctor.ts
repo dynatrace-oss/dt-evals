@@ -279,11 +279,11 @@ export function createDoctorCommand(): Command {
     if (options.skipAuth) {
       info('Skipping dtctl authentication');
     } else if (options.skipToken && preExistingToken) {
-      ok(`DT_API_TOKEN already set (${preExistingToken.slice(0, 8)}...) — using existing token`);
+      ok('DT_API_TOKEN already set — using existing token');
       bearerToken = preExistingToken;
     } else if (preExistingToken && !options.skipToken && inquirer) {
       const reuse = await inquirer.confirm({
-        message: `DT_API_TOKEN already set (${preExistingToken.slice(0, 8)}...). Reuse it?`,
+        message: 'DT_API_TOKEN already set. Reuse it?',
         default: true,
       });
       if (reuse) {
@@ -477,7 +477,7 @@ export function createDoctorCommand(): Command {
     sectionHeader(4, TOTAL_SECTIONS, 'Platform Token');
 
     if (bearerToken) {
-      ok(`Platform token configured (${bearerToken.slice(0, 8)}...)`);
+      ok('Platform token configured');
       info(`Stored in ${envFilePath}`);
     } else {
       info('No platform token — Section 2 was skipped or no token was pasted.');
