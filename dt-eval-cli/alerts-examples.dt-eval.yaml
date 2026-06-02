@@ -11,7 +11,7 @@ schemaVersion: 2
 name: pydantic-music-agent
 
 dynatrace:
-  environmentUrl: https://mho70695.apps.dynatrace.com
+  environmentUrl: ${DT_ENV_URL}
 
 judge:
   provider: openai
