@@ -91,7 +91,8 @@ function buildEvalInput(span: GenAiSpan, inputs: MetricInputs | undefined): Eval
 
 interface EvalTaskResult {
   span: GenAiSpan;
-  metric: string;
+  metricId: string;
+  metricName: string;
   evalResult: EvalResult;
   /** The exact input the judge was given — may be a routed subset of span fields. */
   evalInput: EvalInput;
@@ -220,7 +221,8 @@ export async function runEvals(
       const t0 = Date.now();
       const input: EvalInput = buildEvalInput(task.span, task.inputs);
       try {
-        const evalResult = await evaluate(getPrompt(task.metric), input, libConfig);
+        const prompt = getPrompt(task.metric);
+        const evalResult = await evaluate(prompt, input, libConfig);
         evalCount++;
         const elapsed = Date.now() - t0;
         logger.debug(`eval [${evalCount}/${tasks.length}] ${task.metric} ${judgeProvider}/${judgeModel} trace=${task.span.traceId.slice(0, 8)}… ${elapsed}ms score=${evalResult.score.value}`);
@@ -232,7 +234,7 @@ export async function runEvals(
           traceId: task.span.traceId,
           durationMs: elapsed,
         });
-        return { span: task.span, metric: task.metric, evalResult, evalInput: input };
+        return { span: task.span, metricId: task.metric, metricName: prompt.name, evalResult, evalInput: input };
       } catch (err) {
         evalCount++;
         evalErrors++;
@@ -283,7 +285,7 @@ export async function runEvals(
   if (!emit) logger.step('Writing bizevents...');
   const writer = new BizeventWriter(writeClient);
   const payloads: BizeventPayload[] = successResults.map(r =>
-    buildBizeventPayload(r.span, r.metric, r.evalResult, runId, judgeProvider, judgeModel, evalConfig.scope.service, r.evalInput),
+    buildBizeventPayload(r.span, r.metricId, r.metricName, r.evalResult, runId, judgeProvider, judgeModel, evalConfig.scope.service, r.evalInput),
   );
   emit?.({ phase: 'writing', payloads: payloads.length });
 
@@ -298,7 +300,7 @@ export async function runEvals(
     // Build per-metric score arrays from this run
     const currentScores: Record<string, number[]> = {};
     for (const r of successResults) {
-      (currentScores[r.metric] ??= []).push(r.evalResult.score.value);
+      (currentScores[r.metricId] ??= []).push(r.evalResult.score.value);
     }
     // Drift compares current run against historical eval bizevents on the
     // destination tenant (where eval results live).
@@ -320,10 +322,10 @@ export async function runEvals(
   const thresholdBreaches: RunResult['thresholdBreaches'] = [];
   if (evalConfig.alerts?.thresholds) {
     for (const r of successResults) {
-      const threshold = evalConfig.alerts.thresholds[r.metric];
+      const threshold = evalConfig.alerts.thresholds[r.metricId];
       if (threshold !== undefined && r.evalResult.score.value < threshold) {
         thresholdBreaches.push({
-          metric: r.metric,
+          metric: r.metricId,
           traceId: r.span.traceId,
           score: r.evalResult.score.value,
         });
