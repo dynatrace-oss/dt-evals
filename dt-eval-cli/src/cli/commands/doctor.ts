@@ -312,7 +312,7 @@ export function createDoctorCommand(): Command {
       // ── Print scopes + URL, then wait for paste ──
       console.log(`\n  Generate a scoped platform token at ${pc.cyan(pasteToken.PLATFORM_TOKENS_URL)}`);
       console.log(`  ${pc.dim('Required scopes (select all of these on the token page):')}\n`);
-      console.log(pasteToken.formatScopes());
+      console.log(pasteToken.formatScopes(envUrlForToken));
       console.log('');
 
       if (inquirer) {
@@ -720,7 +720,7 @@ function createDoctorCreateCommand(): Command {
     // ── Show scopes + open browser ─────────────────────────────
     console.log(`  Open ${pc.cyan(pasteToken.PLATFORM_TOKENS_URL)} and create a new platform token.`);
     console.log(`  ${pc.dim('Select all the scopes below when the page prompts you:')}\n`);
-    console.log(pasteToken.formatScopes());
+    console.log(pasteToken.formatScopes(resolvedEnvUrl));
     console.log('');
 
     if (!inquirer) {

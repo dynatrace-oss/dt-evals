@@ -36,10 +36,20 @@ export const REQUIRED_SCOPES: Array<{ scope: string; purpose: string; optional?:
   { scope: 'storage:spans:read', purpose: 'Read GenAI traces from Grail' },
 ];
 
-/** Format the scopes block as a copy/paste-friendly bullet list. */
-export function formatScopes(): string {
-  const widest = Math.max(...REQUIRED_SCOPES.map(s => s.scope.length));
-  return REQUIRED_SCOPES.map(s => {
+/** Format the scopes block as a copy/paste-friendly bullet list.
+ *  For classic *.apps.dynatrace.com tenants, `openpipeline:bizevents:ingest`
+ *  is replaced with `storage:events:write` (OpenPipeline ingest not available). */
+export function formatScopes(envUrl?: string): string {
+  const isClassic = envUrl ? /\.apps\.dynatrace\.com(\/|$)/i.test(envUrl) : false;
+  const scopes = isClassic
+    ? REQUIRED_SCOPES.map(s =>
+        s.scope === 'openpipeline:bizevents:ingest'
+          ? { ...s, scope: 'storage:events:write' }
+          : s,
+      )
+    : REQUIRED_SCOPES;
+  const widest = Math.max(...scopes.map(s => s.scope.length));
+  return scopes.map(s => {
     const pad = ' '.repeat(widest - s.scope.length);
     const tag = s.optional ? pc.dim('  (optional)') : '';
     return `    • ${pc.cyan(s.scope)}${pad}  — ${s.purpose}${tag}`;

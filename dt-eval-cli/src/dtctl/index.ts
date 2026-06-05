@@ -309,6 +309,12 @@ export function liveSubdomain(url: string): string {
 }
 
 export async function checkBizeventPermission(environmentUrl: string, bearerToken: string): Promise<PermissionCheck> {
+  const isClassic = /\.apps\.dynatrace\.com(\/|$)/i.test(environmentUrl);
+  const scope = isClassic ? 'storage:events:write' : 'openpipeline:bizevents:ingest';
+  const label = isClassic
+    ? 'Bizevent write (storage:events:write)'
+    : 'Bizevent write (openpipeline:bizevents:ingest)';
+
   // Probe the same URL the runtime client posts to.
   const url = `${liveSubdomain(environmentUrl.replace(/\/$/, ''))}/api/v2/bizevents/ingest`;
   try {
@@ -318,15 +324,9 @@ export async function checkBizeventPermission(environmentUrl: string, bearerToke
       body: JSON.stringify([{ 'event.provider': 'dt-evals.doctor.probe', 'event.type': 'connectivity.check' }]),
       signal: AbortSignal.timeout(10_000),
     });
-    
-    return {
-      scope: 'openpipeline:bizevents:ingest',
-      label: 'Bizevent write (openpipeline:bizevents:ingest)',
-      ok: response.status !== 401 && response.status !== 403,
-      statusCode: response.status,
-    };
+    return { scope, label, ok: response.status !== 401 && response.status !== 403, statusCode: response.status };
   } catch (err) {
-    return { scope: 'openpipeline:bizevents:ingest', label: 'Bizevent write (openpipeline:bizevents:ingest)', ok: false, error: (err as Error).message };
+    return { scope, label, ok: false, error: (err as Error).message };
   }
 }
 
