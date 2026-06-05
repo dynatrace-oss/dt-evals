@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { looksLikePlatformToken, formatScopes, REQUIRED_SCOPES, PLATFORM_TOKENS_URL } from '../../src/dtctl/paste-token.js';
 
 describe('looksLikePlatformToken', () => {
-  it('accepts a typical platform token (dt0c01.<base32>.<base32>)', () => {
-    const token = 'dt0c01.' + 'A'.repeat(24) + '.' + 'B'.repeat(64);
+  it('accepts a typical platform token (dt0s16.<payload>)', () => {
+    const token = 'dt0s16.' + 'A'.repeat(24) + '.' + 'B'.repeat(64);
     expect(looksLikePlatformToken(token)).toBe(true);
   });
 
@@ -16,16 +16,16 @@ describe('looksLikePlatformToken', () => {
     expect(looksLikePlatformToken('not-a-token')).toBe(false);
     expect(looksLikePlatformToken('Bearer eyJhbGciOi...')).toBe(false);
     // Right prefix but too short — almost certainly a paste error
-    expect(looksLikePlatformToken('dt0c01.ABC')).toBe(false);
+    expect(looksLikePlatformToken('dt0s16.ABC')).toBe(false);
   });
 
   it('tolerates surrounding whitespace', () => {
-    const token = '  dt0c01.' + 'A'.repeat(64) + '\n';
+    const token = '  dt0s16.' + 'A'.repeat(64) + '\n';
     expect(looksLikePlatformToken(token)).toBe(true);
   });
 
   it('is case-insensitive on the prefix', () => {
-    const token = 'DT0C01.' + 'A'.repeat(64);
+    const token = 'DT0S16.' + 'A'.repeat(64);
     expect(looksLikePlatformToken(token)).toBe(true);
   });
 });
@@ -35,8 +35,8 @@ describe('REQUIRED_SCOPES', () => {
     const scopes = REQUIRED_SCOPES.map(s => s.scope);
     expect(scopes).toContain('storage:spans:read');
     expect(scopes).toContain('storage:buckets:read');
-    expect(scopes).toContain('storage:events:read');
-    expect(scopes).toContain('storage:events:write');
+    expect(scopes).toContain('storage:bizevents:read');
+    expect(scopes).toContain('openpipeline:bizevents:ingest');
   });
 
   it('marks storage:metrics:write as optional', () => {
