@@ -190,9 +190,10 @@ export async function authenticateWithBrowser(
 // ─── Permission probes ────────────────────────────────────────────────────────
 //
 // Probes accept either:
-//   - a Dynatrace platform / classic API token (`dt0c01....` / `dt0c0...`),
-//     pasted by the user from https://myaccount.dynatrace.com/platformTokens, or
-//   - an OAuth bearer (`dt0s....`) obtained by some other flow.
+//   - a Dynatrace classic API token (`dt0c01....` / `dt0c0...`), or
+//   - an OAuth/Platform token (`dt0s....`) pasted by the user from
+//     https://myaccount.dynatrace.com/platformTokens
+//     See also: https://docs.dynatrace.com/docs/shortlink/platform-tokens#how-to-use-a-platform-token
 //
 // `authScheme` picks the right HTTP scheme so callers don't have to care.
 
@@ -234,8 +235,8 @@ export async function checkSpansPermission(environmentUrl: string, bearerToken: 
 export async function checkEventsReadPermission(environmentUrl: string, bearerToken: string): Promise<PermissionCheck> {
   return probeDql(environmentUrl, bearerToken,
     'fetch bizevents | limit 1',
-    'storage:events:read',
-    'Bizevent read (storage:events:read)',
+    'storage:bizevents:read',
+    'Bizevent read (storage:bizevents:read)',
   );
 }
 
@@ -275,7 +276,7 @@ export async function countGenAiSpans(
   const serviceFilter = service
     ? `| filter service.name == "${service}" or dt.smartscape.service == "${service}"\n`
     : '';
-  const query = `fetch spans\n${serviceFilter}| filter isNotNull(gen_ai.provider.name)\n| filter timestamp >= now() - duration("24h")\n| summarize count = count()`;
+  const query = `fetch spans, from: now()-24h\n${serviceFilter}| filter isNotNull(gen_ai.provider.name)\n| summarize count = count()`;
   try {
     const response = await fetch(url, {
       method: 'POST',
@@ -285,18 +286,26 @@ export async function countGenAiSpans(
     });
     if (!response.ok) return null;
     const data = await response.json() as { result?: { records?: Array<Record<string, unknown>> } };
+    
     const records = data.result?.records ?? [];
     const count = records[0]?.['count'];
-    return typeof count === 'number' ? count : null;
+    if (typeof count === 'number') return count;
+    if (typeof count === 'string') {
+      const parsed = parseInt(count, 10);
+      return isNaN(parsed) ? null : parsed;
+    }
+    return null;
   } catch {
     return null;
   }
 }
 
 /** Translate `*.apps.dynatrace.com` → `*.live.dynatrace.com` for ingest probes;
- *  matches the runtime client. Idempotent on other hosts. */
-function liveSubdomain(url: string): string {
-  return url.replace(/^(https?:\/\/[^/]+?)\.apps\.dynatrace\.com/, '$1.live.dynatrace.com');
+ *  also handles `dynatracelabs.com` lab environments. Idempotent on other hosts. */
+export function liveSubdomain(url: string): string {
+  return url
+    .replace(/^(https?:\/\/[^/]+?)\.apps\.dynatrace\.com/, '$1.live.dynatrace.com')
+    .replace(/^(https?:\/\/[^/]+?)\.apps\.dynatracelabs\.com/, '$1.dynatracelabs.com');
 }
 
 export async function checkBizeventPermission(environmentUrl: string, bearerToken: string): Promise<PermissionCheck> {
@@ -309,14 +318,15 @@ export async function checkBizeventPermission(environmentUrl: string, bearerToke
       body: JSON.stringify([{ 'event.provider': 'dt-evals.doctor.probe', 'event.type': 'connectivity.check' }]),
       signal: AbortSignal.timeout(10_000),
     });
+    
     return {
-      scope: 'storage:events:write',
-      label: 'Bizevent write (storage:events:write)',
+      scope: 'openpipeline:bizevents:ingest',
+      label: 'Bizevent write (openpipeline:bizevents:ingest)',
       ok: response.status !== 401 && response.status !== 403,
       statusCode: response.status,
     };
   } catch (err) {
-    return { scope: 'storage:events:write', label: 'Bizevent write (storage:events:write)', ok: false, error: (err as Error).message };
+    return { scope: 'openpipeline:bizevents:ingest', label: 'Bizevent write (openpipeline:bizevents:ingest)', ok: false, error: (err as Error).message };
   }
 }
 

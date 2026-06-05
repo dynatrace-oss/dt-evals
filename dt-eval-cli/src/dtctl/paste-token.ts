@@ -28,12 +28,12 @@ export const PLATFORM_TOKENS_URL = 'https://myaccount.dynatrace.com/platformToke
  *   - read logs for the `validate` connectivity probe
  */
 export const REQUIRED_SCOPES: Array<{ scope: string; purpose: string; optional?: boolean }> = [
-  { scope: 'storage:spans:read', purpose: 'Read GenAI traces from Grail' },
+  { scope: 'openpipeline:bizevents:ingest', purpose: 'Write evaluation results back as bizevents' },
+  { scope: 'storage:bizevents:read', purpose: 'Read past evaluation bizevents — drift baseline' },
   { scope: 'storage:buckets:read', purpose: 'List Grail buckets (prerequisite for any read)' },
-  { scope: 'storage:events:read', purpose: 'Read past evaluation bizevents — drift baseline' },
-  { scope: 'storage:events:write', purpose: 'Write evaluation results back as bizevents' },
-  { scope: 'storage:metrics:write', purpose: 'Write evaluation metrics', optional: true },
   { scope: 'storage:logs:read', purpose: 'Connectivity probe used by `dt-evals validate`' },
+  { scope: 'storage:metrics:write', purpose: 'Write evaluation metrics', optional: true },
+  { scope: 'storage:spans:read', purpose: 'Read GenAI traces from Grail' },
 ];
 
 /** Format the scopes block as a copy/paste-friendly bullet list. */
@@ -63,12 +63,12 @@ export async function openBrowser(url: string): Promise<void> {
 }
 
 /**
- * Minimum heuristic for a Dynatrace API token: the `dt0c01.` family of
- * platform tokens. We deliberately don't tighten this further — Dynatrace
- * may issue other prefixes in future, and a too-strict regex would block
- * legitimate tokens. Length floor catches obvious paste mistakes.
+ * Minimum heuristic for a Dynatrace platform token: the `dt0s16.` prefix.
+ * We deliberately don't tighten this further — Dynatrace may issue other
+ * prefixes in future, and a too-strict regex would block legitimate tokens.
+ * Length floor catches obvious paste mistakes.
  */
 export function looksLikePlatformToken(value: string): boolean {
   const v = value.trim();
-  return /^dt0c0?\d\./i.test(v) && v.length >= 32;
+  return /^dt0s\d+\./i.test(v) && v.length >= 32;
 }

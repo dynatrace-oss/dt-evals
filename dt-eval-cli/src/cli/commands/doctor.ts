@@ -331,7 +331,7 @@ export function createDoctorCommand(): Command {
             const t = v.trim();
             if (!t) return true; // empty = skip
             if (!pasteToken.looksLikePlatformToken(t)) {
-              return 'That does not look like a Dynatrace platform token (expected dt0c01.…).';
+              return 'That does not look like a Dynatrace platform token (expected dt0s16.…).';
             }
             return true;
           },
@@ -434,7 +434,7 @@ export function createDoctorCommand(): Command {
           issues.push({
             severity: 'warning',
             section: 'Permissions',
-            message: `Missing optional Dynatrace permission: ${check.scope}`,
+            message: `Missing optional Dynatrace permission: ${check.scope}. ${check.error}`,
             action: 'Metric ingestion will be unavailable. Request this scope from your Dynatrace admin if needed.',
           });
         }
@@ -744,7 +744,7 @@ function createDoctorCreateCommand(): Command {
         const t = v.trim();
         if (!t) return 'Token is required';
         if (!pasteToken.looksLikePlatformToken(t)) {
-          return 'That does not look like a Dynatrace platform token (expected dt0c01.…).';
+          return 'That does not look like a Dynatrace platform token (expected dt0s16.…).';
         }
         return true;
       },
