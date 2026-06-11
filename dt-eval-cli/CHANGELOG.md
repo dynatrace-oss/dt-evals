@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.3-alpha...v0.2.4-alpha) (2026-06-11)
+
+
+### 🐛 Bug Fixes
+
+* **dt-eval-cli:** validate counts all failures and warns on default fallback ([#86](https://github.com/dynatrace-oss/dt-evals/issues/86)) ([0ecead9](https://github.com/dynatrace-oss/dt-evals/commit/0ecead9cdbce787bddc90a0922554c0f51afdf71))
+
 ## [0.2.3-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.2-alpha...v0.2.3-alpha) (2026-06-05)
 
 
