@@ -12,6 +12,14 @@ export interface RunRecord {
   durationMs: number;
   metrics: string[];
   since: string;
+  /**
+   * Top distinct error messages from failed evals on this run. Persisted so
+   * `dt-evals runs show <runId>` can surface them after the fact, not only
+   * during the live `dt-evals run` output. Capped to a few entries with
+   * `(×N)` suffix when duplicates collapse. Optional for back-compat with
+   * records written by older CLI versions.
+   */
+  errorSamples?: string[];
 }
 
 const DEFAULT_STORAGE_DIR = join(homedir(), '.dt-eval');

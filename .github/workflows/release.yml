@@ -104,4 +104,4 @@ jobs:
             run: npm run build
 
           - name: Publish package
-            run: npm publish --access public --tag alpha
+            run: npm publish --access public --tag latest

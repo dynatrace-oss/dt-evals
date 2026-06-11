@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.2.3-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.2-alpha...v0.2.3-alpha) (2026-06-05)
+
+
+### ✨ New Features
+
+* **dt-eval-cli:** make judge concurrency configurable in yaml ([#87](https://github.com/dynatrace-oss/dt-evals/issues/87)) ([1ca39b1](https://github.com/dynatrace-oss/dt-evals/commit/1ca39b12c1b5a9d07dbc5bb012b18fe453a404cf))
+* **dt-eval-cli:** split metric into metricId/metricName in bizevent payload ([#104](https://github.com/dynatrace-oss/dt-evals/issues/104)) ([fd1e639](https://github.com/dynatrace-oss/dt-evals/commit/fd1e639ecbe906414a4d684ff60fda7bb5fa12bc))
+* **dt-eval-cli:** validate accepts a config file path argument ([#85](https://github.com/dynatrace-oss/dt-evals/issues/85)) ([7fff34d](https://github.com/dynatrace-oss/dt-evals/commit/7fff34d7c31d5ec9afeb42ca306672d0a4f9b691))
+
+
+### 🐛 Bug Fixes
+
+* **dt-eval-cli:** doctor uses paste-back platform token instead of dtctl OAuth ([#99](https://github.com/dynatrace-oss/dt-evals/issues/99)) ([9b33c7b](https://github.com/dynatrace-oss/dt-evals/commit/9b33c7bd607b6dd0bf27c59ed17b85caa06803b4))
+* **dt-eval-cli:** persist eval errors + probe real model in doctor/validate ([#97](https://github.com/dynatrace-oss/dt-evals/issues/97)) ([4fe88da](https://github.com/dynatrace-oss/dt-evals/commit/4fe88da8defdf0b63cfa90bfebe65cc1f802d576))
+* **dt-eval-cli:** use explicit DQL timeframe so --since over 2h returns data ([#84](https://github.com/dynatrace-oss/dt-evals/issues/84)) ([fc909b1](https://github.com/dynatrace-oss/dt-evals/commit/fc909b1365caf82c7448c74b951c85edb238bfad))
+
+
+### 📚 Documentation
+
+* link the public dt-evals playground dashboard ([#98](https://github.com/dynatrace-oss/dt-evals/issues/98)) ([ea3818d](https://github.com/dynatrace-oss/dt-evals/commit/ea3818d476b0b25f843b170dff19bdefa5f20dc5))
+
 ## [0.2.2-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.1-alpha...v0.2.2-alpha) (2026-05-14)
 
 

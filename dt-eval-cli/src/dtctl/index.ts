@@ -187,7 +187,19 @@ export async function authenticateWithBrowser(
   });
 }
 
-// ─── Permission probes (use Bearer token obtained via dtctl) ──────────────────
+// ─── Permission probes ────────────────────────────────────────────────────────
+//
+// Probes accept either:
+//   - a Dynatrace classic API token (`dt0c01....` / `dt0c0...`), or
+//   - an OAuth/Platform token (`dt0s....`) pasted by the user from
+//     https://myaccount.dynatrace.com/platformTokens
+//     See also: https://docs.dynatrace.com/docs/shortlink/platform-tokens#how-to-use-a-platform-token
+//
+// `authScheme` picks the right HTTP scheme so callers don't have to care.
+
+function authScheme(token: string): string {
+  return token.startsWith('dt0c') ? `Api-Token ${token}` : `Bearer ${token}`;
+}
 
 async function probeDql(
   environmentUrl: string,
@@ -200,7 +212,7 @@ async function probeDql(
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${bearerToken}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: authScheme(bearerToken), 'Content-Type': 'application/json' },
       body: JSON.stringify({ query, requestTimeoutMilliseconds: 5000 }),
       signal: AbortSignal.timeout(12_000),
     });
@@ -223,8 +235,8 @@ export async function checkSpansPermission(environmentUrl: string, bearerToken: 
 export async function checkEventsReadPermission(environmentUrl: string, bearerToken: string): Promise<PermissionCheck> {
   return probeDql(environmentUrl, bearerToken,
     'fetch bizevents | limit 1',
-    'storage:events:read',
-    'Bizevent read (storage:events:read)',
+    'storage:bizevents:read',
+    'Bizevent read (storage:bizevents:read)',
   );
 }
 
@@ -264,48 +276,57 @@ export async function countGenAiSpans(
   const serviceFilter = service
     ? `| filter service.name == "${service}" or dt.smartscape.service == "${service}"\n`
     : '';
-  const query = `fetch spans\n${serviceFilter}| filter isNotNull(gen_ai.provider.name)\n| filter timestamp >= now() - duration("24h")\n| summarize count = count()`;
+  const query = `fetch spans, from: now()-24h\n${serviceFilter}| filter isNotNull(gen_ai.provider.name)\n| summarize count = count()`;
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${bearerToken}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: authScheme(bearerToken), 'Content-Type': 'application/json' },
       body: JSON.stringify({ query, requestTimeoutMilliseconds: 15000 }),
       signal: AbortSignal.timeout(20_000),
     });
     if (!response.ok) return null;
     const data = await response.json() as { result?: { records?: Array<Record<string, unknown>> } };
+    
     const records = data.result?.records ?? [];
     const count = records[0]?.['count'];
-    return typeof count === 'number' ? count : null;
+    if (typeof count === 'number') return count;
+    if (typeof count === 'string') {
+      const parsed = parseInt(count, 10);
+      return isNaN(parsed) ? null : parsed;
+    }
+    return null;
   } catch {
     return null;
   }
 }
 
 /** Translate `*.apps.dynatrace.com` → `*.live.dynatrace.com` for ingest probes;
- *  matches the runtime client. Idempotent on other hosts. */
-function liveSubdomain(url: string): string {
-  return url.replace(/^(https?:\/\/[^/]+?)\.apps\.dynatrace\.com/, '$1.live.dynatrace.com');
+ *  also handles `dynatracelabs.com` lab environments. Idempotent on other hosts. */
+export function liveSubdomain(url: string): string {
+  return url
+    .replace(/^(https?:\/\/[^/]+?)\.apps\.dynatrace\.com/, '$1.live.dynatrace.com')
+    .replace(/^(https?:\/\/[^/]+?)\.apps\.dynatracelabs\.com/, '$1.dynatracelabs.com');
 }
 
 export async function checkBizeventPermission(environmentUrl: string, bearerToken: string): Promise<PermissionCheck> {
+  const isClassic = /\.apps\.dynatrace\.com(\/|$)/i.test(environmentUrl);
+  const scope = isClassic ? 'storage:events:write' : 'openpipeline:bizevents:ingest';
+  const label = isClassic
+    ? 'Bizevent write (storage:events:write)'
+    : 'Bizevent write (openpipeline:bizevents:ingest)';
+
   // Probe the same URL the runtime client posts to.
   const url = `${liveSubdomain(environmentUrl.replace(/\/$/, ''))}/api/v2/bizevents/ingest`;
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${bearerToken}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: authScheme(bearerToken), 'Content-Type': 'application/json' },
       body: JSON.stringify([{ 'event.provider': 'dt-evals.doctor.probe', 'event.type': 'connectivity.check' }]),
       signal: AbortSignal.timeout(10_000),
     });
-    return {
-      scope: 'storage:events:write',
-      label: 'Bizevent write (storage:events:write)',
-      ok: response.status !== 401 && response.status !== 403,
-      statusCode: response.status,
-    };
+    return { scope, label, ok: response.status !== 401 && response.status !== 403, statusCode: response.status };
   } catch (err) {
-    return { scope: 'storage:events:write', label: 'Bizevent write (storage:events:write)', ok: false, error: (err as Error).message };
+    return { scope, label, ok: false, error: (err as Error).message };
   }
 }
 
@@ -314,7 +335,7 @@ export async function checkMetricsPermission(environmentUrl: string, bearerToken
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${bearerToken}`, 'Content-Type': 'text/plain' },
+      headers: { Authorization: authScheme(bearerToken), 'Content-Type': 'text/plain' },
       body: 'dt.evals.doctor.probe,probe=true 1',
       signal: AbortSignal.timeout(10_000),
     });
@@ -338,7 +359,7 @@ export async function createPlatformToken(
   const url = `${environmentUrl.replace(/\/$/, '')}/api/v2/apiTokens`;
   const response = await fetch(url, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${bearerToken}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: authScheme(bearerToken), 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, scopes }),
     signal: AbortSignal.timeout(15_000),
   });

@@ -36,7 +36,8 @@ export interface JudgeInputs {
 
 export function buildBizeventPayload(
   span: GenAiSpan,
-  metric: string,
+  metricId: string,
+  metricName: string,
   result: EvalResult,
   runId: string,
   judgeProvider: string,
@@ -56,10 +57,10 @@ export function buildBizeventPayload(
     'event.provider': CLIENT_NAME,
     'trace_id': span.traceId,
     'timestamp': new Date().toISOString(),
-    'gen_ai.evaluation.name': metric,
+    'gen_ai.evaluation.name': metricName,
     'gen_ai.evaluation.type': 'ready_made',
     'gen_ai.evaluation.version': 'v1.0',
-    'gen_ai.evaluation.spec_id': `evalspec_${metric}_v1`,
+    'gen_ai.evaluation.spec_id': metricId,
     'gen_ai.evaluation.scoring_format': scoringFormat(result.score.value),
     'gen_ai.evaluation.score.value': result.score.value,
     'gen_ai.evaluation.score.label': result.score.label,
@@ -92,14 +93,15 @@ export class BizeventWriter {
 
   async writeEvalResult(
     span: GenAiSpan,
-    metric: string,
+    metricId: string,
+    metricName: string,
     result: EvalResult,
     runId: string,
     judgeProvider: string,
     judgeModel: string,
     serviceName?: string,
   ): Promise<void> {
-    const payload = buildBizeventPayload(span, metric, result, runId, judgeProvider, judgeModel, serviceName);
+    const payload = buildBizeventPayload(span, metricId, metricName, result, runId, judgeProvider, judgeModel, serviceName);
     await this.writeBatch([payload]);
   }
 

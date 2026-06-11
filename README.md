@@ -13,6 +13,11 @@ End-to-end LLM evaluation toolkit for Dynatrace AI Observability.
 
 ![dt-evals welcome](assets/dt-evals-welcome.gif)
 
+> 🎮 **Try it without installing anything** — explore a live `dt-evals` dashboard on our public playground tenant:
+> [**Open the dt-evals playground dashboard →**](http://wkf10640.apps.dynatrace.com/ui/apps/dynatrace.dashboards/dashboard/monaco-2cf9a79b-8b32-3244-aed1-e9d8c6e3e6a8)
+>
+> Shows real evaluation runs against production GenAI traces — scores per metric, drift over time, threshold breaches, and click-through to the originating trace.
+
 ## Packages
 
 | Package | Description |
@@ -29,7 +34,7 @@ End-to-end LLM evaluation toolkit for Dynatrace AI Observability.
 - Node.js `>=20` (dt-evals, dt-eval-lib, dt-eval-deploy)
 - Python `>=3.10` (dt-ai-ingest)
 - A Dynatrace environment with GenAI spans (`gen_ai.*` OTEL attributes)
-- [`dtctl`](https://docs.dynatrace.com/docs/deliver/dynatrace-cli) installed for first-time setup (OAuth token generation)
+- A Dynatrace platform token (generated at [myaccount.dynatrace.com/platformTokens](https://myaccount.dynatrace.com/platformTokens) — `dt-evals doctor` walks you through it)
 - Credentials for your judge provider (OpenAI, Anthropic, Google, AWS Bedrock, or Azure OpenAI)
 
 ## Install
@@ -47,8 +52,9 @@ npx @dynatrace-oss/dt-evals <command>
 ## Quick Start
 
 ```bash
-# 1. Run the doctor — authenticates via dtctl (browser OAuth), checks permissions,
-#    generates a platform token, and writes it to your .env
+# 1. Run the doctor — opens the Dynatrace platform-tokens page, waits for you
+#    to paste a scoped token, writes DT_API_TOKEN to your .env, and probes
+#    every permission the runtime needs.
 dt-evals doctor
 
 # 2. Configure your service and judge provider
@@ -64,26 +70,22 @@ dt-evals run --since 1h --sample 10
 
 ### `doctor`
 
-Diagnose your environment end-to-end. Uses `dtctl` for browser-based OAuth, checks all required Dynatrace permissions, generates a scoped platform token, and writes it to your `.env`. Run this once on first setup or whenever something breaks.
+Diagnose your environment end-to-end. Walks you through creating a scoped Dynatrace platform token (opens the token page in your browser, lists the exact scopes to grant, waits for you to paste the token back), writes it to your `.env`, then probes every permission the runtime needs. Run this once on first setup or whenever something breaks.
 
 ```bash
 # Full interactive check (recommended for first-time setup)
 dt-evals doctor
 
-# Generate a platform token only (skips the full health check)
+# Just walk through token creation (skips the full health check)
 dt-evals doctor create-token
-
-# Use an existing dtctl context
-dt-evals doctor --context my-env
-dt-evals doctor create-token --context my-env
 
 # Point at a specific environment URL
 dt-evals doctor --env-url https://abc12345.apps.dynatrace.com
 
-# Skip token generation (if you already have DT_API_TOKEN set)
+# Skip the token paste step (if you already have DT_API_TOKEN set)
 dt-evals doctor --skip-token
 
-# Config, provider, and run history only — no dtctl auth required
+# Config, provider, and run history only — no Dynatrace token required
 dt-evals doctor --skip-auth
 ```
 
@@ -91,11 +93,11 @@ dt-evals doctor --skip-auth
 
 | Section | Checks |
 |---------|--------|
-| Dependencies | Node.js ≥18, dtctl installed and version |
-| Authentication | dtctl context selection or creation, browser OAuth flow |
+| Dependencies | Node.js ≥20, optional `dtctl` for context discovery |
+| Authentication | Opens the platform-tokens page, accepts a pasted token, saves it to `.env` |
 | Permissions | DQL read, bizevent write, metrics ingest, GenAI span count (last 24h) |
-| Platform Token | Creates a scoped API token, writes `DT_API_TOKEN` and `DT_ENV_URL` to `.env` |
-| AI Provider | API key presence and provider reachability |
+| Platform Token | Confirms the token from Section 2 is stored and reachable |
+| AI Provider | API key presence + a real 1-token inference probe against the configured model |
 | Config & Runs | Config schema validation, last run status, failure rate over 7 days |
 
 Each section produces a pass/warn/fail result with actionable steps for anything that needs attention.
