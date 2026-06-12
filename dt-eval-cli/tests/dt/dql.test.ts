@@ -252,6 +252,23 @@ describe('parseSpanResults', () => {
     ];
     expect(parseSpanResults(records)[0]!.userPrompt).toBeUndefined();
   });
+
+  it('parses gen_ai.output.messages (plural) when gen_ai.output.message is absent', () => {
+    const outputMessages = JSON.stringify([
+      { role: 'assistant', parts: [{ type: 'text', content: 'Here is your answer.' }] },
+    ]);
+    const records = [
+      {
+        'trace.id': 'plural-output',
+        'gen_ai.input.messages': '[{"role":"user","content":"What is 2+2?"}]',
+        'gen_ai.output.message': null,
+        'gen_ai.output.messages': outputMessages,
+      },
+    ];
+    const spans = parseSpanResults(records);
+    expect(spans).toHaveLength(1);
+    expect(spans[0]!.output).toBe('Here is your answer.');
+  });
 });
 
 describe('spanFields configuration', () => {

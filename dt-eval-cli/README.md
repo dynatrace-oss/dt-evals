@@ -342,7 +342,7 @@ dynatrace:
     apiToken: dt0s16.xxxxx          # needs storage:spans:read, storage:buckets:read
   destination:
     environmentUrl: https://eval-results.dev.apps.dynatracelabs.com
-    apiToken: dt0s16.yyyyy          # needs storage:bizevents:write, storage:metric:write
+    apiToken: dt0s16.yyyyy          # needs storage:events:write, storage:metrics:write
 ```
 
 Top-level `environmentUrl` / `apiToken` (if present) act as fallbacks — if
@@ -353,10 +353,29 @@ The `validate` command probes each side separately, including a real
 `fetch spans | limit 1` against the origin to catch missing
 `storage:spans:read` scope before a run is attempted.
 
+### Required token scopes
+
+| Scope | Required for |
+|---|---|
+| `storage:spans:read` | Reading GenAI spans (origin) |
+| `storage:buckets:read` | Grail prerequisite — without this, DQL returns empty results silently |
+| `storage:events:read` | Drift detection baseline (reads past eval bizevents) |
+| `storage:events:write` | Writing evaluation results as bizevents (destination) |
+| `storage:metrics:write` | Writing evaluation metrics *(optional)* |
+| `storage:logs:read` | `dt-evals validate` connectivity probe |
+
+For `dt-evals alerts apply` (Dynatrace Workflows), grant these additionally on the dtctl OAuth client:
+
+| Scope | Required for |
+|---|---|
+| `automation:workflows:read` | `list`, `diff`, idempotent `apply` |
+| `automation:workflows:write` | `apply`, `delete` |
+| `automation:workflows:run` | Manual execution from the UI *(optional)* |
+
 ### Custom span field mapping
 
 By default, the CLI reads OTel GenAI semconv (`gen_ai.input.messages`,
-`gen_ai.output.message`, …) and OpenLLMetry conventions (`gen_ai.prompt.N.*`,
+`gen_ai.output.messages`, `gen_ai.output.message`, …) and OpenLLMetry conventions (`gen_ai.prompt.N.*`,
 `gen_ai.completion.0.content`). If your spans expose the LLM I/O under
 different attribute names, point the CLI at them via `scope.spanFields`.
 Each entry accepts a single attribute or a list of candidates; the first
