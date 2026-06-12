@@ -134,6 +134,7 @@ export function createValidateCommand(): Command {
         } else {
           logger.error(`origin cannot read spans bucket: ${probe.reason}`);
           logger.error(`  → token needs storage:spans:read (and storage:buckets:read)`);
+          logger.error(`  → full required scope list: storage:spans:read, storage:buckets:read, storage:events:read, storage:events:write, storage:metrics:write, storage:logs:read`);
           failures++;
         }
       }

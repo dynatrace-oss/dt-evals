@@ -123,7 +123,10 @@ export class DynatraceClient {
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(`DQL execute failed (${response.status}): ${text}`);
+      const hint = response.status === 401 || response.status === 403
+        ? ' — token needs storage:spans:read, storage:buckets:read, storage:events:read'
+        : '';
+      throw new Error(`DQL execute failed (${response.status})${hint}: ${text}`);
     }
 
     const data = (await response.json()) as DqlExecuteResponse;
@@ -183,7 +186,10 @@ export class DynatraceClient {
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(`Bizevent ingest failed (${response.status}): ${text}`);
+      const hint = response.status === 401 || response.status === 403
+        ? ' — token needs storage:events:write'
+        : '';
+      throw new Error(`Bizevent ingest failed (${response.status})${hint}: ${text}`);
     }
   }
 
@@ -198,7 +204,10 @@ export class DynatraceClient {
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(`Metrics ingest failed (${response.status}): ${text}`);
+      const hint = response.status === 401 || response.status === 403
+        ? ' — token needs storage:metrics:write'
+        : '';
+      throw new Error(`Metrics ingest failed (${response.status})${hint}: ${text}`);
     }
   }
 
