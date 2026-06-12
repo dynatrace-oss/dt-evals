@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.5-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.4-alpha...v0.2.5-alpha) (2026-06-12)
+
+
+### 🐛 Bug Fixes
+
+* **dt-eval-cli:** correct token scopes in README and parse gen_ai.output.messages ([#112](https://github.com/dynatrace-oss/dt-evals/issues/112)) ([42f4f17](https://github.com/dynatrace-oss/dt-evals/commit/42f4f172d894b693accfad325b732a2f67c7787e))
+
 ## [0.2.4-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.3-alpha...v0.2.4-alpha) (2026-06-11)
 
 
