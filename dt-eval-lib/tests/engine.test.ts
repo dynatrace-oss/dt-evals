@@ -862,14 +862,16 @@ describe("provider factory — bedrock", () => {
     expect(provider).toBeInstanceOf(BedrockProvider);
   });
 
-  it("throws EvalConfigError when credentials are missing", async () => {
-    await expect(
-      createProvider({
-        provider: "bedrock",
-        timeout: 30000,
-        maxRetries: 2,
-      }),
-    ).rejects.toBeInstanceOf(EvalConfigError);
+  it("does not throw when credentials are missing — defers to the AWS default credential chain", async () => {
+    // Eagerly requiring AWS_ACCESS_KEY_ID/SECRET would break IAM-role,
+    // AWS_PROFILE and SSO auth that the SDK resolves on its own. The factory
+    // must construct the provider and let the SDK chain resolve credentials.
+    const provider = await createProvider({
+      provider: "bedrock",
+      timeout: 30000,
+      maxRetries: 2,
+    });
+    expect(provider).toBeInstanceOf(BedrockProvider);
   });
 
   it("falls back to AWS env vars for credentials", async () => {

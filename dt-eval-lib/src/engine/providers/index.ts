@@ -95,19 +95,16 @@ export async function createProvider(options: ProviderOptions): Promise<LLMProvi
 
   // --- Bedrock ---
   if (provider === "bedrock") {
-    const accessKeyId = options.apiKey ?? process.env.AWS_ACCESS_KEY_ID;
-    const secretAccessKey = options.secretKey ?? process.env.AWS_SECRET_ACCESS_KEY;
-
-    if (!accessKeyId || !secretAccessKey) {
-      throw new EvalConfigError(
-        "Missing AWS credentials for bedrock. Provide provider.apiKey (access key ID) + provider.secretKey, or set AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY.",
-      );
-    }
-
+    // Pass through only explicitly-configured static credentials. When absent,
+    // BedrockProvider leaves credentials undefined and the AWS SDK's default
+    // credential chain resolves them (env vars incl. AWS_SESSION_TOKEN, SSO,
+    // IAM roles, AWS_PROFILE). We deliberately do not eagerly require
+    // AWS_ACCESS_KEY_ID/SECRET here — that would break role- and profile-based
+    // auth that the SDK can resolve on its own.
     const { BedrockProvider } = await import("./bedrock");
     return new BedrockProvider({
-      apiKey: accessKeyId,
-      secretKey: secretAccessKey,
+      apiKey: options.apiKey ?? "",
+      secretKey: options.secretKey,
       model,
       timeout,
       region:
