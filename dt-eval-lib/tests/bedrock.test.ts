@@ -47,17 +47,7 @@ afterEach(() => {
 });
 
 describe("BedrockProvider credentials", () => {
-  it("forwards AWS_SESSION_TOKEN when explicit static credentials are configured", () => {
-    process.env.AWS_SESSION_TOKEN = "session-tok";
-    new BedrockProvider({ apiKey: "AKIA", secretKey: "secret", model: "m", timeout: 1000 });
-    expect(lastClientConfig().credentials).toEqual({
-      accessKeyId: "AKIA",
-      secretAccessKey: "secret",
-      sessionToken: "session-tok",
-    });
-  });
-
-  it("omits sessionToken when none is set in the environment", () => {
+  it("builds explicit credentials from configured static apiKey + secretKey", () => {
     new BedrockProvider({ apiKey: "AKIA", secretKey: "secret", model: "m", timeout: 1000 });
     expect(lastClientConfig().credentials).toEqual({
       accessKeyId: "AKIA",

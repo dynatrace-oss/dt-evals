@@ -32,22 +32,16 @@ export class BedrockProvider extends BaseProvider {
 
   constructor(config: ProviderConfig) {
     super(config);
-    const sessionToken = process.env.AWS_SESSION_TOKEN;
     this.client = new BedrockRuntimeClient({
       region: config.region ?? "us-east-1",
       // Only construct an explicit credential object when static keys are
       // configured. Otherwise leave credentials undefined so the AWS SDK's
       // default credential provider chain resolves them — this covers SSO /
-      // temporary env credentials (AWS_SESSION_TOKEN), IAM roles and
-      // AWS_PROFILE. When static keys are given, forward AWS_SESSION_TOKEN too
-      // so SigV4 signing works with temporary credentials.
+      // temporary env credentials (AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY +
+      // AWS_SESSION_TOKEN), IAM roles and AWS_PROFILE.
       credentials:
         config.apiKey && config.secretKey
-          ? {
-              accessKeyId: config.apiKey,
-              secretAccessKey: config.secretKey,
-              ...(sessionToken ? { sessionToken } : {}),
-            }
+          ? { accessKeyId: config.apiKey, secretAccessKey: config.secretKey }
           : undefined,
     });
   }

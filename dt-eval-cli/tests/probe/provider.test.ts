@@ -161,15 +161,12 @@ describe('probeProvider — bedrock', () => {
     expect(lastCredentials()).toBeUndefined();
   });
 
-  it('forwards sessionToken when explicit static credentials are passed via config', async () => {
-    process.env['AWS_SESSION_TOKEN'] = 'session-tok';
-
+  it('builds explicit credentials from configured static apiKey + secretKey', async () => {
     await probeProvider({ provider: 'bedrock', apiKey: 'AKIA', secretKey: 'secret', model: 'm' });
 
     expect(lastCredentials()).toEqual({
       accessKeyId: 'AKIA',
       secretAccessKey: 'secret',
-      sessionToken: 'session-tok',
     });
   });
 });
