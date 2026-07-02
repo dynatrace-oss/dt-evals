@@ -73,12 +73,7 @@ function renderPrompt(template: string, input: EvalInput): string {
     const expected = input.expectedOutput;
     rendered = rendered.replace(/\{\{\s*expectedOutput\s*\}\}/g, () => expected);
   }
-  const unreplaced = rendered.match(/\{\{\s*[\w_]+\s*\}\}/g);
-  if (unreplaced) {
-    throw new EvalInputError(
-      `Unreplaced placeholders in prompt: ${unreplaced.join(", ")}. Ensure all required fields are provided.`,
-    );
-  }
+  rendered = rendered.replace(/\{\{\s*[\w_]+\s*\}\}/g, "");
   return rendered;
 }
 
