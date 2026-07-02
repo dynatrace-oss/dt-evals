@@ -296,10 +296,10 @@ describe("evaluate() — input validation", () => {
     ).rejects.toBeInstanceOf(EvalInputError);
   });
 
-  it("throws EvalInputError when required field 'expectedOutput' is missing for factual-accuracy", async () => {
+  it("does not throw when 'expectedOutput' is omitted for factual-accuracy (optional field)", async () => {
     await expect(
       evaluate(BuiltInMetric.FactualAccuracy, baseInput, baseConfig),
-    ).rejects.toBeInstanceOf(EvalInputError);
+    ).resolves.toBeDefined();
   });
 
   it("error message lists missing fields", async () => {

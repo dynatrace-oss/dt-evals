@@ -362,7 +362,7 @@ FINAL STEP: Validate JSON.
 ### OUTPUT
 {{output}}
 score.value = (fully_addressed + 0.5 × partially_addressed) / total_requirements. If zero requirements, score = 1.0. score.label = "pass" if score.value >= 0.7, else "fail". Remember: a requirement is only "fully_addressed" if answered with sufficient depth and detail, not merely mentioned.`,
-    requiredFields: ["input", "output", "context"],
+    requiredFields: ["input", "output"],
     scoring: {
       type: "continuous",
       range: [0, 1],

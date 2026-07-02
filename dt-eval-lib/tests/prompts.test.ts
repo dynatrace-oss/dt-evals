@@ -62,13 +62,13 @@ describe("prompt catalog", () => {
   });
 
   const requiredFieldsCases = [
-    { id: BuiltInMetric.Fluency, fields: ["input", "output", "context"] },
-    { id: BuiltInMetric.Toxicity, fields: ["input", "output"] },
+    { id: BuiltInMetric.Fluency, fields: ["input", "output"] },
+    { id: BuiltInMetric.Toxicity, fields: ["output"] },
     { id: BuiltInMetric.Faithfulness, fields: ["input", "output", "context"] },
-    { id: BuiltInMetric.Hallucination, fields: ["input", "output", "context"] },
+    { id: BuiltInMetric.Hallucination, fields: ["input", "output"] },
     { id: BuiltInMetric.PiiLeakage, fields: ["input", "output"] },
     { id: BuiltInMetric.Relevance, fields: ["input", "output"] },
-    { id: BuiltInMetric.FactualAccuracy, fields: ["input", "output", "expectedOutput"] },
+    { id: BuiltInMetric.FactualAccuracy, fields: ["input", "output"] },
     { id: BuiltInMetric.UserFrustration, fields: ["input"] },
     { id: BuiltInMetric.ContextRelevance, fields: ["input", "context"] },
     { id: BuiltInMetric.AnswerCompleteness, fields: ["input", "output"] },
