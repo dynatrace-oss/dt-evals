@@ -25,7 +25,7 @@ Set your Dynatrace connection (see [main README](../../../README.md#prerequisite
 
 ```bash
 export DT_ENDPOINT=https://abc12345.live.dynatrace.com
-export DT_ACCESS_TOKEN=dt0c01.****        # needs bizevents.ingest + openTelemetryTrace.ingest
+export DT_ACCESS_TOKEN=dt0c01.****        # needs storage:events:write + openTelemetryTrace.ingest
 ```
 
 ## Usage

@@ -26,7 +26,7 @@ You need both Dynatrace and Langfuse credentials:
 ```bash
 # Dynatrace (see main README for details)
 export DT_ENDPOINT=https://abc12345.live.dynatrace.com
-export DT_ACCESS_TOKEN=dt0c01.****        # needs bizevents.ingest + openTelemetryTrace.ingest
+export DT_ACCESS_TOKEN=dt0c01.****        # needs storage:events:write + openTelemetryTrace.ingest
 
 # Langfuse (for score export)
 export LANGFUSE_PUBLIC_KEY=pk-lf-****

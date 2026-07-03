@@ -284,7 +284,17 @@ The platform token (or OAuth scope) used by the CLI needs the following permissi
 | `storage:spans:read` | `dt-evals run` | Fetches GenAI OTel spans via DQL (`fetch spans`) |
 | `storage:events:read` | `dt-evals run` with drift | Reads historical evaluation results for drift baseline (`fetch bizevents`) |
 | `storage:events:write` | `dt-evals run` | Writes evaluation results back as business events |
-| `metrics:ingest` | Optional | Writes evaluation metrics to Dynatrace metrics API |
+| `storage:metrics:read` | Optional | Reads evaluation metrics from Dynatrace metrics API |
+| `storage:metrics:write` | Optional | Writes evaluation metrics to Dynatrace metrics API |
+| `storage:buckets:read` | Optional | Reads storage bucket metadata |
+| `storage:logs:read` | Optional | Reads log data for evaluation context |
+| `storage:logs:write` | Optional | Writes log data |
+
+Example token scopes:
+
+```text
+Scopes: storage:events:read, storage:events:write, storage:metrics:read, storage:metrics:write, storage:spans:read, storage:buckets:read, storage:logs:read, storage:logs:write
+```
 
 Run `dt-evals doctor create-token` to generate a token with exactly these scopes via OAuth.
 

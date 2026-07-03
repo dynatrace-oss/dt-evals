@@ -121,7 +121,7 @@ DT_ACCESS_TOKEN=dt0c01.****
 
 | Capability | Token scope |
 |---|---|
-| Export evaluation results (BizEvents) | `bizevents.ingest` |
+| Export evaluation results (BizEvents) | `storage:events:write` |
 | Export OTel traces | `openTelemetryTrace.ingest` |
 
 You can also pass credentials directly to `DynatraceClient()` instead of using environment variables:
