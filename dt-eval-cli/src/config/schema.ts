@@ -118,6 +118,12 @@ export interface DtEvalConfig {
   scope: ScopeConfig;
   metrics: MetricsConfig;
   alerts?: AlertsConfig;
+  /**
+   * Include the evaluated prompt and response — `gen_ai.evaluation.input.question`,
+   * `.answer`, and `.system_prompt` — in the bizevents written back to Dynatrace.
+   * Default: false. Overridable per-invocation with `--store-evaluated-prompt`.
+   */
+  storeEvaluatedPrompt?: boolean;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

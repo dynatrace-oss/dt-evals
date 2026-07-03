@@ -57,6 +57,7 @@ Tune `--concurrency` (or `judge.concurrency` in your yaml) to control how many j
 - **Statistical drift detection** against a 7 day baseline of prior evaluation scores
 - **Flexible sampling** with random percentage, latest `N`, or `errors-only`
 - **PII masking before judge calls** for emails, phone numbers, credit cards, and SSNs
+- **Evaluated prompt/response excluded from bizevents by default** — opt in with `storeEvaluatedPrompt` (see [Configuration](#configuration))
 - **OpenAI and Anthropic support** with optional custom base URLs for gateways and proxies
 - **CI friendly runs** with JSON output and non-zero exit codes on threshold breaches
 - **Local run history** with list, inspect, and export flows
@@ -266,6 +267,7 @@ Global flags:
 --dry-run              Do not call the judge or write results
 --ci                   JSON result output and exit 1 on threshold breach
 --concurrency <n>      Parallel judge calls (overrides judge.concurrency in the config; default 5)
+--store-evaluated-prompt   Include the evaluated prompt/response in bizevents (overrides storeEvaluatedPrompt in the config; default: false)
 --debug                Per-step timing logs
 ```
 
@@ -318,6 +320,11 @@ alerts:
     faithfulness: 0.7
     relevance: 0.7
     answer-completeness: 0.8
+
+# Off by default — the evaluated prompt/response are not written back to Dynatrace.
+# Set to true to include gen_ai.evaluation.input.question/.answer/.system_prompt
+# in the result bizevents. Overridable per-invocation with --store-evaluated-prompt.
+storeEvaluatedPrompt: false
 ```
 
 Sampling strategies:

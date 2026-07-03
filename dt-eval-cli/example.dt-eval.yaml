@@ -116,3 +116,12 @@ alerts:
       type: slack
     # - url: https://my-webhook-endpoint.example.com/alerts
     #   type: generic
+
+# ---------------------------------------------------------------------------
+# Privacy — what gets written back to Dynatrace
+# ---------------------------------------------------------------------------
+# (Optional) Off by default: the evaluated prompt/response are not included in
+# result bizevents. Set to true to also write gen_ai.evaluation.input.question,
+# .answer, and .system_prompt. Overridable per-invocation with
+# --store-evaluated-prompt.
+# storeEvaluatedPrompt: false

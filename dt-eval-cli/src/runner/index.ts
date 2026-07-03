@@ -38,6 +38,8 @@ export interface RunOptions {
   dryRun?: boolean;
   ci?: boolean;
   concurrency?: number;
+  /** Include the evaluated prompt/response in bizevents. Falls back to `storeEvaluatedPrompt` in the config when omitted. Default: false. */
+  storeEvaluatedPrompt?: boolean;
   /**
    * Receives phase-transition events as the run progresses. Used by the CLI
    * to drive an accurate spinner. When omitted, the runner falls back to the
@@ -283,9 +285,10 @@ export async function runEvals(
 
   // 8. Write bizevents
   if (!emit) logger.step('Writing bizevents...');
+  const storeEvaluatedPrompt = opts.storeEvaluatedPrompt ?? evalConfig.storeEvaluatedPrompt ?? false;
   const writer = new BizeventWriter(writeClient);
   const payloads: BizeventPayload[] = successResults.map(r =>
-    buildBizeventPayload(r.span, r.metricId, r.metricName, r.evalResult, runId, judgeProvider, judgeModel, evalConfig.scope.service, r.evalInput),
+    buildBizeventPayload(r.span, r.metricId, r.metricName, r.evalResult, runId, judgeProvider, judgeModel, evalConfig.scope.service, r.evalInput, storeEvaluatedPrompt),
   );
   emit?.({ phase: 'writing', payloads: payloads.length });
 

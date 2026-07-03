@@ -87,6 +87,31 @@ describe('buildBizeventPayload', () => {
     expect(payload.timestamp).toBeDefined();
     expect(new Date(payload.timestamp!).toISOString()).toBe(payload.timestamp);
   });
+
+  describe('storeEvaluatedPrompt', () => {
+    it('omits the evaluated question/answer/system_prompt by default', () => {
+      const span = makeSpan({ systemInstruction: 'be helpful' });
+      const payload = buildBizeventPayload(span, 'relevance', 'Relevance', makeEvalResult(), 'run-1', 'openai', 'gpt-4o');
+      expect(payload['gen_ai.evaluation.input.question']).toBeUndefined();
+      expect(payload['gen_ai.evaluation.input.answer']).toBeUndefined();
+      expect(payload['gen_ai.evaluation.input.system_prompt']).toBeUndefined();
+    });
+
+    it('omits them when explicitly disabled', () => {
+      const span = makeSpan({ systemInstruction: 'be helpful' });
+      const payload = buildBizeventPayload(span, 'relevance', 'Relevance', makeEvalResult(), 'run-1', 'openai', 'gpt-4o', undefined, undefined, false);
+      expect(payload['gen_ai.evaluation.input.question']).toBeUndefined();
+      expect(payload['gen_ai.evaluation.input.answer']).toBeUndefined();
+    });
+
+    it('includes them when enabled', () => {
+      const span = makeSpan({ systemInstruction: 'be helpful' });
+      const payload = buildBizeventPayload(span, 'relevance', 'Relevance', makeEvalResult(), 'run-1', 'openai', 'gpt-4o', undefined, undefined, true);
+      expect(payload['gen_ai.evaluation.input.question']).toBe(span.input);
+      expect(payload['gen_ai.evaluation.input.answer']).toBe(span.output);
+      expect(payload['gen_ai.evaluation.input.system_prompt']).toBe('be helpful');
+    });
+  });
 });
 
 describe('BizeventWriter', () => {
@@ -158,6 +183,7 @@ describe('BizeventWriter', () => {
         'gpt-4o',
         'my-service',
         { input: 'i am angry', output: 'I understand', context: 'be nice' },
+        true,
       );
       expect(payload['gen_ai.evaluation.input.question']).toBe('i am angry');
       expect(payload['gen_ai.evaluation.input.answer']).toBe('I understand');
@@ -174,6 +200,9 @@ describe('BizeventWriter', () => {
         'run-1',
         'openai',
         'gpt-4o',
+        undefined,
+        undefined,
+        true,
       );
       expect(payload['gen_ai.evaluation.input.question']).toBe(span.input);
       expect(payload['gen_ai.evaluation.input.answer']).toBe(span.output);
@@ -192,6 +221,7 @@ describe('BizeventWriter', () => {
         'gpt-4o',
         undefined,
         { input: 'just the user turn' }, // output / context not routed
+        true,
       );
       expect(payload['gen_ai.evaluation.input.question']).toBe('just the user turn');
       expect(payload['gen_ai.evaluation.input.answer']).toBe(span.output);

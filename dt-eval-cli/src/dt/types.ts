@@ -29,8 +29,11 @@ export interface BizeventPayload {
   'gen_ai.evaluation.score.label': 'pass' | 'fail';
   'gen_ai.evaluation.explanation': string;
   'gen_ai.evaluation.method': 'llm_as_judge';
-  'gen_ai.evaluation.input.question': string;
-  'gen_ai.evaluation.input.answer': string;
+  /** Only present when `storeEvaluatedPrompt` is enabled. */
+  'gen_ai.evaluation.input.question'?: string;
+  /** Only present when `storeEvaluatedPrompt` is enabled. */
+  'gen_ai.evaluation.input.answer'?: string;
+  /** Only present when `storeEvaluatedPrompt` is enabled. */
   'gen_ai.evaluation.input.system_prompt'?: string;
   'gen_ai.request.model'?: string;
   'gen_ai.provider.name'?: string;

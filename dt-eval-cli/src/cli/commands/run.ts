@@ -81,6 +81,7 @@ export function createRunCommand(): Command {
   cmd.option('--dry-run', 'Fetch and transform traces, print payloads, do not send');
   cmd.option('--ci', 'Non-interactive mode: JSON stdout, exit 1 on threshold breach');
   cmd.option('--concurrency <n>', 'Number of parallel evaluation workers (overrides judge.concurrency in the config; default 5)', (v) => parseInt(v, 10));
+  cmd.option('--store-evaluated-prompt', 'Include the evaluated prompt/response in bizevents written to Dynatrace (overrides storeEvaluatedPrompt in the config; default: false)');
   cmd.option('--debug', 'Enable debug logging with per-step timing');
 
   cmd.action(async (configArg: string | undefined, options: {
@@ -91,6 +92,7 @@ export function createRunCommand(): Command {
     dryRun?: boolean;
     ci?: boolean;
     concurrency?: number;
+    storeEvaluatedPrompt?: boolean;
     debug?: boolean;
   }) => {
     if (options.debug) {
@@ -146,6 +148,7 @@ export function createRunCommand(): Command {
         dryRun: options.dryRun,
         ci: options.ci,
         concurrency: options.concurrency ?? config.judge.concurrency,
+        storeEvaluatedPrompt: options.storeEvaluatedPrompt,
         onProgress,
       });
 
