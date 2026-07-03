@@ -240,7 +240,7 @@ describe("evaluate() — prompt rendering", () => {
   });
 
   it("replaces {{input}} placeholder", async () => {
-    await evaluate(BuiltInMetric.Toxicity, baseInput, baseConfig);
+    await evaluate(BuiltInMetric.Relevance, baseInput, baseConfig);
     expect(capturedPrompt).toContain("What is the capital of France?");
     expect(capturedPrompt).not.toContain("{{input}}");
   });
@@ -266,7 +266,16 @@ describe("evaluate() — prompt rendering", () => {
       ...baseInput,
       expectedOutput: "Paris is the capital of France.",
     };
-    await evaluate(BuiltInMetric.FactualAccuracy, input, baseConfig);
+    const promptWithExpectedOutput: PromptDefinition = {
+      id: "test-expected-output",
+      name: "Test",
+      version: "1.0.0",
+      description: "test",
+      prompt: "Input: {{input}} Expected: {{expectedOutput}}",
+      requiredFields: ["input"],
+      scoring: { type: "binary", range: [0, 1], threshold: 1 },
+    };
+    await evaluate(promptWithExpectedOutput, input, baseConfig);
     expect(capturedPrompt).toContain("Paris is the capital of France.");
     expect(capturedPrompt).not.toContain("{{expectedOutput}}");
   });
