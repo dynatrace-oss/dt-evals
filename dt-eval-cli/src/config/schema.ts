@@ -107,6 +107,42 @@ export interface MetricsConfig {
 export interface AlertsConfig {
   thresholds: Record<string, number>; // metric -> threshold score
   webhooks?: Array<{ url: string; type: 'slack' | 'generic' }>;
+  /**
+   * Server-side notifications deployed as Dynatrace Workflows.
+   * Each entry becomes one workflow that polls eval bizevents on a schedule and
+   * fires a Slack / email / generic-webhook task when the condition is met.
+   */
+  notifications?: NotificationConfig[];
+}
+
+export type NotificationChannelType = 'slack' | 'email' | 'webhook';
+
+export interface NotificationChannel {
+  type: NotificationChannelType;
+  /** Name of a Dynatrace connection (Slack OAuth or SMTP). Mutually exclusive with `webhookUrl`. */
+  connection?: string;
+  /** Inline Slack incoming-webhook URL or generic HTTP endpoint. Mutually exclusive with `connection`. */
+  webhookUrl?: string;
+  /** Slack channel id or "#name". Required for slack+connection, optional for slack+webhookUrl (the webhook is channel-bound). */
+  channel?: string;
+  /** Email recipients. Required for email. */
+  to?: string[];
+  /** Optional email subject override. */
+  subject?: string;
+}
+
+export interface NotificationConfig {
+  /** Stable identifier for this notification within the config — used as workflow title suffix and id-map key. */
+  name: string;
+  /** Metric id this alert watches (e.g. "toxicity"). */
+  metric: string;
+  /** Condition DSL: "<aggregation> <operator> <value>". See docs/alerts-design.md. */
+  condition: string;
+  /** Look-back window AND polling interval (e.g. "5m", "15m", "1h"). */
+  window: string;
+  /** Optional service.name filter. Defaults to `scope.service`. Set to "*" to watch all services. */
+  service?: string;
+  channel: NotificationChannel;
 }
 
 export interface DtEvalConfig {

@@ -110,9 +110,45 @@ alerts:
     faithfulness: 0.7
     factual-accuracy: 0.7
 
-  # (Optional) Webhook notifications on threshold breach.
+  # (Optional) Webhook notifications fired from inside a local `dt-evals run`.
   webhooks:
     - url: https://hooks.slack.com/services/REPLACE_ME
       type: slack
     # - url: https://my-webhook-endpoint.example.com/alerts
     #   type: generic
+
+  # (Optional) Server-side continuous alerts deployed as Dynatrace Workflows.
+  # Run `dt-evals alerts apply <this-file>` to create/update them.
+  # Requires dtctl scopes: automation:workflows:read, automation:workflows:write,
+  # storage:events:read. See README → "Continuous alerts via Dynatrace Workflows".
+  # notifications:
+  #   - name: toxicity-spike
+  #     metric: toxicity
+  #     # condition: "<aggregation> <operator> <value>"
+  #     #   aggregations: avg | max | min | count | fail_rate
+  #     #   fail_rate is a PERCENTAGE — write it with % (e.g. "fail_rate > 10%")
+  #     #   or as a ratio between 0 and 1 (e.g. "fail_rate > 0.1"). Bare values
+  #     #   like "fail_rate > 10" are rejected to avoid the 10 vs 10% trap.
+  #     condition: avg > 2
+  #     window: 15m                  # also the polling interval
+  #     channel:
+  #       type: slack
+  #       connection: my-slack-conn  # dtctl connection name
+  #       channel: "#ai-alerts"
+  #
+  #   - name: hallucination-any
+  #     metric: hallucination
+  #     condition: count > 0         # `count` = number of *failing* evals in window
+  #     window: 5m
+  #     channel:
+  #       type: email
+  #       connection: smtp-default
+  #       to: [ai-team@example.com]
+  #
+  #   - name: relevance-regression
+  #     metric: relevance
+  #     condition: fail_rate > 10%   # i.e. >10% of evals failed in the window
+  #     window: 1h
+  #     channel:
+  #       type: slack
+  #       webhookUrl: https://hooks.slack.com/services/...

@@ -1,0 +1,96 @@
+# Example alerts config — five realistic patterns you can apply with:
+#
+#   dt-evals alerts apply alerts-examples.dt-eval.yaml
+#
+# Each notification demonstrates a different aggregation/window/channel mix.
+# The `connection:` names below are placeholders — to actually deliver, either
+# create connections with those names in Dynatrace, or swap them for real
+# Slack incoming-webhook URLs under `webhookUrl:`.
+
+schemaVersion: 2
+name: pydantic-music-agent
+
+dynatrace:
+  environmentUrl: ${DT_ENV_URL}
+
+judge:
+  provider: openai
+  apiKey: ${OPENAI_API_KEY}
+
+scope:
+  service: pydantic-ai-music-agent      # ~3.4k eval bizevents in last 30d
+  since: 1h
+  sampling: { strategy: random, percent: 5 }
+
+metrics:
+  enabled: [toxicity, relevance, hallucination, pii-leakage, prompt-injection]
+
+alerts:
+  notifications:
+
+    # ──────────────────────────────────────────────────────────────────────
+    # 1) Critical safety: page on ANY PII leak in the last 5 minutes.
+    #    Tight window, zero-tolerance threshold, Slack so it's noisy.
+    # ──────────────────────────────────────────────────────────────────────
+    - name: pii-leak-any
+      metric: pii-leakage
+      condition: count > 0           # any failing pii-leakage eval at all
+      window: 5m
+      channel:
+        type: slack
+        connection: ai-oncall-slack
+        channel: "#ai-oncall"
+
+    # ──────────────────────────────────────────────────────────────────────
+    # 2) Critical safety: same shape for prompt injection.
+    # ──────────────────────────────────────────────────────────────────────
+    - name: prompt-injection-any
+      metric: prompt-injection
+      condition: count > 0
+      window: 5m
+      channel:
+        type: slack
+        connection: ai-oncall-slack
+        channel: "#ai-oncall"
+
+    # ──────────────────────────────────────────────────────────────────────
+    # 3) Quality regression: more than 20% of relevance evals failed in 1h.
+    #    Slower window since one bad batch shouldn't page anyone; email so it
+    #    lands in the AI team inbox for triage instead of a paging channel.
+    # ──────────────────────────────────────────────────────────────────────
+    - name: relevance-regression
+      metric: relevance
+      condition: fail_rate > 20%
+      window: 1h
+      channel:
+        type: email
+        # Uses the tenant's default outbound mail config (Dynatrace → Settings →
+        # Notifications). No per-workflow connection needed.
+        to: [ai-quality@example.com]
+        subject: "[dt-evals] relevance regression on pydantic-ai-music-agent"
+
+    # ──────────────────────────────────────────────────────────────────────
+    # 4) Toxicity spike on the 1–5 scale: average above 2 for 15 minutes.
+    #    Routed to a different Slack channel than the on-call ones above.
+    # ──────────────────────────────────────────────────────────────────────
+    - name: toxicity-spike
+      metric: toxicity
+      condition: avg > 2
+      window: 15m
+      channel:
+        type: slack
+        connection: ai-oncall-slack
+        channel: "#ai-quality"
+
+    # ──────────────────────────────────────────────────────────────────────
+    # 5) Hallucination trend: more than 10% failing over a 1-hour window.
+    #    Generic webhook so an external router (PagerDuty proxy, custom
+    #    on-call tool, etc.) can consume the structured JSON payload.
+    # ──────────────────────────────────────────────────────────────────────
+    - name: hallucination-trend
+      metric: hallucination
+      condition: fail_rate > 10%
+      window: 1h
+      channel:
+        type: webhook
+        webhookUrl: https://example.com/webhooks/dt-evals
