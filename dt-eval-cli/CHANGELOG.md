@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.6-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.5-alpha...v0.2.6-alpha) (2026-07-03)
+
+
+### 🐛 Bug Fixes
+
+* **dt-eval-lib:** support AWS SSO/temporary creds and markdown-fenced JSON for Bedrock ([#114](https://github.com/dynatrace-oss/dt-evals/issues/114)) ([48f9a28](https://github.com/dynatrace-oss/dt-evals/commit/48f9a2865fa48ac15be163e5f59be8baf529f895))
+
 ## [0.2.5-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.4-alpha...v0.2.5-alpha) (2026-06-12)
 
 
