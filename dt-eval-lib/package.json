@@ -20,10 +20,7 @@
     "lint": "biome check src tests",
     "lint:fix": "biome check --write src tests",
     "format": "biome format --write src tests",
-    "format:check": "biome format src tests",
-    "e2e:azure": "tsx _temp_tests/azure-openai-e2e.ts",
-    "e2e:bedrock": "tsx _temp_tests/bedrock-e2e.ts",
-    "e2e:vertex": "tsx _temp_tests/vertex-e2e.ts"
+    "format:check": "biome format src tests"
   },
   "engines": {
     "node": ">=20"

@@ -3,12 +3,12 @@ import type { ProviderOptions } from "../types";
 import type { LLMProvider } from "./types";
 
 const DEFAULT_MODELS: Record<string, string> = {
-  openai: "gpt-5.4",
-  anthropic: "claude-sonnet-4-6",
-  vertex: "gemini-3.1-pro-preview",
-  gemini: "gemini-3-flash-preview",
+  openai: "gpt-5-mini",
+  anthropic: "claude-haiku-4-5",
+  vertex: "gemini-3.1-flash-lite",
+  gemini: "gemini-3.1-flash-lite",
   // azure-openai: no default — deployment names are user-defined in Azure portal
-  bedrock: "us.anthropic.claude-3-5-haiku-20241022-v1:0",
+  bedrock: "global.anthropic.claude-haiku-4-5-20251001-v1:0",
 };
 
 const ENV_API_KEY: Record<string, string> = {
