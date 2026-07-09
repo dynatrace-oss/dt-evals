@@ -40,7 +40,7 @@ langfuse = ["langfuse>=4.0.0"]
 deepeval = ["deepeval>=3.0.0"]
 all = ["dt-ai-ingest[ragas,mlflow,langfuse,deepeval]"]
 dev = [
-    "pytest>=7.0.0",
+    "pytest>=9.0.3",
     "pytest-asyncio>=1.3.0",
     "pytest-cov>=4.0.0",
     "pytest-httpx>=0.36.0",
