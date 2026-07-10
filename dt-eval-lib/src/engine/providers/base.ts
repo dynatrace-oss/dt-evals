@@ -1,7 +1,7 @@
 import type { LLMJudgeResponse, LLMProvider, ProviderConfig } from "./types";
 
 export abstract class BaseProvider implements LLMProvider {
-  protected readonly apiKey: string;
+  protected readonly apiKey: string | undefined;
   protected readonly model: string;
   protected readonly timeout: number;
   protected readonly baseUrl?: string;
