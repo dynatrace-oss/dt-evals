@@ -102,7 +102,7 @@ describe('parseSpanResults', () => {
     const span = spans[0]!;
     expect(span.traceId).toBe('abc123');
     expect(span.spanId).toBe('span001');
-    expect(span.timestamp).toBe('2026-03-01T10:00:00Z');
+    expect(span.startTime).toBe('2026-03-01T10:00:00Z');
     expect(span.input).toBe('[{"role":"user","content":"Hello"}]');
     expect(span.output).toBe('Hi there!');
     expect(span.systemInstruction).toBe('Be helpful.');
@@ -132,7 +132,7 @@ describe('parseSpanResults', () => {
     expect(spans).toHaveLength(1);
     const span = spans[0]!;
     expect(span.traceId).toBe('llmetry-trace');
-    expect(span.timestamp).toBe('2026-03-01T11:00:00Z');
+    expect(span.startTime).toBe('2026-03-01T11:00:00Z');
     expect(span.input).toContain('What is Paris?');
     expect(span.output).toBe('The capital of France.');
     expect(span.systemInstruction).toBe('You are helpful.');
