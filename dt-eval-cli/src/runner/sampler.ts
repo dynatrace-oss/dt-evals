@@ -26,7 +26,7 @@ export function applySampling(spans: GenAiSpan[], config: ScopeConfig): GenAiSpa
   if (strategy === 'latest') {
     const take = count ?? spans.length;
     const sorted = [...spans].sort(
-      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+      (a, b) => new Date(b.startTime ?? 0).getTime() - new Date(a.startTime ?? 0).getTime(),
     );
     return sorted.slice(0, take);
   }

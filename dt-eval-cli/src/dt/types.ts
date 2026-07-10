@@ -1,7 +1,6 @@
 export interface GenAiSpan {
   traceId: string;
   spanId?: string;
-  timestamp: string;
   startTime?: string;
   endTime?: string;
   input: string;              // gen_ai.input.messages (stringified)
