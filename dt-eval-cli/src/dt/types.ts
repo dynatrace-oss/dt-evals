@@ -2,6 +2,8 @@ export interface GenAiSpan {
   traceId: string;
   spanId?: string;
   timestamp: string;
+  startTime?: string;
+  endTime?: string;
   input: string;              // gen_ai.input.messages (stringified)
   output: string;             // gen_ai.output.message
   systemInstruction?: string; // gen_ai.system_instruction
@@ -19,6 +21,8 @@ export interface BizeventPayload {
   'trace_id': string;
   'span_id'?: string;
   'gen_ai.response.id'?: string;
+  'span.start_time'?: string;
+  'span.end_time'?: string;
   'timestamp'?: string;
   'gen_ai.evaluation.name': string;
   'gen_ai.evaluation.type': 'ready_made';

@@ -66,6 +66,8 @@ export function buildBizeventPayload(
     'dt.eval.run_id': runId,
     'gen_ai.eval.client': CLIENT_NAME,
     'gen_ai.eval.client.version': CLIENT_VERSION,
+    'span.start_time': span.startTime,
+    'span.end_time': span.endTime,
   };
 
   if (span.spanId) {
