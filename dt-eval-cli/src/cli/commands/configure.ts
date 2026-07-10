@@ -79,6 +79,27 @@ function printCostEstimate(
   console.log('  Always monitor your actual inference costs in your provider dashboard.\n');
 }
 
+export function resolveConfiguredApiKey(
+  existing: Partial<DtEvalConfig['judge']> | undefined,
+  provider: DtEvalConfig['judge']['provider'],
+  enteredApiKey: string | undefined,
+  opts?: { preserveExistingVertexKey?: boolean },
+): string | undefined {
+  if (enteredApiKey) {
+    return enteredApiKey;
+  }
+
+  if (provider !== existing?.provider) {
+    return undefined;
+  }
+
+  if (provider === 'vertex' && !opts?.preserveExistingVertexKey) {
+    return undefined;
+  }
+
+  return existing.apiKey;
+}
+
 async function testServiceSpans(
   environmentUrl: string,
   apiToken: string,
@@ -310,6 +331,8 @@ export function createConfigureCommand(): Command {
         default: existing.judge?.model ?? '',
       });
 
+      const resolvedApiKey = resolveConfiguredApiKey(existing.judge, provider, apiKey);
+
       // ── Evaluators ───────────────────────────────────────
       const enabledMetricIds = (existing.metrics?.enabled ?? allMetricIds).map(metricId);
       const selectedMetrics = await checkbox({
@@ -344,7 +367,7 @@ export function createConfigureCommand(): Command {
         },
         judge: {
           provider,
-          apiKey: apiKey || existing.judge?.apiKey,
+          ...(resolvedApiKey ? { apiKey: resolvedApiKey } : {}),
           ...(provider === 'bedrock' && {
             secretKey: bedrockSecretKey || existing.judge?.secretKey,
             region: bedrockRegion || existing.judge?.region,
@@ -414,6 +437,17 @@ export function createConfigureCommand(): Command {
     }
 
     // ── Flag-only mode ────────────────────────────────────
+    const provider = (options.provider as DtEvalConfig['judge']['provider']) ?? existing.judge?.provider ?? 'openai';
+    const preservesExistingVertexKey = !(
+      options.provider === 'vertex' ||
+      options.project !== undefined ||
+      options.location !== undefined ||
+      options.apiKey !== undefined
+    );
+    const resolvedApiKey = resolveConfiguredApiKey(existing.judge, provider, options.apiKey, {
+      preserveExistingVertexKey: preservesExistingVertexKey,
+    });
+
     const updated: DtEvalConfig = {
       schemaVersion: existing.schemaVersion ?? 1,
       name: existing.name,
@@ -422,8 +456,8 @@ export function createConfigureCommand(): Command {
         apiToken: options.apiToken ?? existing.dynatrace?.apiToken,
       },
       judge: {
-        provider: (options.provider as DtEvalConfig['judge']['provider']) ?? existing.judge?.provider ?? 'openai',
-        apiKey: options.apiKey ?? existing.judge?.apiKey,
+        provider,
+        ...(resolvedApiKey ? { apiKey: resolvedApiKey } : {}),
         model: options.model ?? existing.judge?.model,
         project: options.project ?? existing.judge?.project,
         location: options.location ?? existing.judge?.location,
