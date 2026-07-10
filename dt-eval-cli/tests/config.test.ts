@@ -45,7 +45,18 @@ function writeYaml(filePath: string, data: unknown): void {
   writeFileSync(filePath, stringifyYaml(data, { indent: 2 }), 'utf-8');
 }
 
-const ENV_KEYS = ['DT_ENV_URL', 'DT_API_TOKEN', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'JUDGE_PROVIDER', 'JUDGE_MODEL'] as const;
+const ENV_KEYS = [
+  'DT_ENV_URL',
+  'DT_API_TOKEN',
+  'OPENAI_API_KEY',
+  'ANTHROPIC_API_KEY',
+  'JUDGE_PROVIDER',
+  'JUDGE_MODEL',
+  'GOOGLE_CLOUD_PROJECT',
+  'GCLOUD_PROJECT',
+  'GCP_PROJECT_ID',
+  'GOOGLE_CLOUD_LOCATION',
+] as const;
 let savedEnv: Partial<Record<string, string>> = {};
 
 describe('config', () => {
@@ -199,6 +210,19 @@ describe('config', () => {
 
       const config = loadConfig({ globalFile: GLOBAL_CONFIG_PATH, projectFile: PROJECT_CONFIG_PATH });
       expect(config.judge.model).toBe('gpt-4o-mini');
+    });
+
+    it('GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION configure vertex defaults', () => {
+      writeYaml(PROJECT_CONFIG_PATH, {
+        dynatrace: { environmentUrl: 'https://test.dynatrace.com' },
+        judge: { provider: 'vertex' },
+      });
+      process.env['GOOGLE_CLOUD_PROJECT'] = 'vertex-project';
+      process.env['GOOGLE_CLOUD_LOCATION'] = 'global';
+
+      const config = loadConfig({ globalFile: GLOBAL_CONFIG_PATH, projectFile: PROJECT_CONFIG_PATH });
+      expect(config.judge.project).toBe('vertex-project');
+      expect(config.judge.location).toBe('global');
     });
   });
 
@@ -383,6 +407,16 @@ describe('config', () => {
       expect(resolved.judge.model).toBe('claude-3-opus');
       expect(resolved.scope.since).toBe('24h');
       expect(resolved.metrics.enabled).toEqual(['user-frustration']);
+    });
+
+    it('uses gemini-3.5-flash as the default model for vertex', () => {
+      const partial = {
+        dynatrace: { environmentUrl: 'https://test.dynatrace.com' },
+        judge: { provider: 'vertex' as const },
+      };
+
+      const resolved = resolveEffectiveConfig(partial);
+      expect(resolved.judge.model).toBe('gemini-3.5-flash');
     });
   });
 });

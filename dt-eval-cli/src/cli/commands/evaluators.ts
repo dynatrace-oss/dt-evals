@@ -198,6 +198,8 @@ export function createEvaluatorsCommand(): Command {
         apiVersion: config.judge.apiVersion,
         region: config.judge.region,
         secretKey: config.judge.secretKey,
+        project: config.judge.project,
+        location: config.judge.location,
         model: config.judge.model,
         timeout: config.judge.timeout,
         maxRetries: config.judge.maxRetries,

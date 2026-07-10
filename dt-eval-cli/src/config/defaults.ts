@@ -50,7 +50,7 @@ export const DEFAULT_CONFIG: Omit<DtEvalConfig, 'dynatrace' | 'judge'> & {
 export const DEFAULT_JUDGE_MODELS: Record<string, string> = {
   openai: 'gpt-4.1',
   anthropic: 'claude-sonnet-4-6',
-  vertex: 'gemini-2.5-pro',
+  vertex: 'gemini-3.5-flash',
   gemini: 'gemini-2.5-flash',
   // azure-openai: no default — deployment names are user-defined in Azure portal
   bedrock: 'us.anthropic.claude-3-5-haiku-20241022-v1:0',

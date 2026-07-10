@@ -105,9 +105,11 @@ export function createConfigureCommand(): Command {
 
   cmd.option('--env-url <url>', 'Dynatrace environment URL');
   cmd.option('--api-token <token>', 'Dynatrace API token');
-  cmd.option('--provider <provider>', 'Judge provider (openai|anthropic)');
+  cmd.option('--provider <provider>', 'Judge provider (openai|anthropic|azure-openai|gemini|vertex|bedrock)');
   cmd.option('--api-key <key>', 'Judge provider API key');
   cmd.option('--model <model>', 'Judge model override');
+  cmd.option('--project <project>', 'Vertex AI GCP project ID');
+  cmd.option('--location <location>', 'Vertex AI location (for example global or us-central1)');
   cmd.option('--since <duration>', 'Default time window (e.g. 1h, 6h, 24h)');
   cmd.option('--show', 'Print current resolved config with secrets redacted');
   cmd.option('--output <path>', 'Output config file path (default: <name>.dt-eval.yaml or .dt-eval.yaml)');
@@ -118,6 +120,8 @@ export function createConfigureCommand(): Command {
     provider?: string;
     apiKey?: string;
     model?: string;
+    project?: string;
+    location?: string;
     since?: string;
     show?: boolean;
     output?: string;
@@ -140,6 +144,8 @@ export function createConfigureCommand(): Command {
       options.provider ||
       options.apiKey ||
       options.model ||
+      options.project ||
+      options.location ||
       options.since
     );
 
@@ -220,6 +226,7 @@ export function createConfigureCommand(): Command {
           { name: 'anthropic    — Anthropic API (Claude models)', value: 'anthropic' as const },
           { name: 'azure-openai — Azure OpenAI deployment', value: 'azure-openai' as const },
           { name: 'gemini       — Google Gemini API', value: 'gemini' as const },
+          { name: 'vertex       — Vertex AI (ADC / Workload Identity by default)', value: 'vertex' as const },
           { name: 'bedrock      — AWS Bedrock (uses AWS credential chain)', value: 'bedrock' as const },
         ],
         default: existing.judge?.provider ?? 'openai',
@@ -230,6 +237,7 @@ export function createConfigureCommand(): Command {
         anthropic: 'Anthropic API key',
         'azure-openai': 'Azure OpenAI API key (AZURE_OPENAI_API_KEY)',
         gemini: 'Gemini API key (GEMINI_API_KEY or GOOGLE_API_KEY)',
+        vertex: 'Vertex AI API key (optional — leave blank to use ADC / Workload Identity)',
         bedrock: 'AWS Access Key ID — leave blank to rely on AWS_ACCESS_KEY_ID env var / IAM role',
       };
 
@@ -238,6 +246,8 @@ export function createConfigureCommand(): Command {
       let bedrockRegion = '';
       let azureBaseUrl = '';
       let azureApiVersion = '';
+      let vertexProject = '';
+      let vertexLocation = '';
 
       if (provider === 'bedrock') {
         apiKey = await input({
@@ -266,6 +276,23 @@ export function createConfigureCommand(): Command {
             existing.judge?.apiVersion ??
             process.env['AZURE_OPENAI_API_VERSION'] ??
             '2025-04-01-preview',
+        });
+      } else if (provider === 'vertex') {
+        apiKey = await password({
+          message: providerApiKeyLabel[provider] ?? `${provider} API key`,
+        });
+        vertexProject = await input({
+          message: 'GCP project ID',
+          default:
+            existing.judge?.project ??
+            process.env['GOOGLE_CLOUD_PROJECT'] ??
+            process.env['GCLOUD_PROJECT'] ??
+            process.env['GCP_PROJECT_ID'] ??
+            '',
+        });
+        vertexLocation = await input({
+          message: 'Vertex AI location (for example global or us-central1)',
+          default: existing.judge?.location ?? process.env['GOOGLE_CLOUD_LOCATION'] ?? 'global',
         });
       } else {
         apiKey = await password({
@@ -325,6 +352,10 @@ export function createConfigureCommand(): Command {
           ...(provider === 'azure-openai' && {
             baseUrl: azureBaseUrl || existing.judge?.baseUrl,
             apiVersion: azureApiVersion || existing.judge?.apiVersion,
+          }),
+          ...(provider === 'vertex' && {
+            project: vertexProject || existing.judge?.project,
+            location: vertexLocation || existing.judge?.location,
           }),
           model: model || existing.judge?.model,
           timeout: existing.judge?.timeout ?? 30000,
@@ -394,6 +425,8 @@ export function createConfigureCommand(): Command {
         provider: (options.provider as DtEvalConfig['judge']['provider']) ?? existing.judge?.provider ?? 'openai',
         apiKey: options.apiKey ?? existing.judge?.apiKey,
         model: options.model ?? existing.judge?.model,
+        project: options.project ?? existing.judge?.project,
+        location: options.location ?? existing.judge?.location,
         timeout: existing.judge?.timeout ?? 30000,
         maxRetries: existing.judge?.maxRetries ?? 2,
       },
