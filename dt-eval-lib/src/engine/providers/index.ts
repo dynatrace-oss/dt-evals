@@ -49,8 +49,25 @@ export async function createProvider(options: ProviderOptions): Promise<LLMProvi
 
   const model = options.model ?? DEFAULT_MODELS[provider];
 
-  // --- Google (Vertex / Gemini) ---
-  if (provider === "vertex" || provider === "gemini") {
+  // --- Vertex AI ---
+  // API key is optional: when running on GKE with Workload Identity (ADC), no key is needed.
+  // project and location are resolved from options or well-known GCP env vars.
+  if (provider === "vertex") {
+    // Deliberately ignore GOOGLE_API_KEY env fallback for vertex so ADC remains the default path.
+    // If key-based auth is explicitly desired, set provider.apiKey in config.
+    const apiKey = options.apiKey;
+    const project =
+      options.project ??
+      process.env["GOOGLE_CLOUD_PROJECT"] ??
+      process.env["GCLOUD_PROJECT"] ??
+      process.env["GCP_PROJECT_ID"];
+    const location = options.location ?? process.env["GOOGLE_CLOUD_LOCATION"] ?? "us-central1";
+    const { GoogleProvider } = await import("./google");
+    return new GoogleProvider({ apiKey, model, timeout, vertexai: true, project, location });
+  }
+
+  // --- Gemini Developer API ---
+  if (provider === "gemini") {
     const apiKey = options.apiKey ?? process.env[ENV_API_KEY[provider]];
     if (!apiKey) {
       throw new EvalConfigError(
@@ -58,7 +75,7 @@ export async function createProvider(options: ProviderOptions): Promise<LLMProvi
       );
     }
     const { GoogleProvider } = await import("./google");
-    return new GoogleProvider({ apiKey, model, timeout, vertexai: provider === "vertex" });
+    return new GoogleProvider({ apiKey, model, timeout, vertexai: false });
   }
 
   // --- Azure OpenAI ---

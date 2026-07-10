@@ -572,33 +572,29 @@ describe("provider factory — vertex", () => {
     expect(provider).toBeInstanceOf(GoogleProvider);
   });
 
-  it("falls back to GOOGLE_API_KEY env var", async () => {
+  it("creates Vertex provider via ADC without an API key (project from options)", async () => {
+    const provider = await createProvider({
+      provider: "vertex",
+      project: "test-project",
+      location: "us-central1",
+      timeout: 30000,
+      maxRetries: 2,
+    });
+    expect(provider).toBeInstanceOf(GoogleProvider);
+  });
+
+  it("does not require GOOGLE_API_KEY for vertex — uses Workload Identity / ADC instead", async () => {
     const origKey = process.env.GOOGLE_API_KEY;
-    process.env.GOOGLE_API_KEY = "env-google-key";
+    delete process.env.GOOGLE_API_KEY;
     try {
       const provider = await createProvider({
         provider: "vertex",
+        project: "test-project",
+        location: "us-central1",
         timeout: 30000,
         maxRetries: 2,
       });
       expect(provider).toBeInstanceOf(GoogleProvider);
-    } finally {
-      if (origKey !== undefined) process.env.GOOGLE_API_KEY = origKey;
-      else delete process.env.GOOGLE_API_KEY;
-    }
-  });
-
-  it("throws EvalConfigError when no apiKey is provided for vertex", async () => {
-    const origKey = process.env.GOOGLE_API_KEY;
-    delete process.env.GOOGLE_API_KEY;
-    try {
-      await expect(
-        createProvider({
-          provider: "vertex",
-          timeout: 30000,
-          maxRetries: 2,
-        }),
-      ).rejects.toBeInstanceOf(EvalConfigError);
     } finally {
       if (origKey !== undefined) process.env.GOOGLE_API_KEY = origKey;
     }

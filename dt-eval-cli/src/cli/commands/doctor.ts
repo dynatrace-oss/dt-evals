@@ -87,7 +87,7 @@ async function testAiProvider(
   provider: string,
   apiKey?: string,
   model?: string,
-  opts?: { baseUrl?: string; region?: string; apiVersion?: string; secretKey?: string },
+  opts?: { baseUrl?: string; region?: string; apiVersion?: string; secretKey?: string; project?: string; location?: string },
 ): Promise<{ ok: boolean; model: string; error?: string }> {
   return probeProvider({
     provider,
@@ -97,6 +97,8 @@ async function testAiProvider(
     region: opts?.region,
     apiVersion: opts?.apiVersion,
     secretKey: opts?.secretKey,
+    project: opts?.project,
+    location: opts?.location,
   });
 }
 
@@ -483,6 +485,8 @@ export function createDoctorCommand(): Command {
           region: providerConfig.region,
           apiVersion: providerConfig.apiVersion,
           secretKey: providerConfig.secretKey,
+          project: providerConfig.project,
+          location: providerConfig.location,
         },
       );
 

@@ -21,8 +21,8 @@ export interface DynatraceConfig extends Partial<DynatraceEndpoint> {
 }
 
 export interface JudgeConfig {
-  provider: 'openai' | 'anthropic' | 'azure-openai' | 'gemini' | 'bedrock';
-  /** API key. For Bedrock: AWS access key ID. */
+  provider: 'openai' | 'anthropic' | 'azure-openai' | 'gemini' | 'vertex' | 'bedrock';
+  /** API key. For Bedrock: AWS access key ID. Optional for Vertex AI when using Workload Identity / ADC. */
   apiKey?: string;
   /** For Bedrock: AWS secret access key. Falls back to AWS_SECRET_ACCESS_KEY env var. */
   secretKey?: string;
@@ -30,6 +30,10 @@ export interface JudgeConfig {
   baseUrl?: string;
   /** For azure-openai: API version (e.g. 2025-04-01-preview). Falls back to AZURE_OPENAI_API_VERSION. Required for azure-openai. */
   apiVersion?: string;
+  /** For vertex: GCP project ID. Falls back to GOOGLE_CLOUD_PROJECT / GCLOUD_PROJECT env vars. */
+  project?: string;
+  /** For vertex: GCP region (e.g. us-central1). Falls back to GOOGLE_CLOUD_LOCATION env var. Default: us-central1. */
+  location?: string;
   model?: string;
   timeout?: number;
   maxRetries?: number;

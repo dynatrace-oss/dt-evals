@@ -32,6 +32,10 @@ export interface ProbeOptions {
   apiVersion?: string;
   /** AWS region (Bedrock only). */
   region?: string;
+  /** GCP project ID (Vertex AI only). Falls back to GOOGLE_CLOUD_PROJECT env var. */
+  project?: string;
+  /** GCP region (Vertex AI only). Falls back to GOOGLE_CLOUD_LOCATION env var. Default: us-central1. */
+  location?: string;
   /** Per-request timeout. Default 12s — long enough for cold-start cases. */
   timeoutMs?: number;
 }
@@ -143,6 +147,36 @@ export async function probeProvider(opts: ProbeOptions): Promise<ProbeResult> {
           }),
           { abortSignal: AbortSignal.timeout(timeout) },
         );
+        return { ok: true, model };
+      } catch (err) {
+        return { ok: false, model, error: compactError((err as Error).message ?? String(err)) };
+      }
+    }
+
+    if (provider === 'vertex') {
+      // Vertex AI probe — uses @google/genai with vertexai:true.
+      // API key is optional: GKE Workload Identity / ADC will be used automatically when no key is set.
+      // Do not auto-map GOOGLE_API_KEY env here; default probe path should validate ADC/WI.
+      const apiKey = opts.apiKey;
+      const project =
+        opts.project ??
+        process.env['GOOGLE_CLOUD_PROJECT'] ??
+        process.env['GCLOUD_PROJECT'] ??
+        process.env['GCP_PROJECT_ID'];
+      const location = opts.location ?? process.env['GOOGLE_CLOUD_LOCATION'] ?? 'us-central1';
+      try {
+        const { GoogleGenAI } = await import('@google/genai');
+        const genai = new GoogleGenAI({
+          vertexai: true,
+          ...(apiKey ? { apiKey } : {}),
+          ...(project ? { project } : {}),
+          ...(location ? { location } : {}),
+        });
+        await genai.models.generateContent({
+          model,
+          contents: 'ok',
+          config: { maxOutputTokens: 1, temperature: 0, abortSignal: AbortSignal.timeout(timeout) },
+        });
         return { ok: true, model };
       } catch (err) {
         return { ok: false, model, error: compactError((err as Error).message ?? String(err)) };

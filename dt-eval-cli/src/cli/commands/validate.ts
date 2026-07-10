@@ -38,7 +38,7 @@ async function testAiProvider(
   provider: string,
   apiKey?: string,
   model?: string,
-  options?: { baseUrl?: string; region?: string; apiVersion?: string; secretKey?: string },
+  options?: { baseUrl?: string; region?: string; apiVersion?: string; secretKey?: string; project?: string; location?: string },
 ): Promise<{ ok: boolean; model: string; error?: string }> {
   return probeProvider({
     provider,
@@ -48,6 +48,8 @@ async function testAiProvider(
     region: options?.region,
     apiVersion: options?.apiVersion,
     secretKey: options?.secretKey,
+    project: options?.project,
+    location: options?.location,
   });
 }
 
@@ -151,6 +153,8 @@ export function createValidateCommand(): Command {
         region: config.judge.region,
         apiVersion: config.judge.apiVersion,
         secretKey: config.judge.secretKey,
+        project: config.judge.project,
+        location: config.judge.location,
       },
     );
     if (aiOk) {

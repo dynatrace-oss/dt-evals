@@ -17,6 +17,10 @@ export interface ProviderOptions {
   region?: string;
   /** AWS secret access key for Bedrock. Paired with apiKey (access key ID). */
   secretKey?: string;
+  /** GCP project ID for Vertex AI. Falls back to GOOGLE_CLOUD_PROJECT / GCLOUD_PROJECT env vars. */
+  project?: string;
+  /** GCP region for Vertex AI (e.g. "us-central1"). Falls back to GOOGLE_CLOUD_LOCATION env var. */
+  location?: string;
   /** Model override — defaults to gpt-4.1 / claude-sonnet-4-6 / gemini-2.5-pro (vertex) / gemini-2.5-flash (gemini) */
   model?: string;
   /** Request timeout in ms — default 30000 */

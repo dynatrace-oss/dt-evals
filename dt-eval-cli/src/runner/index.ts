@@ -199,6 +199,8 @@ export async function runEvals(
       apiVersion: evalConfig.judge.apiVersion,
       region: evalConfig.judge.region,
       secretKey: evalConfig.judge.secretKey,
+      project: evalConfig.judge.project,
+      location: evalConfig.judge.location,
       model: evalConfig.judge.model,
       timeout: evalConfig.judge.timeout,
       maxRetries: evalConfig.judge.maxRetries,

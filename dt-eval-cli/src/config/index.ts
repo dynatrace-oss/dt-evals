@@ -123,6 +123,13 @@ function applyEnvVars(config: DtEvalConfig): DtEvalConfig {
   } else if (provider === 'gemini') {
     if (process.env['GEMINI_API_KEY']) result.judge.apiKey = process.env['GEMINI_API_KEY'];
     else if (process.env['GOOGLE_API_KEY']) result.judge.apiKey = process.env['GOOGLE_API_KEY'];
+  } else if (provider === 'vertex') {
+    // Vertex uses ADC/Workload Identity by default; do not auto-map GOOGLE_API_KEY.
+    // Users can still set judge.apiKey explicitly in config if they intentionally want key auth.
+    if (process.env['GOOGLE_CLOUD_PROJECT']) result.judge.project = process.env['GOOGLE_CLOUD_PROJECT'];
+    else if (process.env['GCLOUD_PROJECT']) result.judge.project = process.env['GCLOUD_PROJECT'];
+    else if (process.env['GCP_PROJECT_ID']) result.judge.project = process.env['GCP_PROJECT_ID'];
+    if (process.env['GOOGLE_CLOUD_LOCATION']) result.judge.location = process.env['GOOGLE_CLOUD_LOCATION'];
   } else if (provider === 'bedrock') {
     if (process.env['AWS_REGION']) result.judge.region = process.env['AWS_REGION'];
   }
@@ -199,8 +206,8 @@ export function validateConfig(config: DtEvalConfig): void {
 
   if (!config.judge?.provider) {
     issues.push('judge.provider is required');
-  } else if (!['openai', 'anthropic', 'azure-openai', 'gemini', 'bedrock'].includes(config.judge.provider)) {
-    issues.push(`judge.provider must be one of: openai, anthropic, azure-openai, gemini, bedrock (got "${config.judge.provider}")`);
+  } else if (!['openai', 'anthropic', 'azure-openai', 'gemini', 'vertex', 'bedrock'].includes(config.judge.provider)) {
+    issues.push(`judge.provider must be one of: openai, anthropic, azure-openai, gemini, vertex, bedrock (got "${config.judge.provider}")`);
   }
 
   if (config.judge?.concurrency) {

@@ -17,6 +17,10 @@ const RESPONSE_JSON_SCHEMA = {
 export interface GoogleProviderConfig extends ProviderConfig {
   /** When true, routes to Vertex AI; when false, routes to Gemini Developer API */
   vertexai: boolean;
+  /** GCP project ID — required for Vertex AI, ignored for Gemini Developer API */
+  project?: string;
+  /** GCP region — used for Vertex AI (e.g. "us-central1"), ignored for Gemini Developer API */
+  location?: string;
 }
 
 export class GoogleProvider extends BaseProvider {
@@ -24,7 +28,15 @@ export class GoogleProvider extends BaseProvider {
 
   constructor(config: GoogleProviderConfig) {
     super(config);
-    this.client = new GoogleGenAI({ vertexai: config.vertexai, apiKey: config.apiKey });
+    // For Vertex AI with Workload Identity, apiKey is undefined — the @google/genai SDK
+    // falls back to Application Default Credentials (ADC) automatically when vertexai=true
+    // and no apiKey is supplied. project + location are required for Vertex AI.
+    this.client = new GoogleGenAI({
+      vertexai: config.vertexai,
+      ...(config.apiKey ? { apiKey: config.apiKey } : {}),
+      ...(config.project ? { project: config.project } : {}),
+      ...(config.location ? { location: config.location } : {}),
+    });
   }
 
   async call(prompt: string): Promise<LLMJudgeResponse> {

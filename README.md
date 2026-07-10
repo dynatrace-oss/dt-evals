@@ -344,7 +344,7 @@ DT_API_TOKEN=dt0c01.xxxxx
 |----------|--------------|-------|
 | `openai` | `gpt-5.4` | `OPENAI_API_KEY` |
 | `anthropic` | `claude-sonnet-4-7` | `ANTHROPIC_API_KEY` |
-| `vertex` | `gemini-3-pro` | `GOOGLE_API_KEY` |
+| `vertex` | `gemini-3-pro` | Workload Identity / ADC by default — set `judge.project` + `judge.location` (or `GOOGLE_CLOUD_PROJECT` + `GOOGLE_CLOUD_LOCATION`). No `GOOGLE_API_KEY` required. |
 | `gemini` | `gemini-3.1-flash-live` | `GOOGLE_API_KEY` |
 | `bedrock` | `anthropic.claude-opus-4-7` | `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` |
 | `azure-openai` | user-provided deployment name | `AZURE_OPENAI_API_KEY` + `AZURE_OPENAI_ENDPOINT` + `AZURE_OPENAI_API_VERSION` |
@@ -428,8 +428,11 @@ JUDGE_MODEL=gpt-4.1
 OPENAI_API_KEY=sk-...
 # Anthropic
 ANTHROPIC_API_KEY=sk-ant-...
-# Google (Vertex / Gemini)
+# Google Gemini Developer API
 GOOGLE_API_KEY=...
+# Google Vertex AI — uses Workload Identity / Application Default Credentials (no API key)
+GOOGLE_CLOUD_PROJECT=my-gcp-project
+GOOGLE_CLOUD_LOCATION=us-central1
 # AWS Bedrock
 AWS_ACCESS_KEY_ID=...
 AWS_SECRET_ACCESS_KEY=...
