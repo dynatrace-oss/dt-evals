@@ -438,6 +438,14 @@ class DynatraceClient:
                 self.access_token,
                 service_name=service_name or "langfuse-eval",
             )
+        elif framework == "deepeval":
+            from dt_ai_ingest.deepeval.tracing import configure_dynatrace_tracing
+
+            return configure_dynatrace_tracing(
+                self.tenant_url,
+                self.access_token,
+                service_name=service_name or "deepeval-eval",
+            )
         else:
             from dt_ai_ingest._otel import configure_tracing
 

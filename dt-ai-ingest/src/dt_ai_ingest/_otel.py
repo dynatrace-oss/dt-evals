@@ -39,6 +39,23 @@ def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+def _otlp_traces_endpoint(dt_endpoint: str) -> str:
+    """Build the OTLP traces ingest URL from a Dynatrace environment URL.
+
+    Dynatrace SaaS serves OTLP trace ingest from the ``.live.`` environment
+    host, not the ``.apps.`` platform host. Posting to ``.apps.`` yields a
+    cryptic ``400 Invalid app context``. Since users commonly copy the ``.apps.``
+    URL from the browser, we normalise it here so tracing "just works" — both for
+    production (``*.apps.dynatrace.com``) and dev/sprint
+    (``*.apps.dynatracelabs.com``) tenants. Non-Dynatrace hosts (e.g. a
+    self-managed ActiveGate) are left untouched.
+    """
+    base = dt_endpoint.rstrip("/")
+    for domain in ("dynatrace.com", "dynatracelabs.com"):
+        base = base.replace(f".apps.{domain}", f".live.{domain}")
+    return f"{base}/api/v2/otlp/v1/traces"
+
+
 def configure_tracing(
     dt_endpoint: str,
     dt_access_token: str,
@@ -73,7 +90,7 @@ def configure_tracing(
     global _configured_params, _configured_provider  # noqa: PLW0603
 
     normalised_endpoint = dt_endpoint.rstrip("/")
-    otlp_endpoint = f"{normalised_endpoint}/api/v2/otlp/v1/traces"
+    otlp_endpoint = _otlp_traces_endpoint(dt_endpoint)
     token_hash = _hash_token(dt_access_token)
 
     current = trace.get_tracer_provider()

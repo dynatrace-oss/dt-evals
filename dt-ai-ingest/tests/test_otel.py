@@ -9,7 +9,46 @@ from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 
-from dt_ai_ingest._otel import _reset_configured_params, configure_tracing
+from dt_ai_ingest._otel import (
+    _otlp_traces_endpoint,
+    _reset_configured_params,
+    configure_tracing,
+)
+
+
+class TestOtlpTracesEndpoint:
+    def test_live_host_gets_traces_path(self):
+        assert (
+            _otlp_traces_endpoint("https://abc.live.dynatrace.com")
+            == "https://abc.live.dynatrace.com/api/v2/otlp/v1/traces"
+        )
+
+    def test_apps_host_normalised_to_live(self):
+        """OTLP trace ingest lives on .live., not the .apps. platform host."""
+        assert (
+            _otlp_traces_endpoint("https://abc.apps.dynatrace.com")
+            == "https://abc.live.dynatrace.com/api/v2/otlp/v1/traces"
+        )
+
+    def test_trailing_slash_stripped(self):
+        assert (
+            _otlp_traces_endpoint("https://abc.apps.dynatrace.com/")
+            == "https://abc.live.dynatrace.com/api/v2/otlp/v1/traces"
+        )
+
+    def test_apps_dynatracelabs_host_normalised(self):
+        """Dev/sprint tenants on dynatracelabs.com must normalise too."""
+        assert (
+            _otlp_traces_endpoint("https://xbw95514.dev.apps.dynatracelabs.com")
+            == "https://xbw95514.dev.live.dynatracelabs.com/api/v2/otlp/v1/traces"
+        )
+
+    def test_non_dynatrace_host_untouched(self):
+        """Custom/self-managed hosts (e.g. ActiveGate) are left as-is."""
+        assert (
+            _otlp_traces_endpoint("https://my-activegate.example.com:9999")
+            == "https://my-activegate.example.com:9999/api/v2/otlp/v1/traces"
+        )
 
 
 @pytest.fixture(autouse=True)

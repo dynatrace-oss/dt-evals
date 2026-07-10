@@ -78,8 +78,8 @@ test_cases = [
 # ── 2. Run evaluation ────────────────────────────────────────────────────────
 
 metrics = [
-    AnswerRelevancyMetric(model=MODEL, threshold=0.5),
-    FaithfulnessMetric(model=MODEL, threshold=0.5),
+    AnswerRelevancyMetric(model=MODEL, threshold=0.5, include_reason=True),
+    FaithfulnessMetric(model=MODEL, threshold=0.7, include_reason=True),
 ]
 
 print(f"=== DeepEval Live Evaluation (model={MODEL}) ===")
