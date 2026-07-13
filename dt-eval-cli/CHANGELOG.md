@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.7-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.6-alpha...v0.2.7-alpha) (2026-07-13)
+
+
+### ✨ New Features
+
+* **dt-eval-cli:** store span start_time and end_time in bizevent pay… ([#126](https://github.com/dynatrace-oss/dt-evals/issues/126)) ([89bbb94](https://github.com/dynatrace-oss/dt-evals/commit/89bbb94700501dd1c0282bb72cc3810e856908b9))
+
+
+### 🐛 Bug Fixes
+
+* **dt-eval-cli:** stop sending evaluated prompt/response back to Dynatrace by default ([#122](https://github.com/dynatrace-oss/dt-evals/issues/122)) ([3fff13a](https://github.com/dynatrace-oss/dt-evals/commit/3fff13ae6bfdde9f31a92cdf7ea2ed8790df6daa))
+
 ## [0.2.6-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.5-alpha...v0.2.6-alpha) (2026-07-03)
 
 
