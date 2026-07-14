@@ -28,7 +28,7 @@ export class GoogleProvider extends BaseProvider {
 
   constructor(config: GoogleProviderConfig) {
     super(config);
-    // For Vertex AI with Workload Identity, apiKey is undefined — the @google/genai SDK
+    // For Vertex AI with Workload Identity, apiKey is empty — the @google/genai SDK
     // falls back to Application Default Credentials (ADC) automatically when vertexai=true
     // and no apiKey is supplied. project + location are required for Vertex AI.
     this.client = new GoogleGenAI({

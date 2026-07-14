@@ -7,8 +7,8 @@ export interface LLMJudgeResponse {
 
 /** Configuration passed to provider constructors */
 export interface ProviderConfig {
-  /** API key. Optional for Vertex AI when using Workload Identity / ADC. */
-  apiKey?: string;
+  /** API key. Empty string for Vertex AI / Bedrock when using Workload Identity / ADC / the AWS credential chain. */
+  apiKey: string;
   model: string;
   timeout: number;
   baseUrl?: string;

@@ -54,8 +54,9 @@ export async function createProvider(options: ProviderOptions): Promise<LLMProvi
   // project and location are resolved from options or well-known GCP env vars.
   if (provider === "vertex") {
     // Deliberately ignore GOOGLE_API_KEY env fallback for vertex so ADC remains the default path.
-    // If key-based auth is explicitly desired, set provider.apiKey in config.
-    const apiKey = options.apiKey;
+    // If key-based auth is explicitly desired, set provider.apiKey in config. Empty string
+    // signals "no key" to GoogleProvider, which then lets the SDK resolve ADC.
+    const apiKey = options.apiKey ?? "";
     const project =
       options.project ??
       process.env["GOOGLE_CLOUD_PROJECT"] ??
