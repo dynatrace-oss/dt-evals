@@ -523,7 +523,7 @@ GOOGLE_API_KEY=...
 # Vertex AI — authenticates via Workload Identity / Application Default Credentials (no API key).
 # Set the target project and region (or judge.project / judge.location in config):
 GOOGLE_CLOUD_PROJECT=my-gcp-project
-GOOGLE_CLOUD_LOCATION=us-central1
+GOOGLE_CLOUD_LOCATION=global
 ```
 
 ## Results in Dynatrace

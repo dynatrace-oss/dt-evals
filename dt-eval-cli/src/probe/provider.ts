@@ -34,7 +34,7 @@ export interface ProbeOptions {
   region?: string;
   /** GCP project ID (Vertex AI only). Falls back to GOOGLE_CLOUD_PROJECT env var. */
   project?: string;
-  /** GCP region (Vertex AI only). Falls back to GOOGLE_CLOUD_LOCATION env var. Default: us-central1. */
+  /** GCP region (Vertex AI only). Falls back to GOOGLE_CLOUD_LOCATION env var. Default: global. */
   location?: string;
   /** Per-request timeout. Default 12s — long enough for cold-start cases. */
   timeoutMs?: number;
@@ -163,7 +163,7 @@ export async function probeProvider(opts: ProbeOptions): Promise<ProbeResult> {
         process.env['GOOGLE_CLOUD_PROJECT'] ??
         process.env['GCLOUD_PROJECT'] ??
         process.env['GCP_PROJECT_ID'];
-      const location = opts.location ?? process.env['GOOGLE_CLOUD_LOCATION'] ?? 'us-central1';
+      const location = opts.location ?? process.env['GOOGLE_CLOUD_LOCATION'] ?? 'global';
       try {
         const { GoogleGenAI } = await import('@google/genai');
         const genai = new GoogleGenAI({

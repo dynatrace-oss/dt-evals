@@ -32,7 +32,7 @@ export interface JudgeConfig {
   apiVersion?: string;
   /** For vertex: GCP project ID. Falls back to GOOGLE_CLOUD_PROJECT / GCLOUD_PROJECT env vars. */
   project?: string;
-  /** For vertex: GCP region (e.g. us-central1). Falls back to GOOGLE_CLOUD_LOCATION env var. Default: us-central1. */
+  /** For vertex: GCP region (e.g. global or us-central1). Falls back to GOOGLE_CLOUD_LOCATION env var. Default: global. */
   location?: string;
   model?: string;
   timeout?: number;

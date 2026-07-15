@@ -19,7 +19,7 @@ export interface GoogleProviderConfig extends ProviderConfig {
   vertexai: boolean;
   /** GCP project ID — required for Vertex AI, ignored for Gemini Developer API */
   project?: string;
-  /** GCP region — used for Vertex AI (e.g. "us-central1"), ignored for Gemini Developer API */
+  /** GCP region — used for Vertex AI (e.g. "global" or "us-central1"), ignored for Gemini Developer API */
   location?: string;
 }
 

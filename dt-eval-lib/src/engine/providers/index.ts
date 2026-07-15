@@ -62,7 +62,7 @@ export async function createProvider(options: ProviderOptions): Promise<LLMProvi
       process.env["GOOGLE_CLOUD_PROJECT"] ??
       process.env["GCLOUD_PROJECT"] ??
       process.env["GCP_PROJECT_ID"];
-    const location = options.location ?? process.env["GOOGLE_CLOUD_LOCATION"] ?? "us-central1";
+    const location = options.location ?? process.env["GOOGLE_CLOUD_LOCATION"] ?? "global";
     const { GoogleProvider } = await import("./google");
     return new GoogleProvider({ apiKey, model, timeout, vertexai: true, project, location });
   }
