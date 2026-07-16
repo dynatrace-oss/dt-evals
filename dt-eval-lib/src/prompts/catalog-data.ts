@@ -7,19 +7,12 @@ export const catalog = [
     version: "2.0.0",
     description: "Decides whether an answer fully addresses a question given a source context.",
     prompt:
-      'OUTPUT FORMAT \u2014 STRICT. Emit exactly one JSON object and nothing else: no prose, no markdown fences, no "Output:" prefix, no chain-of-thought. Your entire reply must start with `{` and end with `}`.\nRequired fields: {"score": <float 0-1>, "explanation": <...>}\n\nYou are an answer completeness judge. Score whether the OUTPUT makes a substantive attempt at what the INPUT asks about, between 0 and 1: 1.0 = complete (pass), 0.0 = incomplete (fail). Use intermediate values for borderline cases.\n\nYou are NOT judging:\n- factual accuracy (whether claims are true)\n- groundedness (whether claims are present in or derivable from the SOURCE)\n- style, tone, conciseness, or formality\nAnother evaluator handles those. Your ONLY job is coverage of the question.\n\nThe QUESTION is the sole spec for required coverage. The SOURCE (if any) is background only \u2014 never a coverage gate, never a list of required aspects. A complete answer may include information not in the SOURCE; do NOT fail it for that.\n\nBe LENIENT. Score 1.0 for an answer that engages substantively with the question\'s PRIMARY subject, even if a secondary or qualifying sub-aspect ("and its significance", "and what role", "and why") is shallow or paraphrased. Only score 0.0 when the answer omits the primary subject entirely, is empty, is looping/template garbage, or addresses only an incidental side-aspect while ignoring what was mainly asked.\n\nRules (apply in order):\n1. If the ANSWER is empty, all-whitespace, or only contains repeated tokens, looping filler, or template artifacts unrelated to the question \u2014 score = 0.0, stop.\n2. Identify the PRIMARY subject of the QUESTION (the main thing being asked). Also list any clearly distinct secondary sub-aspects, but treat them as bonus, not required.\n3. score = 1.0 if the ANSWER engages substantively with the primary subject. A short, paraphrased, or partially-inferred answer still scores 1.0 as long as it speaks to the primary subject. Acknowledging that the source does not give full detail is FINE as long as the answer still attempts the primary subject in some form.\n4. score = 0.0 only when the ANSWER (a) does not address the primary subject at all, (b) addresses only an incidental tangent, or (c) entirely punts ("the source does not say" with no further content).\n\n<source>\n{{context}}\n</source>\n\n<input>\n{{input}}\n</input>\n\n<output>\n{{output}}\n</output>\n',
-    requiredFields: ["input", "output", "context"],
+      'OUTPUT FORMAT \u2014 STRICT. Emit exactly one JSON object and nothing else: no prose, no markdown fences, no "Output:" prefix, no chain-of-thought. Your entire reply must start with `{` and end with `}`.\nRequired fields: {"score": <float 0-1>, "explanation": <...>}\n\nYou are an answer completeness judge. Score whether the OUTPUT makes a substantive attempt at what the INPUT asks about, between 0 and 1: 1.0 = complete (pass), 0.0 = incomplete (fail). Use intermediate values for borderline cases.\n\nYou are NOT judging:\n- factual accuracy (whether claims are true)\n- groundedness (whether claims are present in or derivable from the SOURCE)\n- style, tone, conciseness, or formality\nAnother evaluator handles those. Your ONLY job is coverage of the question.\n\nThe what  is the sole spec for required coverage. The SOURCE (if any) is background only \u2014 never a coverage gate, never a list of required aspects. A complete answer may include information not in the SOURCE; do NOT fail it for that.\n\nBe LENIENT. Score 1.0 for an answer that engages substantively with the question\'s PRIMARY subject, even if a secondary or qualifying sub-aspect ("and its significance", "and what role", "and why") is shallow or paraphrased. Only score 0.0 when the answer omits the primary subject entirely, is empty, is looping/template garbage, or addresses only an incidental side-aspect while ignoring what was mainly asked.\n\nRules (apply in order):\n1. If the ANSWER is empty, all-whitespace, or only contains repeated tokens, looping filler, or template artifacts unrelated to the question \u2014 score = 0.0, stop.\n2. Identify the PRIMARY subject of the QUESTION (the main thing being asked). Also list any clearly distinct secondary sub-aspects, but treat them as bonus, not required.\n3. score = 1.0 if the ANSWER engages substantively with the primary subject. A short, paraphrased, or partially-inferred answer still scores 1.0 as long as it speaks to the primary subject. Acknowledging that the source does not give full detail is FINE as long as the answer still attempts the primary subject in some form.\n4. score = 0.0 only when the ANSWER (a) does not address the primary subject at all, (b) addresses only an incidental tangent, or (c) entirely punts ("the source does not say" with no further content).\n\n<source>\n{{context}}\n</source>\n\n<input>\n{{input}}\n</input>\n\n<output>\n{{output}}\n</output>\n',
+    requiredFields: ["input", "output"],
     scoring: {
       type: "continuous",
       range: [0.0, 1.0],
       threshold: 0.5,
-    },
-    score_labels: {
-      pass: "Pass",
-      fail: "Fail",
-    },
-    explanation: {
-      summary: "string",
     },
   },
   {
@@ -36,13 +29,6 @@ export const catalog = [
       range: [0.0, 1.0],
       threshold: 0.5,
     },
-    score_labels: {
-      pass: "Pass",
-      fail: "Fail",
-    },
-    explanation: {
-      summary: "string",
-    },
   },
   {
     id: "conciseness",
@@ -57,12 +43,19 @@ export const catalog = [
       range: [0.0, 1.0],
       threshold: 0.5,
     },
-    score_labels: {
-      pass: "Pass",
-      fail: "Fail",
-    },
-    explanation: {
-      summary: "string",
+  },
+  {
+    id: "context-relevance",
+    name: "Context Relevance",
+    version: "1.0.0",
+    description: "Measures how relevant the retrieved context is to the user's query",
+    prompt:
+      'You are a strict context relevancy evaluator. Extract and classify statements from retrieval context.\nDo NOT include any reasoning, chain-of-thought, or explanation in your response. Return valid JSON only. Use response_format={"type": "json_object"}.\nRelevant = helps answer the input query.\nBe objective.\nExtract statements. Classify. score = relevant/total. Pass >= 0.5.\n### INPUT\n{{input}}\n### CONTEXT\n{{context}}\nscore.value = relevant_count / total_count. Pass if >= 0.5.\nOutput JSON: {"score": {"value": <float 0-1>, "label": "<pass|fail>"}, "explanation": {"summary": "<brief rationale>", "statements": [...]}}\n',
+    requiredFields: ["input"],
+    scoring: {
+      type: "continuous",
+      range: [0.0, 1.0],
+      threshold: 0.5,
     },
   },
   {
@@ -79,13 +72,6 @@ export const catalog = [
       range: [0.0, 1.0],
       threshold: 0.5,
     },
-    score_labels: {
-      pass: "Pass",
-      fail: "Fail",
-    },
-    explanation: {
-      summary: "string",
-    },
   },
   {
     id: "faithfulness",
@@ -95,19 +81,11 @@ export const catalog = [
       "Checks whether a model's answer is grounded in the provided context, not in outside world knowledge.",
     prompt:
       'OUTPUT FORMAT \u2014 STRICT. Emit exactly one JSON object and nothing else: no prose, no markdown fences, no chain-of-thought. Your entire reply must start with `{` and end with `}`.\nRequired fields: {"score": <float 0-1>, "explanation": <...>}\n\nScore whether the ANSWER is grounded in the SOURCE between 0 and 1: 1.0 = every claim in the answer is directly supported by the source (pass). 0.0 = the answer contains claims that contradict or are absent from the source (fail). Use intermediate values for borderline cases.\n\nScore 1.0 (pass): Every checkable fact in the ANSWER is explicitly stated or clearly entailed by the SOURCE. The source does not need to use the same words \u2014 paraphrase counts as long as the meaning is preserved.\nScore 0.0 (fail): At least one specific claim in the ANSWER is absent from, contradicted by, or only loosely implied (not clearly entailed) by the SOURCE.\n\nRules:\n1. Use ONLY the SOURCE as the ground truth. Do not use outside world knowledge to confirm or fill in claims the SOURCE does not make.\n2. Decompose the ANSWER into atomic claims. For each, check whether the SOURCE states or clearly entails it.\n3. A claim is unsupported if the SOURCE simply does not mention the relevant fact \u2014 absence of evidence is grounds for a fail score.\n4. If the QUESTION is provided, use it to understand what the answer is responding to. If empty, evaluate the ANSWER as a standalone claim.\n5. When uncertain between 0.5 and 1.0, prefer 1.0 \u2014 only mark below 0.5 for claims a careful reader would find clearly unsupported by the SOURCE.\n\nIf QUESTION is provided, use it to understand what is being answered. If empty, ignore it.\n<question>\n{{context}}\n</question>\n\n<source>\n{{input}}\n</source>\n\n<answer>\n{{output}}\n</answer>\n',
-    requiredFields: ["input", "output", "context"],
+    requiredFields: ["input", "output"],
     scoring: {
       type: "continuous",
       range: [0.0, 1.0],
       threshold: 0.5,
-    },
-    score_labels: {
-      pass: "Faithful",
-      fail: "Unfaithful",
-    },
-    explanation: {
-      summary: "string",
-      unsupported: "string[]",
     },
   },
   {
@@ -118,18 +96,11 @@ export const catalog = [
       "Judges grammatical fluency / readability of a summary against its source article (SummEval fluency dimension).",
     prompt:
       'OUTPUT FORMAT \u2014 STRICT. Emit exactly one JSON object and nothing else: no prose, no markdown fences, no chain-of-thought. Your entire reply must start with `{` and end with `}`.\nRequired fields: {"score": <float 0-1>, "explanation": <...>}\n\nScore the grammatical fluency and readability of the SUMMARY between 0 and 1: 1.0 = fluent and readable (pass), 0.0 = clearly broken (fail). Use intermediate values for borderline cases. Fluency is about FORM only \u2014 do not penalise factual errors, missing content, or off-topic detail; those belong to other judges.\n\nScore 1.0 (pass): The summary is readable English. Minor run-ons, informal phrasing, or light awkwardness are NOT grounds for fail \u2014 a human reader can follow the text without difficulty.\nScore 0.0 (fail): The summary is CLEARLY broken \u2014 tokeniser artifacts (-lrb-, -rrb-, ., .), severe grammatical fragmentation, missing subjects/verbs that make sentences incoherent, or text that a native speaker would find barely readable.\n\nWhen in doubt, prefer 1.0. Only mark 0.0 for obvious defects.\n\nIf INPUT is provided, use it to calibrate expectations for the appropriate register and length. If empty, ignore it.\n<input>\n{{input}}\n</input>\n\nIf CONTEXT is provided, use it to calibrate expectations (e.g. domain register). If empty, ignore it.\n<context>\n{{context}}\n</context>\n\n<summary>\n{{output}}\n</summary>\n',
-    requiredFields: ["input", "output", "context"],
+    requiredFields: ["input", "output"],
     scoring: {
       type: "continuous",
       range: [0.0, 1.0],
       threshold: 0.5,
-    },
-    score_labels: {
-      pass: "Pass",
-      fail: "Fail",
-    },
-    explanation: {
-      summary: "string",
     },
   },
   {
@@ -139,18 +110,11 @@ export const catalog = [
     description: "Detects sentences in an answer that are not supported by the provided context.",
     prompt:
       'OUTPUT FORMAT \u2014 STRICT. Emit exactly one JSON object and nothing else: no prose, no markdown fences, no chain-of-thought. Your entire reply must start with `{` and end with `}`.\nRequired fields: {"score": <float 0-1>, "explanation": <...>}\n\nScore whether the CLAIM is fully supported by the SOURCE between 0 and 1: 1.0 = fully supported (pass), 0.0 = contains hallucination (fail). Use intermediate values for borderline cases. A claim is a hallucination if it asserts any specific fact (name, date, number, relationship, title, location, event) that is NOT explicitly entailed by the SOURCE \u2014 even if the fact sounds plausible from general knowledge.\n\nScore 1.0 (pass): Every checkable fact in the CLAIM is directly stated OR clearly entailed by the SOURCE. The SOURCE does not need to use the exact same words \u2014 if any reasonable reader would conclude the fact from the SOURCE, that counts as supported.\nScore 0.0 (fail): At least one specific fact in the CLAIM is absent from, contradicted by, or only loosely implied (not clearly entailed) by the SOURCE.\n\nRules:\n1. Decompose the CLAIM into atomic facts.\n2. For each fact, check whether the SOURCE states or clearly entails it.\n3. Use ONLY the SOURCE \u2014 do not use outside world knowledge to fill gaps.\n4. If the CLAIM is empty or entirely vague, score 1.0.\n5. When in doubt between 1.0 and 0.0, prefer 1.0 \u2014 only mark 0.0 for facts that a careful reader would find unsupported by the SOURCE.\n\nIf CONTEXT is provided, use it as additional grounding alongside SOURCE. If empty, ignore it.\n<context>\n{{context}}\n</context>\n\n<source>\n{{input}}\n</source>\n\n<claim>\n{{output}}\n</claim>\n',
-    requiredFields: ["input", "output", "context"],
+    requiredFields: ["input", "output"],
     scoring: {
       type: "continuous",
       range: [0.0, 1.0],
       threshold: 0.5,
-    },
-    score_labels: {
-      pass: "Pass",
-      fail: "Fail",
-    },
-    explanation: {
-      summary: "string",
     },
   },
   {
@@ -165,13 +129,6 @@ export const catalog = [
       type: "continuous",
       range: [0.0, 1.0],
       threshold: 0.5,
-    },
-    score_labels: {
-      pass: "Pass",
-      fail: "Fail",
-    },
-    explanation: {
-      summary: "string",
     },
   },
   {
@@ -188,13 +145,6 @@ export const catalog = [
       range: [0.0, 1.0],
       threshold: 0.5,
     },
-    score_labels: {
-      pass: "Pass",
-      fail: "Fail",
-    },
-    explanation: {
-      summary: "string",
-    },
   },
   {
     id: "relevance",
@@ -209,13 +159,6 @@ export const catalog = [
       range: [0.0, 1.0],
       threshold: 0.5,
     },
-    score_labels: {
-      pass: "Pass",
-      fail: "Fail",
-    },
-    explanation: {
-      summary: "string",
-    },
   },
   {
     id: "summarization-quality",
@@ -229,13 +172,6 @@ export const catalog = [
       type: "continuous",
       range: [0.0, 1.0],
       threshold: 0.5,
-    },
-    score_labels: {
-      pass: "Pass",
-      fail: "Fail",
-    },
-    explanation: {
-      summary: "string",
     },
   },
   {
@@ -252,13 +188,6 @@ export const catalog = [
       range: [0.0, 1.0],
       threshold: 0.5,
     },
-    score_labels: {
-      pass: "Pass",
-      fail: "Fail",
-    },
-    explanation: {
-      summary: "string",
-    },
   },
   {
     id: "user-frustration",
@@ -272,13 +201,6 @@ export const catalog = [
       type: "continuous",
       range: [0.0, 1.0],
       threshold: 0.5,
-    },
-    score_labels: {
-      pass: "Pass",
-      fail: "Fail",
-    },
-    explanation: {
-      summary: "string",
     },
   },
 ] satisfies PromptDefinition[];

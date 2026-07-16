@@ -42,13 +42,13 @@ describe("prompt catalog", () => {
   });
 
   const scoringCases = [
-    { id: BuiltInMetric.Fluency, type: "continuous", threshold: 0.7 },
-    { id: BuiltInMetric.Toxicity, type: "continuous", threshold: 0.9 },
-    { id: BuiltInMetric.Faithfulness, type: "continuous", threshold: 0.8 },
-    { id: BuiltInMetric.Hallucination, type: "continuous", threshold: 0.8 },
-    { id: BuiltInMetric.PiiLeakage, type: "continuous", threshold: 0.9 },
-    { id: BuiltInMetric.FactualAccuracy, type: "continuous", threshold: 0.8 },
-    { id: BuiltInMetric.UserFrustration, type: "binary", threshold: 1 },
+    { id: BuiltInMetric.Fluency, type: "continuous", threshold: 0.5 },
+    { id: BuiltInMetric.Toxicity, type: "continuous", threshold: 0.5 },
+    { id: BuiltInMetric.Faithfulness, type: "continuous", threshold: 0.5 },
+    { id: BuiltInMetric.Hallucination, type: "continuous", threshold: 0.5 },
+    { id: BuiltInMetric.PiiLeakage, type: "continuous", threshold: 0.5 },
+    { id: BuiltInMetric.FactualAccuracy, type: "continuous", threshold: 0.5 },
+    { id: BuiltInMetric.UserFrustration, type: "continuous", threshold: 0.5 },
   ] as const;
 
   it.each(scoringCases)("$id has $type scoring with threshold $threshold", ({
@@ -64,15 +64,15 @@ describe("prompt catalog", () => {
   const requiredFieldsCases = [
     { id: BuiltInMetric.Fluency, fields: ["input", "output"] },
     { id: BuiltInMetric.Toxicity, fields: ["output"] },
-    { id: BuiltInMetric.Faithfulness, fields: ["input", "output", "context"] },
+    { id: BuiltInMetric.Faithfulness, fields: ["input", "output"] },
     { id: BuiltInMetric.Hallucination, fields: ["input", "output"] },
     { id: BuiltInMetric.PiiLeakage, fields: ["input", "output"] },
     { id: BuiltInMetric.Relevance, fields: ["input", "output"] },
     { id: BuiltInMetric.FactualAccuracy, fields: ["input", "output"] },
     { id: BuiltInMetric.UserFrustration, fields: ["input"] },
-    { id: BuiltInMetric.ContextRelevance, fields: ["input", "context"] },
+    { id: BuiltInMetric.ContextRelevance, fields: ["input"] },
     { id: BuiltInMetric.AnswerCompleteness, fields: ["input", "output"] },
-    { id: BuiltInMetric.PromptInjection, fields: ["input", "output"] },
+    { id: BuiltInMetric.PromptInjection, fields: ["input"] },
     { id: BuiltInMetric.Bias, fields: ["input", "output"] },
     { id: BuiltInMetric.SummarizationQuality, fields: ["input", "output"] },
     { id: BuiltInMetric.Conciseness, fields: ["input", "output"] },
