@@ -409,14 +409,14 @@ describe('config', () => {
       expect(resolved.metrics.enabled).toEqual(['user-frustration']);
     });
 
-    it('uses gemini-3.5-flash as the default model for vertex', () => {
+    it('uses gemini-3.1-flash-lite as the default model for vertex', () => {
       const partial = {
         dynatrace: { environmentUrl: 'https://test.dynatrace.com' },
         judge: { provider: 'vertex' as const },
       };
 
       const resolved = resolveEffectiveConfig(partial);
-      expect(resolved.judge.model).toBe('gemini-3.5-flash');
+      expect(resolved.judge.model).toBe('gemini-3.1-flash-lite');
     });
   });
 });
