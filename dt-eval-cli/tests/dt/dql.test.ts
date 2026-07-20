@@ -103,7 +103,7 @@ describe('parseSpanResults', () => {
     expect(span.traceId).toBe('abc123');
     expect(span.spanId).toBe('span001');
     expect(span.startTime).toBe('2026-03-01T10:00:00Z');
-    expect(span.input).toBe('[{"role":"user","content":"Hello"}]');
+    expect(span.input).toBe('Hello');
     expect(span.output).toBe('Hi there!');
     expect(span.systemInstruction).toBe('Be helpful.');
     expect(span.system).toBe('openai');
@@ -201,7 +201,7 @@ describe('parseSpanResults', () => {
     expect(parseSpanResults([])).toEqual([]);
   });
 
-  it('handles object-typed input messages by stringifying', () => {
+  it('uses the last user message when input messages are structured objects', () => {
     const records = [
       {
         'trace.id': 'obj-input',
@@ -211,7 +211,7 @@ describe('parseSpanResults', () => {
     ];
 
     const spans = parseSpanResults(records);
-    expect(spans[0]!.input).toBe('[{"role":"user","content":"Hello"}]');
+    expect(spans[0]!.input).toBe('Hello');
   });
 
   it('falls back to gen_ai.provider.name when gen_ai.system is absent', () => {
@@ -363,9 +363,34 @@ describe('JSON-stringified message arrays (OTel GenAI evolved form)', () => {
     const spans = parseSpanResults(records, { spanFields: { output: 'gen_ai.output.messages' } });
     expect(spans).toHaveLength(1);
     const s = spans[0]!;
+    expect(s.input).toBe('What about Bach?');
     expect(s.systemInstruction).toBe('You are a music historian.');
     expect(s.userPrompt).toBe('What about Bach?');
     expect(s.output).toBe('Bach was prolific…');
+  });
+
+  it('uses the last user message and concatenates text parts for default input', () => {
+    const records = [
+      {
+        'trace.id': 'json-multipart-user',
+        'gen_ai.input.messages': JSON.stringify([
+          { role: 'system', parts: [{ type: 'text', content: 'You are helpful.' }] },
+          { role: 'user', parts: [{ type: 'text', content: 'First question' }] },
+          { role: 'assistant', parts: [{ type: 'text', content: 'First answer' }] },
+          {
+            role: 'user',
+            parts: [
+              { type: 'text', content: 'Second question' },
+              { type: 'text', content: 'More detail' },
+            ],
+          },
+        ]),
+        'gen_ai.output.message': 'Second answer',
+      },
+    ];
+    const spans = parseSpanResults(records);
+    expect(spans[0]!.input).toBe('Second question\nMore detail');
+    expect(spans[0]!.userPrompt).toBe('Second question\nMore detail');
   });
 
   it('handles `content` strings (no parts array)', () => {
@@ -409,5 +434,18 @@ describe('JSON-stringified message arrays (OTel GenAI evolved form)', () => {
     ];
     const spans = parseSpanResults(records);
     expect(spans[0]!.systemInstruction).toBe('explicit system');
+  });
+
+  it('keeps explicit spanFields.input unchanged when it is configured', () => {
+    const records = [
+      {
+        'trace.id': 'custom-structured-input',
+        'custom.input': 'use this exact input',
+        'gen_ai.input.messages': inputJson,
+        'gen_ai.output.message': 'answer',
+      },
+    ];
+    const spans = parseSpanResults(records, { spanFields: { input: 'custom.input' } });
+    expect(spans[0]!.input).toBe('use this exact input');
   });
 });

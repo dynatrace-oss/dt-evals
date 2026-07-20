@@ -32,6 +32,11 @@ interface ResolvedFields {
   model: string[];
 }
 
+interface FieldMatch {
+  key: string;
+  value: string;
+}
+
 function resolveFields(spanFields: SpanFieldsMap | undefined): ResolvedFields {
   return {
     input: [...toCandidateList(spanFields?.input), ...DEFAULT_INPUT_FIELDS],
@@ -107,12 +112,13 @@ export interface ParseSpanOptions {
 
 /**
  * Walk a candidate attribute list and return the first non-empty stringified
- * value. Handles strings, numbers, booleans, and JSON-encodable objects.
+ * value together with its source key. Handles strings, numbers, booleans,
+ * and JSON-encodable objects.
  */
-function pickFirst(record: Record<string, unknown>, candidates: string[]): string | undefined {
+function pickFirstMatch(record: Record<string, unknown>, candidates: string[]): FieldMatch | undefined {
   for (const key of candidates) {
     const value = asString(record[key]);
-    if (value) return value;
+    if (value) return { key, value };
   }
   return undefined;
 }
@@ -196,8 +202,9 @@ export function parseSpanResults(
     const traceId = asString(r['trace.id']);
     if (!traceId) continue;
 
-    let input = pickFirst(r, fields.input);
-    let systemInstruction = pickFirst(r, fields.systemInstruction);
+    const inputMatch = pickFirstMatch(r, fields.input);
+    let input = inputMatch?.value;
+    let systemInstruction = pickFirstMatch(r, fields.systemInstruction)?.value;
     let userPrompt: string | undefined;
 
     // Walk OpenLLMetry prompt slots: collect user-role content into userPrompt,
@@ -230,9 +237,12 @@ export function parseSpanResults(
     if (inputRoles) {
       systemInstruction ??= inputRoles.system;
       userPrompt ??= inputRoles.user;
+      if (inputMatch?.key === DEFAULT_INPUT_FIELDS[0] && inputRoles.user) {
+        input = inputRoles.user;
+      }
     }
 
-    let output = pickFirst(r, fields.output);
+    let output = pickFirstMatch(r, fields.output)?.value;
     // Same shape on the output side: `gen_ai.output.messages` may be a JSON
     // array of one or more {role: "assistant", …} messages. Flatten to text.
     const outputRoles = extractRolesFromJsonMessages(output);
@@ -256,7 +266,7 @@ export function parseSpanResults(
       userPrompt,
       // gen_ai.system (OTel) or gen_ai.provider.name (OpenLLMetry)
       system: asString(r['gen_ai.system']) ?? asString(r['gen_ai.provider.name']),
-      requestModel: pickFirst(r, fields.model),
+      requestModel: pickFirstMatch(r, fields.model)?.value,
       isError: statusCode === 'ERROR' || undefined,
     });
   }

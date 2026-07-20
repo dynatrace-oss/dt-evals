@@ -80,8 +80,8 @@ export interface ScopeConfig {
  *
  * - `input` / `output` / `systemInstruction` / `model` map to the like-named
  *   span field.
- * - `userPrompt` is a synthetic field — the content of the latest prompt slot
- *   whose role is `user`. Useful for metrics like `user-frustration` that
+ * - `userPrompt` is a synthetic field — the latest extracted user message.
+ *   Useful for metrics like `user-frustration` that
  *   should score the user's turn in isolation, not the full conversation.
  */
 export type CanonicalSpanField =
