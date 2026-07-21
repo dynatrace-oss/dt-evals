@@ -5,6 +5,7 @@ export interface GenAiSpan {
   endTime?: string;
   input: string;              // evaluator input after span-field/default parsing
   output: string;             // gen_ai.output.message
+  context?: string;           // evaluator context from scope.spanFields.context
   systemInstruction?: string; // gen_ai.system_instruction
   system?: string;            // gen_ai.provider.name (e.g. "openai")
   requestModel?: string;      // gen_ai.request.model

@@ -59,6 +59,7 @@ export interface JudgeConfig {
 export interface SpanFieldsMap {
   input?: string | string[];
   output?: string | string[];
+  context?: string | string[];
   systemInstruction?: string | string[];
   model?: string | string[];
 }
@@ -78,8 +79,8 @@ export interface ScopeConfig {
 /**
  * Which canonical span field feeds an evaluator input slot.
  *
- * - `input` / `output` / `systemInstruction` / `model` map to the like-named
- *   span field.
+ * - `input` / `output` / `context` / `systemInstruction` / `model` map to
+ *   the like-named span field.
  * - `userPrompt` is a synthetic field — the latest extracted user message.
  *   Useful for metrics like `user-frustration` that
  *   should score the user's turn in isolation, not the full conversation.
@@ -87,6 +88,7 @@ export interface ScopeConfig {
 export type CanonicalSpanField =
   | 'input'
   | 'output'
+  | 'context'
   | 'systemInstruction'
   | 'model'
   | 'userPrompt';

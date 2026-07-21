@@ -72,6 +72,7 @@ function makeDtClient(spans: GenAiSpan[]) {
     'gen_ai.output.message': s.output,
     'gen_ai.system': s.system,
     'gen_ai.request.model': s.requestModel,
+    'rag.context': s.context,
     'gen_ai.system_instruction': s.systemInstruction,
     // Include a user-role prompt slot so the parser surfaces userPrompt
     // for tests that rely on per-metric inputs routing.
@@ -171,6 +172,33 @@ describe('runEvals', () => {
     expect(dtClient.ingestBizevents).toHaveBeenCalledOnce();
     const [payloads] = dtClient.ingestBizevents.mock.calls[0] as [unknown[]];
     expect(payloads).toHaveLength(6);
+  });
+
+  it('uses canonical context by default instead of systemInstruction', async () => {
+    const dtClient = makeDtClient([
+      makeSpan({
+        context: 'retrieved facts',
+        systemInstruction: 'be concise',
+      }),
+    ]);
+    const config = makeConfig({
+      scope: {
+        since: '1h',
+        sampling: { strategy: 'random', percent: 100 },
+        spanFields: { context: 'rag.context' },
+      },
+      metrics: { enabled: ['faithfulness'] },
+    });
+
+    await runEvals(
+      dtClient as unknown as import('../../src/dt/client.js').DynatraceClient,
+      config,
+      { since: '1h' },
+    );
+
+    const callArgs = evaluate.mock.calls[0] as unknown[];
+    const evalInput = callArgs[1] as { context?: string };
+    expect(evalInput.context).toBe('retrieved facts');
   });
 
   it('dry-run returns correct counts without writing bizevents', async () => {
@@ -358,6 +386,64 @@ describe('runEvals', () => {
     const callArgs = evaluate.mock.calls[0] as unknown[];
     const evalInput = callArgs[1] as { input: string };
     expect(evalInput.input).toBe(span.input);
+  });
+
+  it('routes context from systemInstruction when explicitly requested', async () => {
+    const dtClient = makeDtClient([
+      makeSpan({
+        context: 'retrieved facts',
+        systemInstruction: 'be concise',
+      }),
+    ]);
+    const config = makeConfig({
+      scope: {
+        since: '1h',
+        sampling: { strategy: 'random', percent: 100 },
+        spanFields: { context: 'rag.context' },
+      },
+      metrics: {
+        enabled: [{ id: 'faithfulness', inputs: { context: 'systemInstruction' } }],
+      },
+    });
+
+    await runEvals(
+      dtClient as unknown as import('../../src/dt/client.js').DynatraceClient,
+      config,
+      { since: '1h' },
+    );
+
+    const callArgs = evaluate.mock.calls[0] as unknown[];
+    const evalInput = callArgs[1] as { context?: string };
+    expect(evalInput.context).toBe('be concise');
+  });
+
+  it('falls back to canonical context when routed context field is unset', async () => {
+    const dtClient = makeDtClient([
+      makeSpan({
+        context: 'retrieved facts',
+        systemInstruction: undefined,
+      }),
+    ]);
+    const config = makeConfig({
+      scope: {
+        since: '1h',
+        sampling: { strategy: 'random', percent: 100 },
+        spanFields: { context: 'rag.context' },
+      },
+      metrics: {
+        enabled: [{ id: 'faithfulness', inputs: { context: 'systemInstruction' } }],
+      },
+    });
+
+    await runEvals(
+      dtClient as unknown as import('../../src/dt/client.js').DynatraceClient,
+      config,
+      { since: '1h' },
+    );
+
+    const callArgs = evaluate.mock.calls[0] as unknown[];
+    const evalInput = callArgs[1] as { context?: string };
+    expect(evalInput.context).toBe('retrieved facts');
   });
 
   it('emits onProgress events for each phase in order', async () => {

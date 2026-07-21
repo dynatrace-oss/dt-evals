@@ -73,6 +73,7 @@ function resolveCanonicalField(span: GenAiSpan, field: CanonicalSpanField): stri
   switch (field) {
     case 'input': return span.input;
     case 'output': return span.output;
+    case 'context': return span.context;
     case 'systemInstruction': return span.systemInstruction;
     case 'model': return span.requestModel;
     case 'userPrompt': return span.userPrompt;
@@ -82,12 +83,12 @@ function resolveCanonicalField(span: GenAiSpan, field: CanonicalSpanField): stri
 /** Build the EvalInput passed to dt-eval-lib, applying any per-metric routing. */
 function buildEvalInput(span: GenAiSpan, inputs: MetricInputs | undefined): EvalInput {
   if (!inputs) {
-    return { input: span.input, output: span.output, context: span.systemInstruction };
+    return { input: span.input, output: span.output, context: span.context };
   }
   return {
     input: (inputs.input && resolveCanonicalField(span, inputs.input)) ?? span.input,
     output: (inputs.output && resolveCanonicalField(span, inputs.output)) ?? span.output,
-    context: (inputs.context && resolveCanonicalField(span, inputs.context)) ?? span.systemInstruction,
+    context: (inputs.context && resolveCanonicalField(span, inputs.context)) ?? span.context,
   };
 }
 

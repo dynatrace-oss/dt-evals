@@ -292,6 +292,14 @@ describe('spanFields configuration', () => {
     expect(query).toContain('gen_ai.output.message');
   });
 
+  it('buildGenAiSpanQuery includes user-supplied context candidate in fields clause', () => {
+    const query = buildGenAiSpanQuery({
+      since: '1h',
+      spanFields: { context: 'rag.context' },
+    });
+    expect(query).toContain('rag.context');
+  });
+
   it('parseSpanResults prefers user-supplied input over default candidates', () => {
     const records = [
       {
@@ -340,6 +348,19 @@ describe('spanFields configuration', () => {
     ];
     const spans = parseSpanResults(records, { spanFields: { model: 'llm.model' } });
     expect(spans[0]!.requestModel).toBe('claude-sonnet');
+  });
+
+  it('parseSpanResults respects user-supplied context candidate', () => {
+    const records = [
+      {
+        'trace.id': 'custom-context',
+        'gen_ai.input.messages': 'q',
+        'gen_ai.output.message': 'a',
+        'rag.context': 'retrieved facts',
+      },
+    ];
+    const spans = parseSpanResults(records, { spanFields: { context: 'rag.context' } });
+    expect(spans[0]!.context).toBe('retrieved facts');
   });
 });
 

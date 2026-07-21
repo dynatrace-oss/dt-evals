@@ -76,12 +76,11 @@ export function buildBizeventPayload(
   }
 
   if (storeEvaluatedPrompt) {
-    // Record what the judge actually evaluated, not the raw span — they
-    // diverge when per-metric inputs routing maps a canonical field
-    // (e.g. userPrompt) onto an evaluator slot.
+    // Record the evaluated question/answer, while keeping system_prompt
+    // reserved for the actual system instruction on the traced span.
     payload['gen_ai.evaluation.input.question'] = judgeInputs?.input ?? span.input;
     payload['gen_ai.evaluation.input.answer'] = judgeInputs?.output ?? span.output;
-    const systemPrompt = judgeInputs?.context ?? span.systemInstruction;
+    const systemPrompt = span.systemInstruction;
     if (systemPrompt) {
       payload['gen_ai.evaluation.input.system_prompt'] = systemPrompt;
     }

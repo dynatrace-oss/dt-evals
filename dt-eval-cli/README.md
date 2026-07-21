@@ -397,6 +397,7 @@ scope:
   spanFields:
     input: llm.user_input              # or [llm.user_input, my.custom.input]
     output: llm.response
+    context: rag.documents
     systemInstruction: llm.system
     model: llm.model
 ```
@@ -434,14 +435,16 @@ metrics:
         input: userPrompt                           # latest user-role prompt slot
     - id: hallucination
       inputs:
-        context: systemInstruction                  # use system prompt as context
+        context: systemInstruction                  # explicit override when desired
 ```
 
-Available canonical fields: `input`, `output`, `systemInstruction`, `model`,
-`userPrompt` (latest user-role prompt slot, extracted from
+Available canonical fields: `input`, `output`, `context`,
+`systemInstruction`, `model`, `userPrompt` (latest user-role prompt slot, extracted from
 `gen_ai.prompt.N.role == "user"`). When the requested field is empty on a
 given span, the slot falls back to `span.input` / `span.output` /
-`span.systemInstruction` so a single misconfiguration doesn't drop spans.
+`span.context` so a single misconfiguration doesn't drop spans. `context` has
+no built-in default span attribute; if a span does not provide it, evaluator
+context is omitted unless you explicitly route `inputs.context` elsewhere.
 
 ### Full example
 
@@ -470,12 +473,13 @@ scope:
   # Map custom span attributes to canonical fields. Defaults handle OTel
   # GenAI semconv + OpenLLMetry; override only what you need.
   spanFields:
+    context: rag.documents
     output: [gen_ai.output.message, gen_ai.output.messages]
     # input, systemInstruction, model use built-in defaults
 
 metrics:
   enabled:
-    # Plain string form — uses span.input / span.output / span.systemInstruction
+    # Plain string form — uses span.input / span.output / span.context
     - faithfulness
     - relevance
     - hallucination

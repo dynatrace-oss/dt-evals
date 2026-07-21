@@ -190,6 +190,23 @@ describe('BizeventWriter', () => {
       expect(payload['gen_ai.evaluation.input.system_prompt']).toBe('be nice');
     });
 
+    it('does not store generic evaluator context as system_prompt', () => {
+      const span = makeSpan({ context: 'retrieved facts', systemInstruction: undefined });
+      const payload = buildBizeventPayload(
+        span,
+        'faithfulness',
+        'Faithfulness',
+        makeEvalResult(),
+        'run-1',
+        'openai',
+        'gpt-4o',
+        undefined,
+        { context: 'retrieved facts' },
+        true,
+      );
+      expect(payload['gen_ai.evaluation.input.system_prompt']).toBeUndefined();
+    });
+
     it('falls back to span fields when judgeInputs is not supplied', () => {
       const span = makeSpan({ systemInstruction: 'be helpful' });
       const payload = buildBizeventPayload(

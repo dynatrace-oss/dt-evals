@@ -40,6 +40,7 @@ export function maskSpan(span: GenAiSpan, config?: MaskingConfig): GenAiSpan {
     ...span,
     input: maskPii(span.input, config),
     output: maskPii(span.output, config),
+    context: span.context != null ? maskPii(span.context, config) : span.context,
     systemInstruction: span.systemInstruction != null ? maskPii(span.systemInstruction, config) : span.systemInstruction,
   };
 }

@@ -113,6 +113,13 @@ describe('maskSpan', () => {
     expect(masked.systemInstruction).toContain('[REDACTED]');
   });
 
+  it('masks context field when present', () => {
+    const span = makeSpan({ context: 'Context from admin@corp.com' });
+    const masked = maskSpan(span);
+    expect(masked.context).not.toContain('admin@corp.com');
+    expect(masked.context).toContain('[REDACTED]');
+  });
+
   it('leaves traceId unchanged', () => {
     const span = makeSpan({ traceId: 'trace-abc-123', input: 'user@test.com' });
     const masked = maskSpan(span);
@@ -149,5 +156,11 @@ describe('maskSpan', () => {
     const span = makeSpan({ systemInstruction: undefined });
     const masked = maskSpan(span);
     expect(masked.systemInstruction).toBeUndefined();
+  });
+
+  it('handles span with undefined context gracefully', () => {
+    const span = makeSpan({ context: undefined });
+    const masked = maskSpan(span);
+    expect(masked.context).toBeUndefined();
   });
 });

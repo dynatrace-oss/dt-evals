@@ -22,12 +22,14 @@ const PROMPT_SLOTS = 3;
 // defaults remain as a fallback.
 const DEFAULT_INPUT_FIELDS = ['gen_ai.input.messages'];
 const DEFAULT_OUTPUT_FIELDS = ['gen_ai.output.message', 'gen_ai.output.messages', 'gen_ai.completion.0.content'];
+const DEFAULT_CONTEXT_FIELDS: string[] = [];
 const DEFAULT_SYSTEM_INSTRUCTION_FIELDS = ['gen_ai.system_instruction'];
 const DEFAULT_MODEL_FIELDS = ['gen_ai.request.model'];
 
 interface ResolvedFields {
   input: string[];
   output: string[];
+  context: string[];
   systemInstruction: string[];
   model: string[];
 }
@@ -41,6 +43,7 @@ function resolveFields(spanFields: SpanFieldsMap | undefined): ResolvedFields {
   return {
     input: [...toCandidateList(spanFields?.input), ...DEFAULT_INPUT_FIELDS],
     output: [...toCandidateList(spanFields?.output), ...DEFAULT_OUTPUT_FIELDS],
+    context: [...toCandidateList(spanFields?.context), ...DEFAULT_CONTEXT_FIELDS],
     systemInstruction: [...toCandidateList(spanFields?.systemInstruction), ...DEFAULT_SYSTEM_INSTRUCTION_FIELDS],
     model: [...toCandidateList(spanFields?.model), ...DEFAULT_MODEL_FIELDS],
   };
@@ -95,6 +98,7 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
     'gen_ai.provider.name',
     ...fields.input,
     ...fields.output,
+    ...fields.context,
     ...fields.systemInstruction,
     ...fields.model,
   ]);
@@ -129,10 +133,8 @@ function pickFirstMatch(record: Record<string, unknown>, candidates: string[]): 
  *   [{"role":"system","parts":[{"type":"text","content":"You are…"}]},
  *    {"role":"user","parts":[{"type":"text","content":"hello"}]}]
  * — the system + user + assistant turns are inlined rather than split across
- * separate prompt slots. Without parsing the JSON, the runner can't surface
- * `systemInstruction` (context) or `userPrompt`, so context-needing metrics
- * (faithfulness, hallucination, fluency, context-relevance) all error with
- * "Missing required fields: context" on these spans.
+ * separate prompt slots. Parsing this lets the runner recover the real system
+ * prompt and latest user message from structured chat payloads.
  *
  * Returns the extracted system / user / assistant content when the input is
  * a valid JSON array of role-tagged messages; otherwise `undefined` so the
@@ -204,6 +206,7 @@ export function parseSpanResults(
 
     const inputMatch = pickFirstMatch(r, fields.input);
     let input = inputMatch?.value;
+    const context = pickFirstMatch(r, fields.context)?.value;
     let systemInstruction = pickFirstMatch(r, fields.systemInstruction)?.value;
     let userPrompt: string | undefined;
 
@@ -262,6 +265,7 @@ export function parseSpanResults(
       endTime: asString(r['end_time']),
       input,
       output,
+      context,
       systemInstruction,
       userPrompt,
       // gen_ai.system (OTel) or gen_ai.provider.name (OpenLLMetry)
