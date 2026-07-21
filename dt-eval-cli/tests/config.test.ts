@@ -353,10 +353,26 @@ describe('config', () => {
   });
 
   describe('saveConfig', () => {
-    it('writes valid YAML to disk', async () => {
+    it('writes valid YAML to disk without secrets', async () => {
       const { readFileSync } = await import('node:fs');
       const { parse } = await import('yaml');
-      const config = makeValidConfig();
+      const config = makeValidConfig({
+        dynatrace: {
+          environmentUrl: 'https://test.live.dynatrace.com',
+          apiToken: 'top-level-token',
+          origin: { environmentUrl: 'https://read.live.dynatrace.com', apiToken: 'origin-token' },
+          destination: { environmentUrl: 'https://write.live.dynatrace.com', apiToken: 'destination-token' },
+        },
+        judge: {
+          provider: 'bedrock',
+          apiKey: 'access-key-id',
+          secretKey: 'secret-access-key',
+          region: 'us-east-1',
+          model: 'anthropic.claude-sonnet-4-5-20251001-v1:0',
+          timeout: 30000,
+          maxRetries: 2,
+        },
+      });
       const outPath = join(TEST_DIR, 'output.yaml');
 
       saveConfig(config, outPath);
@@ -364,18 +380,27 @@ describe('config', () => {
       const content = readFileSync(outPath, 'utf-8');
       const parsed = parse(content);
       expect(parsed.dynatrace.environmentUrl).toBe(config.dynatrace.environmentUrl);
+      expect(parsed.dynatrace.apiToken).toBeUndefined();
+      expect(parsed.dynatrace.origin.apiToken).toBeUndefined();
+      expect(parsed.dynatrace.destination.apiToken).toBeUndefined();
       expect(parsed.judge.provider).toBe(config.judge.provider);
+      expect(parsed.judge.apiKey).toBeUndefined();
+      expect(parsed.judge.secretKey).toBeUndefined();
     });
 
-    it('roundtrip: save then load returns the same config', () => {
+    it('roundtrip: save then load restores the same effective config when env vars provide secrets', () => {
       const config = makeValidConfig();
       const outPath = join(TEST_DIR, 'roundtrip.yaml');
 
       saveConfig(config, outPath);
 
+      process.env['DT_API_TOKEN'] = config.dynatrace.apiToken;
+      process.env['OPENAI_API_KEY'] = config.judge.apiKey;
       const loaded = loadConfig({ globalFile: join(TEST_DIR, 'nonexistent.yaml'), projectFile: outPath });
       expect(loaded.dynatrace.environmentUrl).toBe(config.dynatrace.environmentUrl);
+      expect(loaded.dynatrace.apiToken).toBe(config.dynatrace.apiToken);
       expect(loaded.judge.provider).toBe(config.judge.provider);
+      expect(loaded.judge.apiKey).toBe(config.judge.apiKey);
       expect(loaded.metrics.enabled).toEqual(config.metrics.enabled);
       expect(loaded.scope.since).toBe(config.scope.since);
     });

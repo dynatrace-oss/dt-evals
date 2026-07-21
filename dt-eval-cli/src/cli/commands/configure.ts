@@ -94,35 +94,33 @@ const PROVIDER_KEY_ENV: Partial<Record<DtEvalConfig['judge']['provider'], string
 };
 
 /**
- * Collect the secrets the user entered this session into `.env` variable names.
- * Only non-empty, explicitly-entered values are included so we never clobber an
- * existing `.env`/env value with a blank. Secrets are written to `.env` instead
- * of the YAML config (see saveConfig → stripSecrets).
+ * Collect the effective secrets from the resolved config into `.env` variable
+ * names. This preserves existing working credentials when a user re-runs
+ * `configure` without re-entering every secret, so stripping YAML secrets does
+ * not silently break the config.
  */
-function collectSecretEnv(
-  provider: DtEvalConfig['judge']['provider'],
-  entered: { apiToken?: string; apiKey?: string; bedrockSecretKey?: string },
-): Record<string, string> {
+function collectSecretEnv(config: DtEvalConfig): Record<string, string> {
   const env: Record<string, string> = {};
-  if (entered.apiToken) env['DT_API_TOKEN'] = entered.apiToken;
-  const keyEnv = PROVIDER_KEY_ENV[provider];
-  if (keyEnv && entered.apiKey) env[keyEnv] = entered.apiKey;
-  if (provider === 'bedrock' && entered.bedrockSecretKey) {
-    env['AWS_SECRET_ACCESS_KEY'] = entered.bedrockSecretKey;
+
+  if (config.dynatrace.apiToken) env['DT_API_TOKEN'] = config.dynatrace.apiToken;
+  if (config.dynatrace.origin?.apiToken) env['DT_ORIGIN_API_TOKEN'] = config.dynatrace.origin.apiToken;
+  if (config.dynatrace.destination?.apiToken) env['DT_DESTINATION_API_TOKEN'] = config.dynatrace.destination.apiToken;
+
+  const keyEnv = PROVIDER_KEY_ENV[config.judge.provider];
+  if (keyEnv && config.judge.apiKey) env[keyEnv] = config.judge.apiKey;
+  if (config.judge.provider === 'bedrock' && config.judge.secretKey) {
+    env['AWS_SECRET_ACCESS_KEY'] = config.judge.secretKey;
   }
+
   return env;
 }
 
 /**
- * Persist entered secrets to cwd `.env` (gitignored) and tell the user which
- * names to wire up as CI/CD pipeline secrets. No-op when nothing was entered.
+ * Persist secrets to cwd `.env` (gitignored) and tell the user which names to
+ * wire up as CI/CD pipeline secrets. No-op when nothing is configured.
  */
-function persistSecretsToEnv(
-  provider: DtEvalConfig['judge']['provider'],
-  entered: { apiToken?: string; apiKey?: string; bedrockSecretKey?: string },
-  log: (msg: string) => void,
-): void {
-  const secretEnv = collectSecretEnv(provider, entered);
+function persistSecretsToEnv(config: DtEvalConfig, log: (msg: string) => void): void {
+  const secretEnv = collectSecretEnv(config);
   if (Object.keys(secretEnv).length === 0) return;
   const envPath = join(process.cwd(), '.env');
   updateEnvFile(envPath, secretEnv);
@@ -459,11 +457,7 @@ export function createConfigureCommand(): Command {
       try {
         saveConfig(updated, outputPath);
         logger.success(`Config saved to ${outputPath}`);
-        persistSecretsToEnv(
-          provider,
-          { apiToken, apiKey, bedrockSecretKey },
-          (msg) => logger.info(msg),
-        );
+        persistSecretsToEnv(updated, (msg) => logger.info(msg));
       } catch (err) {
         logger.error(`Failed to save config: ${(err as Error).message}`);
         process.exit(1);
@@ -494,14 +488,14 @@ export function createConfigureCommand(): Command {
 
     // ── Flag-only mode ────────────────────────────────────
     const provider = (options.provider as DtEvalConfig['judge']['provider']) ?? existing.judge?.provider ?? 'openai';
-    const preservesExistingVertexKey = !(
+    const preserveExistingVertexKey = !(
       options.provider === 'vertex' ||
       options.project !== undefined ||
       options.location !== undefined ||
       options.apiKey !== undefined
     );
     const resolvedApiKey = resolveConfiguredApiKey(existing.judge, provider, options.apiKey, {
-      preserveExistingVertexKey: preservesExistingVertexKey,
+      preserveExistingVertexKey,
     });
 
     const updated: DtEvalConfig = {
@@ -542,11 +536,7 @@ export function createConfigureCommand(): Command {
     try {
       saveConfig(updated, outputPath);
       console.log(`Config saved to ${outputPath}`);
-      persistSecretsToEnv(
-        provider,
-        { apiToken: options.apiToken, apiKey: options.apiKey },
-        (msg) => console.log(msg),
-      );
+      persistSecretsToEnv(updated, (msg) => console.log(msg));
       console.log(`\n  Copy this to run the newly created config:`);
       console.log(`  dt-evals run ${basename(outputPath)}\n`);
     } catch (err) {
