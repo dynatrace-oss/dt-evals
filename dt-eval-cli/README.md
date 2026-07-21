@@ -397,7 +397,7 @@ scope:
   spanFields:
     input: llm.user_input              # or [llm.user_input, my.custom.input]
     output: llm.response
-    context: rag.documents
+    context: span.context              # can point to any span field the user wants as evaluator context, e.g. RAG context or system prompt
     systemInstruction: llm.system
     model: llm.model
 ```
@@ -435,7 +435,7 @@ metrics:
         input: userPrompt                           # latest user-role prompt slot
     - id: hallucination
       inputs:
-        context: systemInstruction                  # explicit override when desired
+        context: context                            # use the canonical context field for this metric
 ```
 
 Available canonical fields: `input`, `output`, `context`,
@@ -473,7 +473,7 @@ scope:
   # Map custom span attributes to canonical fields. Defaults handle OTel
   # GenAI semconv + OpenLLMetry; override only what you need.
   spanFields:
-    context: rag.documents
+    context: span.context              # can point to any span field the user wants as evaluator context, e.g. RAG context or system prompt
     output: [gen_ai.output.message, gen_ai.output.messages]
     # input, systemInstruction, model use built-in defaults
 
