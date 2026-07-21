@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.2.8-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.7-alpha...v0.2.8-alpha) (2026-07-21)
+
+
+### ✨ New Features
+
+* **dt-eval-cli:** separate evaluator context from systemInstruction ([#136](https://github.com/dynatrace-oss/dt-evals/issues/136)) ([19db839](https://github.com/dynatrace-oss/dt-evals/commit/19db8390f378dfd2d5bf65410a94d9d4c814758a))
+* support Vertex AI judge via Workload Identity / ADC ([#127](https://github.com/dynatrace-oss/dt-evals/issues/127)) ([b4e8921](https://github.com/dynatrace-oss/dt-evals/commit/b4e8921a25fb94154125e626c54f5028f113b36e))
+
+
+### 🐛 Bug Fixes
+
+* **dt-eval-cli:** default structured input to last user message ([#135](https://github.com/dynatrace-oss/dt-evals/issues/135)) ([8b29ead](https://github.com/dynatrace-oss/dt-evals/commit/8b29ead1e3074db193208f3683a07c668594ab58))
+
+
+### 🧹 Chore
+
+* sync prompt catalog from internal engine ([#131](https://github.com/dynatrace-oss/dt-evals/issues/131)) ([8f5ba2a](https://github.com/dynatrace-oss/dt-evals/commit/8f5ba2aa37e17b27217da0f8e9122a7f258ba493))
+
 ## [0.2.7-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.6-alpha...v0.2.7-alpha) (2026-07-13)
 
 
