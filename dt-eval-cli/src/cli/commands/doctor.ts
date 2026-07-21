@@ -1,12 +1,13 @@
 import { Command } from 'commander';
 import { execFile } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { promisify } from 'node:util';
 import pc from 'picocolors';
 import { Spinner } from '../../ui/spinner.js';
 import { loadConfig, validateConfig } from '../../config/index.js';
+import { updateEnvFile } from '../../config/env-file.js';
 import { probeProvider } from '../../probe/provider.js';
 import * as dtctl from '../../dtctl/index.js';
 import * as pasteToken from '../../dtctl/paste-token.js';
@@ -40,26 +41,6 @@ const warn = (msg: string) => console.log(`  ${pc.yellow('⚠')} ${msg}`);
 const info = (msg: string) => console.log(`  ${pc.dim('→')} ${msg}`);
 const sectionHeader = (n: number, total: number, title: string) =>
   console.log(`\n${pc.bold(`[${n}/${total}]`)} ${pc.bold(title)}`);
-
-function updateEnvFile(filePath: string, updates: Record<string, string>): void {
-  let lines: string[] = existsSync(filePath)
-    ? readFileSync(filePath, 'utf-8').split('\n')
-    : [];
-
-  for (const [key, value] of Object.entries(updates)) {
-    const idx = lines.findIndex(l => l.startsWith(`${key}=`) || l.startsWith(`${key} =`));
-    const newLine = `${key}=${value}`;
-    if (idx !== -1) {
-      lines[idx] = newLine;
-    } else {
-      lines.push(newLine);
-    }
-  }
-
-  // Remove trailing empty lines then add one
-  while (lines.length > 0 && lines[lines.length - 1]?.trim() === '') lines.pop();
-  writeFileSync(filePath, lines.join('\n') + '\n', 'utf-8');
-}
 
 function getNodeMajor(): number {
   return parseInt(process.version.replace('v', '').split('.')[0] ?? '0', 10);

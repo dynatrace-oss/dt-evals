@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { spawnSync } from 'node:child_process';
 import { join, basename } from 'node:path';
 import { loadConfig, saveConfig, validateConfig } from '../../config/index.js';
+import { updateEnvFile } from '../../config/env-file.js';
 import type { DtEvalConfig } from '../../config/schema.js';
 import { metricId } from '../../config/schema.js';
 import { DEFAULT_JUDGE_MODELS } from '../../config/defaults.js';
@@ -77,6 +78,56 @@ function printCostEstimate(
   console.log(`  Total per run:       ~$${totalUsd.toFixed(4)}`);
   console.log('\n  ⚠  Ballpark only — token counts vary by span length and metric.');
   console.log('  Always monitor your actual inference costs in your provider dashboard.\n');
+}
+
+/**
+ * Env var name that holds the API key for each provider, matching the fallbacks
+ * in applyEnvVars(). Vertex is intentionally absent — it uses ADC / Workload
+ * Identity and needs no key.
+ */
+const PROVIDER_KEY_ENV: Partial<Record<DtEvalConfig['judge']['provider'], string>> = {
+  openai: 'OPENAI_API_KEY',
+  anthropic: 'ANTHROPIC_API_KEY',
+  'azure-openai': 'AZURE_OPENAI_API_KEY',
+  gemini: 'GEMINI_API_KEY',
+  bedrock: 'AWS_ACCESS_KEY_ID',
+};
+
+/**
+ * Collect the secrets the user entered this session into `.env` variable names.
+ * Only non-empty, explicitly-entered values are included so we never clobber an
+ * existing `.env`/env value with a blank. Secrets are written to `.env` instead
+ * of the YAML config (see saveConfig → stripSecrets).
+ */
+function collectSecretEnv(
+  provider: DtEvalConfig['judge']['provider'],
+  entered: { apiToken?: string; apiKey?: string; bedrockSecretKey?: string },
+): Record<string, string> {
+  const env: Record<string, string> = {};
+  if (entered.apiToken) env['DT_API_TOKEN'] = entered.apiToken;
+  const keyEnv = PROVIDER_KEY_ENV[provider];
+  if (keyEnv && entered.apiKey) env[keyEnv] = entered.apiKey;
+  if (provider === 'bedrock' && entered.bedrockSecretKey) {
+    env['AWS_SECRET_ACCESS_KEY'] = entered.bedrockSecretKey;
+  }
+  return env;
+}
+
+/**
+ * Persist entered secrets to cwd `.env` (gitignored) and tell the user which
+ * names to wire up as CI/CD pipeline secrets. No-op when nothing was entered.
+ */
+function persistSecretsToEnv(
+  provider: DtEvalConfig['judge']['provider'],
+  entered: { apiToken?: string; apiKey?: string; bedrockSecretKey?: string },
+  log: (msg: string) => void,
+): void {
+  const secretEnv = collectSecretEnv(provider, entered);
+  if (Object.keys(secretEnv).length === 0) return;
+  const envPath = join(process.cwd(), '.env');
+  updateEnvFile(envPath, secretEnv);
+  log(`Secrets written to ${envPath} (gitignored) — kept out of the config file`);
+  log(`For CI/CD, set these as pipeline secrets instead: ${Object.keys(secretEnv).join(', ')}`);
 }
 
 export function resolveConfiguredApiKey(
@@ -408,6 +459,11 @@ export function createConfigureCommand(): Command {
       try {
         saveConfig(updated, outputPath);
         logger.success(`Config saved to ${outputPath}`);
+        persistSecretsToEnv(
+          provider,
+          { apiToken, apiKey, bedrockSecretKey },
+          (msg) => logger.info(msg),
+        );
       } catch (err) {
         logger.error(`Failed to save config: ${(err as Error).message}`);
         process.exit(1);
@@ -486,6 +542,11 @@ export function createConfigureCommand(): Command {
     try {
       saveConfig(updated, outputPath);
       console.log(`Config saved to ${outputPath}`);
+      persistSecretsToEnv(
+        provider,
+        { apiToken: options.apiToken, apiKey: options.apiKey },
+        (msg) => console.log(msg),
+      );
       console.log(`\n  Copy this to run the newly created config:`);
       console.log(`  dt-evals run ${basename(outputPath)}\n`);
     } catch (err) {

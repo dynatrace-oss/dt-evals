@@ -177,12 +177,32 @@ export function loadConfig(opts?: LoadConfigOptions): DtEvalConfig {
   return applyEnvVars(merged);
 }
 
+/**
+ * Return a copy of `config` with all credentials removed. Secrets are never
+ * written to the YAML config — they are resolved from env vars / `.env` at load
+ * time (see {@link applyEnvVars} and src/index.ts). This keeps tokens out of
+ * files that are easy to commit or share.
+ */
+function stripSecrets(config: DtEvalConfig): DtEvalConfig {
+  const clone = JSON.parse(JSON.stringify(config)) as DtEvalConfig;
+  if (clone.judge) {
+    delete clone.judge.apiKey;
+    delete clone.judge.secretKey;
+  }
+  if (clone.dynatrace) {
+    delete clone.dynatrace.apiToken;
+    if (clone.dynatrace.origin) delete clone.dynatrace.origin.apiToken;
+    if (clone.dynatrace.destination) delete clone.dynatrace.destination.apiToken;
+  }
+  return clone;
+}
+
 export function saveConfig(config: DtEvalConfig, filePath: string): void {
   const dir = dirname(filePath);
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
   }
-  const yamlContent = stringifyYaml(config, { indent: 2 });
+  const yamlContent = stringifyYaml(stripSecrets(config), { indent: 2 });
   writeFileSync(filePath, yamlContent, 'utf-8');
 }
 
