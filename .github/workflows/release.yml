@@ -103,5 +103,11 @@ jobs:
           - name: Build
             run: npm run build
 
+          - name: Resolve npm dist-tag
+            id: npm-tag
+            run: |
+              TAG=$(node -p "const version = require('./package.json').version; const prerelease = version.split('-')[1]; prerelease ? prerelease.split('.')[0] : 'latest'")
+              echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
           - name: Publish package
-            run: npm publish --access public --tag latest
+            run: npm publish --access public --tag "${{ steps.npm-tag.outputs.tag }}"

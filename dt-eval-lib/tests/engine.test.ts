@@ -303,6 +303,15 @@ describe("evaluate() — input validation", () => {
     ).resolves.toBeDefined();
   });
 
+  it.each([
+    BuiltInMetric.Fluency,
+    BuiltInMetric.Faithfulness,
+    BuiltInMetric.Hallucination,
+    BuiltInMetric.FactualAccuracy,
+  ])("does not require context-like fields for %s", async (metric) => {
+    await expect(evaluate(metric, baseInput, baseConfig)).resolves.toBeDefined();
+  });
+
   it("error message lists missing fields", async () => {
     try {
       await evaluate(BuiltInMetric.Faithfulness, { input: "What is Paris?" }, baseConfig);
