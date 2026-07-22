@@ -55,3 +55,23 @@ export const DEFAULT_JUDGE_MODELS: Record<string, string> = {
   // azure-openai: no default — deployment names are user-defined in Azure portal
   bedrock: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
 };
+
+/**
+ * Suggests the model to pre-fill in the configure wizard's model prompt.
+ *
+ * Only reuses a previously configured model when the user stays on the same
+ * provider — otherwise the provider-specific default is suggested. This
+ * prevents carrying over one provider's model (e.g. an OpenAI default filled
+ * in by resolveEffectiveConfig) when the user switches to another provider.
+ * Returns '' when no default exists (e.g. azure-openai deployment names).
+ */
+export function suggestModelForProvider(
+  provider: DtEvalConfig['judge']['provider'],
+  existingProvider?: DtEvalConfig['judge']['provider'],
+  existingModel?: string,
+): string {
+  if (existingProvider === provider && existingModel) {
+    return existingModel;
+  }
+  return DEFAULT_JUDGE_MODELS[provider] ?? '';
+}

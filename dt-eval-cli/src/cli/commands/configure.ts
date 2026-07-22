@@ -5,7 +5,7 @@ import { loadConfig, saveConfig, validateConfig } from '../../config/index.js';
 import { updateEnvFile } from '../../config/env-file.js';
 import type { DtEvalConfig } from '../../config/schema.js';
 import { metricId } from '../../config/schema.js';
-import { DEFAULT_JUDGE_MODELS } from '../../config/defaults.js';
+import { DEFAULT_JUDGE_MODELS, suggestModelForProvider } from '../../config/defaults.js';
 import { stringify as stringifyYaml } from 'yaml';
 import { redactSecrets } from '../../ui/format.js';
 import { logger } from '../../logger/index.js';
@@ -378,7 +378,7 @@ export function createConfigureCommand(): Command {
 
       const model = await input({
         message: `Evaluator model  (${modelPlaceholder})`,
-        default: existing.judge?.model ?? '',
+        default: suggestModelForProvider(provider, existing.judge?.provider, existing.judge?.model),
       });
 
       const resolvedApiKey = resolveConfiguredApiKey(existing.judge, provider, apiKey);
@@ -430,7 +430,10 @@ export function createConfigureCommand(): Command {
             project: vertexProject || existing.judge?.project,
             location: vertexLocation || existing.judge?.location,
           }),
-          model: model || existing.judge?.model,
+          // Never carry over another provider's model (e.g. the OpenAI default
+          // that resolveEffectiveConfig injects). Fall back to this provider's
+          // default, or undefined when it has none (azure-openai deployments).
+          model: model || suggestModelForProvider(provider, existing.judge?.provider, existing.judge?.model) || undefined,
           timeout: existing.judge?.timeout ?? 30000,
           maxRetries: existing.judge?.maxRetries ?? 2,
         },
@@ -509,7 +512,9 @@ export function createConfigureCommand(): Command {
       judge: {
         provider,
         ...(resolvedApiKey ? { apiKey: resolvedApiKey } : {}),
-        model: options.model ?? existing.judge?.model,
+        // Don't inherit another provider's model (e.g. the OpenAI default that
+        // resolveEffectiveConfig injects) when switching providers via --provider.
+        model: options.model ?? (suggestModelForProvider(provider, existing.judge?.provider, existing.judge?.model) || undefined),
         project: options.project ?? existing.judge?.project,
         location: options.location ?? existing.judge?.location,
         timeout: existing.judge?.timeout ?? 30000,
