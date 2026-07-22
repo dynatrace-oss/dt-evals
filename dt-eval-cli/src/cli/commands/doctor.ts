@@ -145,6 +145,12 @@ export function createDoctorCommand(): Command {
     printDoctorBanner();
     console.log(pc.bold('═'.repeat(60)));
 
+    const projectConfigPath = join(process.cwd(), '.dt-eval.yaml');
+    const globalConfigPath = join(homedir(), '.dt-eval', 'config.yaml');
+    const hasProjectConfig = existsSync(projectConfigPath);
+    const hasGlobalConfig = existsSync(globalConfigPath);
+    const hasStandardConfig = hasProjectConfig || hasGlobalConfig;
+
     // ── Load existing config if available ─────────────────────────
     let existingConfig: ReturnType<typeof loadConfig> | null = null;
     try {
@@ -438,62 +444,66 @@ export function createDoctorCommand(): Command {
     // ══════════════════════════════════════════════════════════════
     sectionHeader(5, TOTAL_SECTIONS, 'AI Provider (Evaluator)');
 
-    let providerConfig = existingConfig?.judge;
-
-    if (!providerConfig && inquirer) {
-      const provider = await inquirer.select({
-        message: 'Which AI provider do you use for evaluations?',
-        choices: [
-          { name: 'OpenAI', value: 'openai' as const },
-          { name: 'Anthropic', value: 'anthropic' as const },
-          { name: 'Azure OpenAI', value: 'azure-openai' as const },
-          { name: 'Google Gemini', value: 'gemini' as const },
-          { name: 'AWS Bedrock', value: 'bedrock' as const },
-        ],
-      });
-      providerConfig = { provider };
-    }
-
-    if (!providerConfig) {
-      info('No AI provider configured — run "dt-evals configure" to set one up');
+    if (!hasStandardConfig) {
+      info('Skipping AI provider probe — no .dt-eval.yaml or ~/.dt-eval/config.yaml found');
     } else {
-      const { ok: providerOk, model, error: providerError } = await testAiProvider(
-        providerConfig.provider,
-        providerConfig.apiKey,
-        providerConfig.model,
-        {
-          baseUrl: providerConfig.baseUrl,
-          region: providerConfig.region,
-          apiVersion: providerConfig.apiVersion,
-          secretKey: providerConfig.secretKey,
-          project: providerConfig.project,
-          location: providerConfig.location,
-        },
-      );
+      let providerConfig = existingConfig?.judge;
 
-      console.log(`  Provider: ${providerConfig.provider} / ${model}`);
-
-      if (providerOk) {
-        ok(`${providerConfig.provider} inference probe succeeded`);
-        ok(`Model: ${model}`);
-      } else {
-        fail(`${providerConfig.provider} inference probe failed  (model: ${model})`);
-        if (providerError) info(providerError);
-
-        const envVarHints: Record<string, string> = {
-          openai: 'OPENAI_API_KEY',
-          anthropic: 'ANTHROPIC_API_KEY',
-          'azure-openai': 'AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT',
-          gemini: 'GEMINI_API_KEY',
-          bedrock: 'AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY + AWS_REGION',
-        };
-
-        issues.push({
-          severity: 'error',
-          section: 'AI Provider',
-          message: `${providerConfig.provider} provider is not reachable${providerError ? `: ${providerError}` : ''}`,
-          action: `Set ${envVarHints[providerConfig.provider] ?? 'the required API key'} in your .env file`,
+      if (!providerConfig && inquirer) {
+        const provider = await inquirer.select({
+          message: 'Which AI provider do you use for evaluations?',
+          choices: [
+            { name: 'OpenAI', value: 'openai' as const },
+            { name: 'Anthropic', value: 'anthropic' as const },
+            { name: 'Azure OpenAI', value: 'azure-openai' as const },
+            { name: 'Google Gemini', value: 'gemini' as const },
+            { name: 'AWS Bedrock', value: 'bedrock' as const },
+          ],
         });
+        providerConfig = { provider };
+      }
+
+      if (!providerConfig) {
+        info('No AI provider configured — run "dt-evals configure" to set one up');
+      } else {
+        const { ok: providerOk, model, error: providerError } = await testAiProvider(
+          providerConfig.provider,
+          providerConfig.apiKey,
+          providerConfig.model,
+          {
+            baseUrl: providerConfig.baseUrl,
+            region: providerConfig.region,
+            apiVersion: providerConfig.apiVersion,
+            secretKey: providerConfig.secretKey,
+            project: providerConfig.project,
+            location: providerConfig.location,
+          },
+        );
+
+        console.log(`  Provider: ${providerConfig.provider} / ${model}`);
+
+        if (providerOk) {
+          ok(`${providerConfig.provider} inference probe succeeded`);
+          ok(`Model: ${model}`);
+        } else {
+          fail(`${providerConfig.provider} inference probe failed  (model: ${model})`);
+          if (providerError) info(providerError);
+
+          const envVarHints: Record<string, string> = {
+            openai: 'OPENAI_API_KEY',
+            anthropic: 'ANTHROPIC_API_KEY',
+            'azure-openai': 'AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT',
+            gemini: 'GEMINI_API_KEY',
+            bedrock: 'AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY + AWS_REGION',
+          };
+
+          issues.push({
+            severity: 'error',
+            section: 'AI Provider',
+            message: `${providerConfig.provider} provider is not reachable${providerError ? `: ${providerError}` : ''}`,
+            action: `Set ${envVarHints[providerConfig.provider] ?? 'the required API key'} in your .env file`,
+          });
+        }
       }
     }
 
@@ -503,11 +513,6 @@ export function createDoctorCommand(): Command {
     sectionHeader(6, TOTAL_SECTIONS, 'Configuration & Run History');
 
     // Config file checks
-    const projectConfigPath = join(process.cwd(), '.dt-eval.yaml');
-    const globalConfigPath = join(homedir(), '.dt-eval', 'config.yaml');
-    const hasProjectConfig = existsSync(projectConfigPath);
-    const hasGlobalConfig = existsSync(globalConfigPath);
-
     if (hasProjectConfig) {
       ok(`Project config: ${projectConfigPath}`);
     } else if (hasGlobalConfig) {
