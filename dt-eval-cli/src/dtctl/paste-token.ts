@@ -29,7 +29,7 @@ export const PLATFORM_TOKENS_URL = 'https://myaccount.dynatrace.com/platformToke
  */
 export const REQUIRED_SCOPES: Array<{ scope: string; purpose: string; optional?: boolean }> = [
   { scope: 'openpipeline:bizevents:ingest', purpose: 'Write evaluation results back as bizevents' },
-  { scope: 'storage:events:read', purpose: 'Read past evaluation bizevents — drift baseline' },
+  { scope: 'storage:bizevents:read', purpose: 'Read past evaluation bizevents — drift baseline' },
   { scope: 'storage:buckets:read', purpose: 'List Grail buckets (prerequisite for any read)' },
   { scope: 'storage:logs:read', purpose: 'Connectivity probe used by `dt-evals validate`' },
   { scope: 'storage:metrics:write', purpose: 'Write evaluation metrics', optional: true },

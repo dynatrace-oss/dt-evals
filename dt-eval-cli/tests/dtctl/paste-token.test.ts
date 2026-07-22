@@ -35,7 +35,7 @@ describe('REQUIRED_SCOPES', () => {
     const scopes = REQUIRED_SCOPES.map(s => s.scope);
     expect(scopes).toContain('storage:spans:read');
     expect(scopes).toContain('storage:buckets:read');
-    expect(scopes).toContain('storage:events:read');
+    expect(scopes).toContain('storage:bizevents:read');
     expect(scopes).toContain('openpipeline:bizevents:ingest');
   });
 
