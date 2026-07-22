@@ -235,8 +235,8 @@ export async function checkSpansPermission(environmentUrl: string, bearerToken: 
 export async function checkEventsReadPermission(environmentUrl: string, bearerToken: string): Promise<PermissionCheck> {
   return probeDql(environmentUrl, bearerToken,
     'fetch bizevents | limit 1',
-    'storage:bizevents:read',
-    'Bizevent read (storage:bizevents:read)',
+    'storage:events:read',
+    'Bizevent read (storage:events:read)',
   );
 }
 
