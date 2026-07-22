@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.10-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.9-alpha...v0.2.10-alpha) (2026-07-22)
+
+
+### 🐛 Bug Fixes
+
+* **dt-eval-cli:** bump dt-eval-lib to 0.0.14-alpha ([#141](https://github.com/dynatrace-oss/dt-evals/issues/141)) ([e36e018](https://github.com/dynatrace-oss/dt-evals/commit/e36e0189b9cf7c0d8ffcb385c99d097bf2e04b14))
+
 ## [0.2.9-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.8-alpha...v0.2.9-alpha) (2026-07-22)
 
 
