@@ -349,7 +349,7 @@ dynatrace:
     apiToken: dt0s16.xxxxx          # needs storage:spans:read, storage:buckets:read
   destination:
     environmentUrl: https://eval-results.dev.apps.dynatracelabs.com
-    apiToken: dt0s16.yyyyy          # needs storage:events:write, storage:metrics:write
+    apiToken: dt0s16.yyyyy          # needs storage:bizevents:read for drift, plus storage:events:write and storage:metrics:write
 ```
 
 Top-level `environmentUrl` / `apiToken` (if present) act as fallbacks — if
@@ -366,7 +366,7 @@ The `validate` command probes each side separately, including a real
 |---|---|
 | `storage:spans:read` | Reading GenAI spans (origin) |
 | `storage:buckets:read` | Grail prerequisite — without this, DQL returns empty results silently |
-| `storage:events:read` | Drift detection baseline (reads past eval bizevents) |
+| `storage:bizevents:read` | Drift detection baseline (reads past eval bizevents) |
 | `storage:events:write` | Writing evaluation results as bizevents (destination) |
 | `storage:metrics:write` | Writing evaluation metrics *(optional)* |
 | `storage:logs:read` | `dt-evals validate` connectivity probe |
