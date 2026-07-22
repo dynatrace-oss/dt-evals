@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.0.14-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.13-alpha...dt-eval-lib-v0.0.14-alpha) (2026-07-22)
+
+
+### ✨ New Features
+
+* support Vertex AI judge via Workload Identity / ADC ([#127](https://github.com/dynatrace-oss/dt-evals/issues/127)) ([b4e8921](https://github.com/dynatrace-oss/dt-evals/commit/b4e8921a25fb94154125e626c54f5028f113b36e))
+
+
+### 🐛 Bug Fixes
+
+* **dt-eval-lib:** align renderPrompt and requiredFields with internal engine ([#118](https://github.com/dynatrace-oss/dt-evals/issues/118)) ([eed08e9](https://github.com/dynatrace-oss/dt-evals/commit/eed08e94b567229091347d3caa7e76a345202127))
+* **dt-eval-lib:** support AWS SSO/temporary creds and markdown-fenced JSON for Bedrock ([#114](https://github.com/dynatrace-oss/dt-evals/issues/114)) ([48f9a28](https://github.com/dynatrace-oss/dt-evals/commit/48f9a2865fa48ac15be163e5f59be8baf529f895))
+
+
+### 🧹 Chore
+
+* sync prompt catalog from internal engine ([#131](https://github.com/dynatrace-oss/dt-evals/issues/131)) ([8f5ba2a](https://github.com/dynatrace-oss/dt-evals/commit/8f5ba2aa37e17b27217da0f8e9122a7f258ba493))
+
+
+### 📚 Documentation
+
+* add status badges to root, CLI, and lib READMEs ([#81](https://github.com/dynatrace-oss/dt-evals/issues/81)) ([60914b2](https://github.com/dynatrace-oss/dt-evals/commit/60914b2e6c78baefe8a9a8b5172a7318dc8ea4d4))
+
 ## [0.0.13-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.12-alpha...dt-eval-lib-v0.0.13-alpha) (2026-05-12)
 
 
