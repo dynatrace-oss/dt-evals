@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.9-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.8-alpha...v0.2.9-alpha) (2026-07-22)
+
+
+### 🐛 Bug Fixes
+
+* **dt-eval-cli:** avoid leaking api keys across providers ([#129](https://github.com/dynatrace-oss/dt-evals/issues/129)) ([1d905f8](https://github.com/dynatrace-oss/dt-evals/commit/1d905f8ab859475c19fe59f8650e7266ec755f99))
+
 ## [0.2.8-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.7-alpha...v0.2.8-alpha) (2026-07-21)
 
 
