@@ -37,7 +37,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.0",
     "@aws-sdk/client-bedrock-runtime": "^3.0.0",
-    "@dynatrace-oss/dt-eval-lib": "^0.0.13-alpha",
+    "@dynatrace-oss/dt-eval-lib": "^0.0.14-alpha",
     "@google/genai": "^1.0.0",
     "@inquirer/prompts": "^7.10.1",
     "@types/figlet": "^1.7.0",
