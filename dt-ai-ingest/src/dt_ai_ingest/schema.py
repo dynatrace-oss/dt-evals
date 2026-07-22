@@ -123,7 +123,7 @@ class EvalEvent(BaseModel):
 def build_eval_result_event(
     *,
     eval_name: str,
-    score_value: float,
+    score_value: float | None = None,
     extra: dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> dict[str, Any]:
@@ -132,6 +132,11 @@ def build_eval_result_event(
     One event per metric per evaluated item.  Valid keyword arguments are
     the keys of ``_EVAL_RESULT_FIELD_MAP``.  Unknown keys are ignored.
     Pass ``extra`` for arbitrary framework-specific metadata.
+
+    ``score_value`` is optional: metrics that produce a label but no numeric
+    score (e.g. an errored DeepEval metric or a Langfuse categorical score
+    without a numeric mapping) still emit a schema-conformant event — the
+    ``gen_ai.evaluation.score.value`` key is simply omitted.
     """
     all_fields = {"eval_name": eval_name, "score_value": score_value, **kwargs}
     event: dict[str, Any] = {"event.type": "gen_ai.evaluation.result"}

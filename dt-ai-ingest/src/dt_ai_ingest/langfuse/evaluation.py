@@ -227,37 +227,31 @@ def _build_events(
                 string_value if string_value is not None else ("True" if value == 1.0 else "False")
             )
             build_kwargs["score_label"] = score_label
-            if value is not None:
-                events.append(
-                    build_eval_result_event(
-                        eval_name=name,
-                        score_value=value,
-                        extra=score_extra,
-                        **build_kwargs,
-                    )
+            # value may be None (no numeric score); the builder omits the
+            # numeric score key in that case and still emits the label.
+            events.append(
+                build_eval_result_event(
+                    eval_name=name,
+                    score_value=value,
+                    extra=score_extra,
+                    **build_kwargs,
                 )
-            else:
-                # No numeric value — build manually
-                event = _build_manual_event(name, score_extra, build_kwargs)
-                events.append(event)
+            )
 
         elif data_type == "CATEGORICAL":
             # Categorical: string_value is the category, value may be numeric mapping (default 0)
             if string_value is not None:
                 build_kwargs["score_label"] = string_value
-            if value is not None:
-                events.append(
-                    build_eval_result_event(
-                        eval_name=name,
-                        score_value=value,
-                        extra=score_extra,
-                        **build_kwargs,
-                    )
+            # value may be None (no numeric mapping); the builder omits the
+            # numeric score key in that case and still emits the label.
+            events.append(
+                build_eval_result_event(
+                    eval_name=name,
+                    score_value=value,
+                    extra=score_extra,
+                    **build_kwargs,
                 )
-            else:
-                # No numeric value — build manually
-                event = _build_manual_event(name, score_extra, build_kwargs)
-                events.append(event)
+            )
 
         else:
             # NUMERIC (default) — straightforward
@@ -274,28 +268,3 @@ def _build_events(
                 logger.debug("Skipping score %r with no numeric value.", name)
 
     return events
-
-
-def _build_manual_event(
-    name: str,
-    score_extra: dict[str, Any],
-    build_kwargs: dict[str, Any],
-) -> dict[str, Any]:
-    """Build a BizEvent dict manually (for scores without a numeric value).
-
-    Used for CATEGORICAL scores without numeric mapping or BOOLEAN scores
-    missing a value, where ``build_eval_result_event()`` can't be used
-    because it requires ``score_value``.
-    """
-    from dt_ai_ingest.schema import _EVAL_RESULT_FIELD_MAP
-
-    event: dict[str, Any] = {"event.type": "gen_ai.evaluation.result"}
-    event["gen_ai.evaluation.name"] = name
-
-    # Map known kwargs to BizEvent fields.
-    for k, v in build_kwargs.items():
-        if k in _EVAL_RESULT_FIELD_MAP and v is not None:
-            event[_EVAL_RESULT_FIELD_MAP[k]] = v
-
-    event.update(score_extra)
-    return event

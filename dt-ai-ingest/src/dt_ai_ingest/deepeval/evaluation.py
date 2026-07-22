@@ -149,27 +149,16 @@ def _build_events(
             if score_label is not None:
                 build_kwargs["score_label"] = score_label
 
-            if score is not None:
-                events.append(
-                    build_eval_result_event(
-                        eval_name=metric_name,
-                        score_value=score,
-                        extra=event_extra,
-                        **build_kwargs,
-                    )
+            # A metric that errored has score=None; the event is still emitted
+            # (with its pass/fail label) — build_eval_result_event omits the
+            # numeric score key when score_value is None.
+            events.append(
+                build_eval_result_event(
+                    eval_name=metric_name,
+                    score_value=score,
+                    extra=event_extra,
+                    **build_kwargs,
                 )
-            else:
-                # Metric errored — emit event without score_value.
-                # build_eval_result_event requires score_value, so we build
-                # the event dict manually for the error case.
-                event: dict[str, Any] = {
-                    "event.type": "gen_ai.evaluation.result",
-                    "event.provider": "deepeval",
-                }
-                event["gen_ai.evaluation.name"] = metric_name
-                if score_label is not None:
-                    event["gen_ai.evaluation.score.label"] = score_label
-                event.update(event_extra)
-                events.append(event)
+            )
 
     return events
