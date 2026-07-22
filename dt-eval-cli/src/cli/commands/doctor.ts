@@ -150,6 +150,8 @@ export function createDoctorCommand(): Command {
     const hasProjectConfig = existsSync(projectConfigPath);
     const hasGlobalConfig = existsSync(globalConfigPath);
     const hasStandardConfig = hasProjectConfig || hasGlobalConfig;
+    const hasExplicitEnvProvider = Boolean(process.env['JUDGE_PROVIDER']);
+    const shouldProbeAiProvider = hasStandardConfig || hasExplicitEnvProvider;
 
     // ── Load existing config if available ─────────────────────────
     let existingConfig: ReturnType<typeof loadConfig> | null = null;
@@ -444,8 +446,8 @@ export function createDoctorCommand(): Command {
     // ══════════════════════════════════════════════════════════════
     sectionHeader(5, TOTAL_SECTIONS, 'AI Provider (Evaluator)');
 
-    if (!hasStandardConfig) {
-      info('Skipping AI provider probe — no .dt-eval.yaml or ~/.dt-eval/config.yaml found');
+    if (!shouldProbeAiProvider) {
+      info('Skipping AI provider probe — no .dt-eval.yaml, ~/.dt-eval/config.yaml, or JUDGE_PROVIDER found');
     } else {
       let providerConfig = existingConfig?.judge;
 
@@ -457,6 +459,7 @@ export function createDoctorCommand(): Command {
             { name: 'Anthropic', value: 'anthropic' as const },
             { name: 'Azure OpenAI', value: 'azure-openai' as const },
             { name: 'Google Gemini', value: 'gemini' as const },
+            { name: 'Vertex AI', value: 'vertex' as const },
             { name: 'AWS Bedrock', value: 'bedrock' as const },
           ],
         });
@@ -494,7 +497,8 @@ export function createDoctorCommand(): Command {
             anthropic: 'ANTHROPIC_API_KEY',
             'azure-openai': 'AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT',
             gemini: 'GEMINI_API_KEY',
-            bedrock: 'AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY + AWS_REGION',
+            vertex: 'GOOGLE_CLOUD_PROJECT + GOOGLE_CLOUD_LOCATION, or authenticate via ADC / Workload Identity',
+            bedrock: 'AWS_REGION and AWS credentials via env vars, profile, or IAM role',
           };
 
           issues.push({
