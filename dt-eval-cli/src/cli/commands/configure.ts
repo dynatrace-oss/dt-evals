@@ -310,6 +310,7 @@ export function createConfigureCommand(): Command {
         vertex: 'Vertex AI API key (optional — leave blank to use ADC / Workload Identity)',
         bedrock: 'AWS Access Key ID — leave blank to rely on AWS_ACCESS_KEY_ID env var / IAM role',
       };
+      const existingProviderApiKey = resolveConfiguredApiKey(existing.judge, provider, undefined);
 
       let apiKey: string;
       let bedrockSecretKey = '';
@@ -322,7 +323,7 @@ export function createConfigureCommand(): Command {
       if (provider === 'bedrock') {
         apiKey = await input({
           message: providerApiKeyLabel[provider],
-          default: existing.judge?.apiKey ?? '',
+          default: existingProviderApiKey ?? '',
         });
         bedrockSecretKey = await password({
           message: 'AWS Secret Access Key — leave blank to rely on AWS_SECRET_ACCESS_KEY env var',

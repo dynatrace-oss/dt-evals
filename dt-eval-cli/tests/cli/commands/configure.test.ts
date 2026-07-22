@@ -10,6 +10,14 @@ describe('resolveConfiguredApiKey', () => {
     expect(
       resolveConfiguredApiKey({ provider: 'openai', apiKey: 'old-openai-key' }, 'anthropic', undefined),
     ).toBeUndefined();
+
+    expect(
+      resolveConfiguredApiKey({ provider: 'bedrock', apiKey: 'old-bedrock-key' }, 'bedrock', undefined),
+    ).toBe('old-bedrock-key');
+
+    expect(
+      resolveConfiguredApiKey({ provider: 'openai', apiKey: 'old-openai-key' }, 'bedrock', undefined),
+    ).toBeUndefined();
   });
 
   it('omits stale or blank API keys for vertex by default', () => {
