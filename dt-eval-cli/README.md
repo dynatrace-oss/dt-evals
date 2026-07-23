@@ -56,7 +56,7 @@ Tune `--concurrency` (or `judge.concurrency` in your yaml) to control how many j
 - **Flexible sampling** with random percentage, latest `N`, or `errors-only`
 - **PII masking before judge calls** for emails, phone numbers, credit cards, and SSNs
 - **Evaluated prompt/response excluded from bizevents by default** — opt in with `storeEvaluatedPrompt` (see [Configuration](#configuration))
-- **OpenAI, Anthropic, Azure OpenAI, Vertex AI, Gemini, and Bedrock support** with optional custom base URLs for gateways and proxies
+- **OpenAI, Anthropic, Azure OpenAI, Google Gemini Enterprise Platform (Vertex AI), and Bedrock support** with optional custom base URLs for gateways and proxies
 - **CI friendly runs** with JSON output and non-zero exit codes on threshold breaches
 - **Local run history** with list, inspect, and export flows
 - **Scheduled runs** stored locally and triggerable on demand
@@ -81,7 +81,7 @@ The current CLI path is Dynatrace specific. The product positioning is broader: 
 
 - Node.js `>=20`
 - A Dynatrace environment with GenAI spans or OpenTelemetry-style `gen_ai.*` fields
-- Credentials for your judge provider (OpenAI, Anthropic, Azure OpenAI, Vertex AI, Gemini, or Bedrock)
+- Credentials for your judge provider (OpenAI, Anthropic, Azure OpenAI, Google Gemini Enterprise Platform (Vertex AI), or Bedrock)
 
 ## Install
 
@@ -506,9 +506,9 @@ OPENAI_BASE_URL=https://your-gateway.example.com/v1
 ANTHROPIC_API_KEY=sk-ant-...
 ANTHROPIC_BASE_URL=https://your-proxy.example.com
 
+# Google Gemini Enterprise Platform (Vertex AI)
 GOOGLE_API_KEY=...
-
-# Vertex AI — authenticates via Workload Identity / Application Default Credentials (no API key).
+# Or authenticate via Workload Identity / Application Default Credentials instead of an API key.
 # Set the target project and region (or judge.project / judge.location in config):
 GOOGLE_CLOUD_PROJECT=my-gcp-project
 GOOGLE_CLOUD_LOCATION=global

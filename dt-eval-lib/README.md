@@ -82,7 +82,7 @@ All built-in metrics return a **continuous** score in `[0.0, 1.0]`. The score is
 
 ## Providers
 
-Supports **OpenAI**, **Anthropic**, **Azure OpenAI**, **Vertex AI**, **Gemini Developer API**, and **Amazon Bedrock**. Configure via explicit options in code or environment variables.
+Supports **OpenAI**, **Anthropic**, **Azure OpenAI**, **Google Gemini Enterprise Platform (Vertex AI)**, and **Amazon Bedrock**. Configure via explicit options in code or environment variables.
 
 ### Environment Variables
 
@@ -100,11 +100,11 @@ AZURE_OPENAI_API_KEY=...
 AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com
 AZURE_OPENAI_API_VERSION=2024-02-01
 
-# Vertex AI — ADC path (no API key needed)
+# Google Gemini Enterprise Platform (Vertex AI) — ADC path (no API key needed)
 GOOGLE_CLOUD_PROJECT=my-gcp-project
 GOOGLE_CLOUD_LOCATION=us-central1  # optional, defaults to "global"
 
-# Gemini Developer API
+# Google Gemini Enterprise Platform (Vertex AI) — API key path
 GOOGLE_API_KEY=AIza...
 
 # Amazon Bedrock — static credentials (optional if using IAM roles / SSO)
@@ -118,9 +118,9 @@ Config is resolved in this order for each option:
 1. Explicit value in `provider` options
 2. Environment variable
 
-### Vertex AI Setup
+### Google Gemini Enterprise Platform (Vertex AI) Setup
 
-Uses Application Default Credentials (ADC) by default — no API key needed when running on GKE or Cloud Run with Workload Identity. Pass `apiKey` explicitly in config for key-based auth (Vertex AI Express Mode).
+Use Application Default Credentials (ADC) with provider ID `vertex` when running on GKE or Cloud Run with Workload Identity, or pass `apiKey` with provider ID `gemini` for key-based auth.
 
 ### Azure OpenAI Setup
 
@@ -142,7 +142,7 @@ await evaluate(BuiltInMetric.Toxicity, input, {
 
 Uses the AWS SDK credential chain — IAM roles, SSO, and `AWS_PROFILE` are all resolved automatically. Static credentials are only needed if you can't use role-based auth.
 
-> **Note:** `vertex` and `gemini` both use the `@google/genai` SDK; `azure-openai` and `openai` both use the `openai` SDK.
+> **Note:** Google provider IDs `vertex` and `gemini` both use the `@google/genai` SDK; `azure-openai` and `openai` both use the `openai` SDK.
 
 ## Metric Identification
 

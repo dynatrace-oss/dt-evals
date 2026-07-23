@@ -35,7 +35,7 @@ End-to-end LLM evaluation toolkit for Dynatrace AI Observability.
 - Python `>=3.10` (dt-ai-ingest)
 - A Dynatrace environment with GenAI spans (`gen_ai.*` OTEL attributes)
 - A Dynatrace platform token (generated at [myaccount.dynatrace.com/platformTokens](https://myaccount.dynatrace.com/platformTokens) — `dt-evals doctor` walks you through it)
-- Credentials for your judge provider (OpenAI, Anthropic, Google, AWS Bedrock, or Azure OpenAI)
+- Credentials for your judge provider (OpenAI, Anthropic, Google Gemini Enterprise Platform (Vertex AI), AWS Bedrock, or Azure OpenAI)
 
 ## Install
 
@@ -259,6 +259,21 @@ dt-evals status
 
 ---
 
+### `deploy`
+
+Package and deploy the eval runner as a serverless function for continuous scheduled evaluation.
+
+```bash
+dt-evals deploy --provider aws      # AWS Lambda
+dt-evals deploy --provider gcp      # Google Cloud Run
+dt-evals deploy --provider azure    # Azure Functions
+dt-evals deploy --teardown          # Destroy deployed resources
+```
+
+See [`dt-eval-deploy`](dt-eval-deploy) for Docker-based deployment.
+
+---
+
 ## Required Dynatrace Permissions
 
 ### dt-evals CLI
@@ -328,8 +343,7 @@ DT_API_TOKEN=dt0c01.xxxxx
 |----------|--------------|-------|
 | `openai` | `gpt-5-mini` | `OPENAI_API_KEY` |
 | `anthropic` | `claude-sonnet-4-6` | `ANTHROPIC_API_KEY` |
-| `vertex` | `gemini-3.1-flash-lite` | ADC by default — set `judge.project` + `judge.location` (or `GOOGLE_CLOUD_PROJECT` + `GOOGLE_CLOUD_LOCATION`). No `GOOGLE_API_KEY` required. |
-| `gemini` | `gemini-3.1-flash-lite` | `GOOGLE_API_KEY` |
+| `vertex`, `gemini` | `gemini-3.1-flash-lite` | Google Gemini Enterprise Platform (Vertex AI) — use ADC by default with `vertex` and set `judge.project` + `judge.location` (or `GOOGLE_CLOUD_PROJECT` + `GOOGLE_CLOUD_LOCATION`); use `GOOGLE_API_KEY` with `gemini`. |
 | `bedrock` | `us.anthropic.claude-haiku-4-5-20251001-v1:0` | `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` |
 | `azure-openai` | user-provided deployment name | `AZURE_OPENAI_API_KEY` + `AZURE_OPENAI_ENDPOINT` + `AZURE_OPENAI_API_VERSION` |
 
@@ -410,9 +424,9 @@ JUDGE_MODEL=gpt-4.1
 OPENAI_API_KEY=sk-...
 # Anthropic
 ANTHROPIC_API_KEY=sk-ant-...
-# Google Gemini Developer API
+# Google Gemini Enterprise Platform (Vertex AI)
 GOOGLE_API_KEY=...
-# Google Vertex AI — uses Workload Identity / Application Default Credentials (no API key)
+# Or use Workload Identity / Application Default Credentials instead of an API key
 GOOGLE_CLOUD_PROJECT=my-gcp-project
 GOOGLE_CLOUD_LOCATION=global
 # AWS Bedrock
