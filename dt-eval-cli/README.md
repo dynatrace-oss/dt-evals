@@ -296,7 +296,7 @@ judge:
   model: gpt-4.1
   timeout: 30000
   maxRetries: 2
-  concurrency: 5         # parallel judge calls; --concurrency overrides this
+  concurrency: 5
 
 scope:
   service: travel-assistant
@@ -319,9 +319,6 @@ alerts:
     relevance: 0.7
     answer-completeness: 0.8
 
-# Off by default — the evaluated prompt/response are not written back to Dynatrace.
-# Set to true to include gen_ai.evaluation.input.question/.answer/.system_prompt
-# in the result bizevents. Overridable per-invocation with --store-evaluated-prompt.
 storeEvaluatedPrompt: false
 ```
 
@@ -344,10 +341,8 @@ and `destination` (write):
 dynatrace:
   origin:
     environmentUrl: https://prod.live.dynatrace.com
-    # apiToken: use DT_ORIGIN_API_TOKEN env var — needs storage:spans:read, storage:buckets:read
   destination:
     environmentUrl: https://eval-results.dev.apps.dynatracelabs.com
-    # apiToken: use DT_DESTINATION_API_TOKEN env var — needs storage:bizevents:read (drift), storage:events:write, storage:metrics:write
 ```
 
 Top-level `environmentUrl` / `apiToken` (if present) act as fallbacks — if
@@ -393,11 +388,11 @@ scope:
   service: my-llm-service
   since: 30m
   spanFields:
-    input: span.input                  # or [span.input, my.custom.input]
-    output: span.output
-    context: span.context              # can point to any span field the user wants as evaluator context, e.g. RAG context or system prompt
-    systemInstruction: span.system
-    model: span.model
+    input: custom.user_query           # or [custom.user_query, custom.prompt]
+    output: custom.llm_response
+    context: custom.rag_context        # any span field — e.g. RAG context, system prompt
+    systemInstruction: custom.system_prompt
+    model: custom.model_id
 ```
 
 **Example 2 — OTel GenAI plural form** (some Bedrock / Vertex SDK
@@ -427,13 +422,13 @@ turn in isolation, not the joined transcript:
 ```yaml
 metrics:
   enabled:
-    - faithfulness                                  # legacy string form
+    - faithfulness                                  # plain string form
     - id: user-frustration
       inputs:
-        input: userPrompt                           # latest user-role prompt slot
+        input: userPrompt
     - id: hallucination
       inputs:
-        context: context                            # use the canonical context field for this metric
+        context: context
 ```
 
 Available canonical fields: `input`, `output`, `context`,
@@ -466,23 +461,17 @@ scope:
   sampling:
     strategy: latest
     count: 50
-  # Map custom span attributes to canonical fields. Defaults handle OTel
-  # GenAI semconv + OpenLLMetry; override only what you need.
   spanFields:
-    context: span.context              # can point to any span field the user wants as evaluator context, e.g. RAG context or system prompt
+    context: span.context
     output: [gen_ai.output.message, gen_ai.output.messages]
     # input, systemInstruction, model use built-in defaults
 
 metrics:
   enabled:
-    # Plain string form — uses span.input / span.output / span.context
     - faithfulness
     - relevance
     - hallucination
     - answer-completeness
-    # Object form — overrides which canonical span field feeds the
-    # evaluator's `input` slot. user-frustration scores the user's turn
-    # alone instead of the full joined transcript.
     - id: user-frustration
       inputs:
         input: userPrompt
@@ -517,7 +506,6 @@ OPENAI_BASE_URL=https://your-gateway.example.com/v1
 ANTHROPIC_API_KEY=sk-ant-...
 ANTHROPIC_BASE_URL=https://your-proxy.example.com
 
-# Gemini Developer API
 GOOGLE_API_KEY=...
 
 # Vertex AI — authenticates via Workload Identity / Application Default Credentials (no API key).
@@ -656,10 +644,7 @@ OpenLLMetry-style attributes (`gen_ai.prompt.<n>.content/role`, `gen_ai.completi
 # from the repo root — install all workspace dependencies
 npm install
 
-# build the library
 npm run build --workspace=dt-eval-lib
-
-# build the CLI
 npm run build --workspace=dt-eval-cli
 ```
 
