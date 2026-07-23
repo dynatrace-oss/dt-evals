@@ -127,7 +127,7 @@ describe('config', () => {
 
       expect(config.scope.since).toBe('1h');
       expect(config.scope.sampling.strategy).toBe('random');
-      expect(config.scope.sampling.percent).toBe(100);
+      expect(config.scope.sampling.percent).toBe(5);
       expect(config.metrics.enabled).toEqual(['toxicity', 'relevance', 'faithfulness']);
       expect(config.judge.timeout).toBe(30000);
       expect(config.judge.maxRetries).toBe(2);

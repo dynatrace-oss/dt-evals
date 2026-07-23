@@ -259,7 +259,6 @@ dt-evals status
 
 ---
 
-
 ## Required Dynatrace Permissions
 
 ### dt-evals CLI
