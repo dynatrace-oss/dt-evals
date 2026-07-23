@@ -13,6 +13,15 @@ Minimal TypeScript library for running LLM-as-a-judge evaluations.
 npm install @dynatrace-oss/dt-eval-lib
 ```
 
+Then install the peer dependency for your provider:
+
+| Provider | Peer dependency |
+|----------|-----------------|
+| `openai`, `azure-openai` | `npm install openai` |
+| `anthropic` | `npm install @anthropic-ai/sdk` |
+| `vertex`, `gemini` | `npm install @google/genai` |
+| `bedrock` | `npm install @aws-sdk/client-bedrock-runtime` |
+
 ## Build
 
 ```bash
