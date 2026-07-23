@@ -375,9 +375,14 @@ For `dt-evals alerts apply` (Dynatrace Workflows), grant these additionally on t
 ### Custom span field mapping
 
 By default, the CLI reads OTel GenAI semconv (`gen_ai.input.messages`,
-`gen_ai.output.messages`, `gen_ai.output.message`, …) and OpenLLMetry conventions (`gen_ai.prompt.N.*`,
-`gen_ai.completion.0.content`). If your spans expose the LLM I/O under
-different attribute names, point the CLI at them via `scope.spanFields`.
+`gen_ai.output.messages`, `gen_ai.output.message`, …). It also probes a
+small set of legacy fallback attributes (`gen_ai.prompt.N.*`,
+`gen_ai.completion.0.content`) for compatibility with older emitters. If
+your spans expose the LLM I/O under different attribute names — for
+example OpenInference (`llm.input_messages`, `llm.output_messages`,
+`llm.model_name`) — point the CLI at them via `scope.spanFields`. See the
+[`dynatrace-ai-agent-instrumentation-examples`](https://github.com/dynatrace-oss/dynatrace-ai-agent-instrumentation-examples)
+for end-to-end instrumentation examples.
 Each entry accepts a single attribute or a list of candidates; the first
 non-null value wins, with the built-in defaults appended as fallback.
 
@@ -395,7 +400,24 @@ scope:
     model: custom.model_id
 ```
 
-**Example 2 — OTel GenAI plural form** (some Bedrock / Vertex SDK
+**Example 2 — OpenInference spans:**
+
+```yaml
+scope:
+  service: my-openinference-service
+  since: 30m
+  spanFields:
+    input: [llm.input_messages, input.value]
+    output: [llm.output_messages, output.value]
+    model: llm.model_name
+```
+
+OpenInference usually stores chat turns in `llm.input_messages` /
+`llm.output_messages` and plain-text payloads in `input.value` /
+`output.value`, so listing both keeps the mapping resilient across
+instrumentations.
+
+**Example 3 — OTel GenAI plural form** (some Bedrock / Vertex SDK
 emitters serialize the full message array under the plural attribute
 name `gen_ai.output.messages` instead of the singular `gen_ai.output.message`):
 
@@ -636,7 +658,16 @@ The CLI reads OTel GenAI semconv fields by default:
 | `model` | `gen_ai.request.model` |
 | `systemInstruction` | `gen_ai.system_instruction` |
 
-OpenLLMetry-style attributes (`gen_ai.prompt.<n>.content/role`, `gen_ai.completion.0.content`) are probed as fallbacks. Use `scope.spanFields` to override any of these — see [Custom span field mapping](#custom-span-field-mapping).
+This makes the CLI a good fit for apps instrumented with OpenTelemetry
+GenAI conventions. For other tracing schemas — including OpenInference —
+use `scope.spanFields` to map their attributes to the canonical fields
+above. OpenInference commonly uses attributes such as
+`llm.input_messages`, `llm.output_messages`, `input.value`,
+`output.value`, and `llm.model_name`. A small set of legacy fallback attributes
+(`gen_ai.prompt.<n>.content/role`, `gen_ai.completion.0.content`) is also
+probed for compatibility with older emitters. See
+[`dynatrace-ai-agent-instrumentation-examples`](https://github.com/dynatrace-oss/dynatrace-ai-agent-instrumentation-examples)
+for example instrumentations.
 
 ## Local Development
 
