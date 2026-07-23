@@ -158,28 +158,28 @@ const tox = getPrompt(BuiltInMetric.Toxicity);    // single metric by ID
 ## Configuration
 
 ```ts
-import type { EvalConfig } from "@dynatrace-oss/dt-eval-lib";
+import type { EvalConfig, EvalInput } from "@dynatrace-oss/dt-eval-lib";
 
+// What you pass to evaluate()
+const input: EvalInput = {
+  input: "What is the capital of France?",    // required — the user query
+  output: "The capital of France is Paris.",  // required — the LLM response to evaluate
+  context: "...",                              // optional — retrieved documents (RAG)
+  expectedOutput: "...",                       // optional — reference answer
+};
+
+// How to run the evaluation
 const config: EvalConfig = {
   provider: {
-    provider: "openai",          // "openai" | "anthropic" | "vertex" | "gemini"
-    apiKey: "sk-...",            // optional if env var is set
-    baseUrl: "https://...",      // optional (openai/anthropic only)
-    model: "gpt-4.1",           // optional — defaults to gpt-4.1 / claude-sonnet-4-6 / gemini-2.5-pro (vertex) / gemini-2.5-flash (gemini)
-    timeout: 30000,              // optional — request timeout in ms (default 30000)
-    maxRetries: 2,               // optional — retries on transient errors (default 2)
+    provider: "openai",  // "openai" | "anthropic" | "azure-openai" | "vertex" | "gemini" | "bedrock"
+    apiKey: "sk-...",    // optional if env var is set
+    baseUrl: "https://", // optional — openai and anthropic only
+    model: "...",        // optional — see src/engine/providers/index.ts for per-provider defaults
+    timeout: 30000,      // optional — request timeout in ms (default: 30000)
+    maxRetries: 2,       // optional — retries on transient errors (default: 2)
   },
   scoring: {
-    thresholdOverride: 0.8,      // optional — override the metric's default threshold
+    thresholdOverride: 0.8, // optional — override the metric's pass threshold (default: 0.5)
   },
 };
-```
-
-## Threshold Override
-
-```ts
-const result = await evaluate(BuiltInMetric.Relevance, input, {
-  provider: { provider: "openai", apiKey: "sk-..." },
-  scoring: { thresholdOverride: 0.8 }, // stricter than default 0.5
-});
 ```

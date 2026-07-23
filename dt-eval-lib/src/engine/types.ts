@@ -21,7 +21,7 @@ export interface ProviderOptions {
   project?: string;
   /** GCP region for Vertex AI (e.g. "global" or "us-central1"). Falls back to GOOGLE_CLOUD_LOCATION env var. Default: global. */
   location?: string;
-  /** Model override — defaults to gpt-4.1 / claude-sonnet-4-6 / gemini-2.5-pro (vertex) / gemini-2.5-flash (gemini) */
+  /** Model override — see DEFAULT_MODELS in src/engine/providers/index.ts for per-provider defaults */
   model?: string;
   /** Request timeout in ms — default 30000 */
   timeout?: number;
