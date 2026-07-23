@@ -169,6 +169,7 @@ dt-evals run --since 2h --sample 20 --concurrency 8 --debug
 | `--concurrency <n>` | Number of parallel evaluation workers |
 | `--debug` | Per-step timing logs |
 | `--config <path>` | Path to a specific config file |
+| `--store-evaluated-prompt` | Include the evaluated prompt/response in bizevents written to Dynatrace (overrides `storeEvaluatedPrompt` in config; default: false) |
 
 **GitHub Actions example:**
 
@@ -258,20 +259,6 @@ dt-evals status
 
 ---
 
-### `deploy`
-
-Package and deploy the eval runner as a serverless function for continuous scheduled evaluation.
-
-```bash
-dt-evals deploy --provider aws      # AWS Lambda
-dt-evals deploy --provider gcp      # Google Cloud Run
-dt-evals deploy --provider azure    # Azure Functions
-dt-evals deploy --teardown          # Destroy deployed resources
-```
-
-See [`dt-eval-deploy`](dt-eval-deploy) for Docker-based deployment.
-
----
 
 ## Required Dynatrace Permissions
 
@@ -314,7 +301,7 @@ DT_API_TOKEN=dt0c01.xxxxx
 
 ## Built-in Evaluators
 
-13 built-in LLM judge evaluators plus statistical drift detection.
+14 built-in LLM judge evaluators plus statistical drift detection.
 
 | Evaluator | Measures |
 |-----------|----------|
@@ -340,14 +327,14 @@ DT_API_TOKEN=dt0c01.xxxxx
 
 | Provider | Default model | Notes |
 |----------|--------------|-------|
-| `openai` | `gpt-5.4` | `OPENAI_API_KEY` |
-| `anthropic` | `claude-sonnet-4-7` | `ANTHROPIC_API_KEY` |
-| `vertex` | `gemini-3-pro` | Workload Identity / ADC by default — set `judge.project` + `judge.location` (or `GOOGLE_CLOUD_PROJECT` + `GOOGLE_CLOUD_LOCATION`). No `GOOGLE_API_KEY` required. |
-| `gemini` | `gemini-3.1-flash-live` | `GOOGLE_API_KEY` |
-| `bedrock` | `anthropic.claude-opus-4-7` | `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` |
+| `openai` | `gpt-5-mini` | `OPENAI_API_KEY` |
+| `anthropic` | `claude-sonnet-4-6` | `ANTHROPIC_API_KEY` |
+| `vertex` | `gemini-3.1-flash-lite` | ADC by default — set `judge.project` + `judge.location` (or `GOOGLE_CLOUD_PROJECT` + `GOOGLE_CLOUD_LOCATION`). No `GOOGLE_API_KEY` required. |
+| `gemini` | `gemini-3.1-flash-lite` | `GOOGLE_API_KEY` |
+| `bedrock` | `us.anthropic.claude-haiku-4-5-20251001-v1:0` | `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` |
 | `azure-openai` | user-provided deployment name | `AZURE_OPENAI_API_KEY` + `AZURE_OPENAI_ENDPOINT` + `AZURE_OPENAI_API_VERSION` |
 
-Override the model with `--model <id>` or set `judge.model` in config.
+Override the model with `--model <id>` or set `judge.model` in config. See `dt-eval-cli/src/config/defaults.ts` for current defaults.
 
 ---
 
@@ -361,7 +348,7 @@ name: travel-assistant-prod
 
 dynatrace:
   environmentUrl: https://your-env.live.dynatrace.com
-  apiToken: dt0c01.xxxxx
+  # apiToken: use DT_API_TOKEN env var instead of hardcoding here
 
 judge:
   provider: openai
@@ -397,9 +384,7 @@ judge:
   provider: bedrock
   model: us.anthropic.claude-3-5-haiku-20241022-v1:0
   region: us-east-1
-  # or use AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY env vars
-  apiKey: <AWS_ACCESS_KEY_ID>
-  secretKey: <AWS_SECRET_ACCESS_KEY>
+  # credentials via AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY env vars, IAM role, or SSO
 ```
 
 **Azure OpenAI example:**
