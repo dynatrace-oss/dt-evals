@@ -270,6 +270,35 @@ describe('runEvals', () => {
     expect(result.resultsWritten).toBe(2);
   });
 
+  it('reports per-evaluator success ratios when one evaluator fails', async () => {
+    evaluate.mockImplementation((prompt: { id: string }) => {
+      if (prompt.id === 'relevance') {
+        return Promise.reject(new Error('relevance failed'));
+      }
+      return Promise.resolve({
+        score: { value: 0.9, label: 'pass' },
+        explanation: { summary: 'Good' },
+      });
+    });
+
+    const spans = [makeSpan({ traceId: 'trace-ratio' })];
+    const dtClient = makeDtClient(spans);
+    const config = makeConfig({ metrics: { enabled: ['toxicity', 'relevance'] } });
+
+    const result = await runEvals(
+      dtClient as unknown as import('../../src/dt/client.js').DynatraceClient,
+      config,
+      { since: '1h' },
+    );
+
+    expect(result.resultsWritten).toBe(1);
+    expect(result.errors).toBe(1);
+    expect(result.evaluatorResults).toEqual([
+      expect.objectContaining({ metric: 'toxicity', successes: 1, total: 1, errors: 0 }),
+      expect.objectContaining({ metric: 'relevance', successes: 0, total: 1, errors: 1 }),
+    ]);
+  });
+
   it('ci mode logs breaches', async () => {
     evaluate.mockResolvedValue({
       score: { value: 0.2, label: 'fail' },

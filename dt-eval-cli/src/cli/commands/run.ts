@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { loadConfig, validateConfig } from '../../config/index.js';
 import { resolveEndpoints, metricId } from '../../config/schema.js';
 import { DynatraceClient } from '../../dt/client.js';
-import { runEvals, type RunProgressEvent } from '../../runner/index.js';
+import { runEvals, type RunProgressEvent, type RunResult } from '../../runner/index.js';
 import { Spinner } from '../../ui/spinner.js';
 import { renderTable } from '../../ui/table.js';
 import { formatDuration } from '../../ui/format.js';
@@ -65,6 +65,23 @@ function evalErrorHint(messages: string[]): string | null {
   if (/context.*length|maximum.*token|too.*long/.test(combined))
     return 'Hint: input too long for the model. Try a model with a larger context window.';
   return null;
+}
+
+export function buildEvaluationResultRows(metrics: string[], result: RunResult): string[][] {
+  const byMetric = new Map(result.evaluatorResults.map(r => [r.metric, r]));
+  return metrics.map(m => {
+    const metricResult = byMetric.get(m);
+    const total = metricResult?.total ?? 0;
+    const successes = metricResult?.successes ?? 0;
+    const errors = metricResult?.errors ?? 0;
+
+    return [
+      m,
+      `${successes}/${total}`,
+      `${errors}/${total}`,
+      formatDuration(metricResult?.avgDurationMs ?? 0),
+    ];
+  });
 }
 
 export function createRunCommand(): Command {
@@ -164,13 +181,8 @@ export function createRunCommand(): Command {
         const metrics = options.metric ? [options.metric] : config.metrics.enabled.map(metricId);
 
         console.log('\nEvaluation results:');
-        const headers = ['Evaluator', 'Results', 'Errors', 'Duration'];
-        const rows = metrics.map(m => [
-          m,
-          String(Math.floor(result.resultsWritten / metrics.length)),
-          String(result.errors > 0 ? Math.ceil(result.errors / metrics.length) : 0),
-          formatDuration(result.durationMs),
-        ]);
+        const headers = ['Evaluator', 'Results', 'Errors', 'Avg Duration'];
+        const rows = buildEvaluationResultRows(metrics, result);
         console.log(renderTable(headers, rows));
 
         console.log(`\nRun ${result.runId} complete in ${formatDuration(result.durationMs)}`);

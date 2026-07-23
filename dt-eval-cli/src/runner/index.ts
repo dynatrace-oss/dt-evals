@@ -56,6 +56,15 @@ export interface RunResult {
   errorSamples: string[];   // deduplicated sample of error messages for user display
   thresholdBreaches: Array<{ metric: string; traceId: string; score: number }>;
   durationMs: number;
+  evaluatorResults: EvaluatorRunResult[];
+}
+
+export interface EvaluatorRunResult {
+  metric: string;
+  successes: number;
+  total: number;
+  errors: number;
+  avgDurationMs: number;
 }
 
 interface EvalTask {
@@ -99,6 +108,14 @@ interface EvalTaskResult {
   evalResult: EvalResult;
   /** The exact input the judge was given — may be a routed subset of span fields. */
   evalInput: EvalInput;
+}
+
+interface EvaluatorRunStats {
+  metric: string;
+  successes: number;
+  total: number;
+  errors: number;
+  durationMs: number;
 }
 
 export type { EvalResult };
@@ -174,6 +191,11 @@ export async function runEvals(
   const tasks: EvalTask[] = maskedSpans.flatMap(span =>
     evalEntries.map(entry => ({ span, metric: metricId(entry), inputs: metricInputs(entry) })),
   );
+  const evaluatorStats = new Map<string, EvaluatorRunStats>();
+  for (const entry of evalEntries) {
+    const id = metricId(entry);
+    evaluatorStats.set(id, { metric: id, successes: 0, total: 0, errors: 0, durationMs: 0 });
+  }
 
   if (opts.dryRun) {
     console.log(JSON.stringify({ runId, tasks: tasks.length, spans: maskedSpans.length, metrics: metricIds }, null, 2));
@@ -185,6 +207,13 @@ export async function runEvals(
       errorSamples: [],
       thresholdBreaches: [],
       durationMs: Date.now() - startTime,
+      evaluatorResults: [...evaluatorStats.values()].map(s => ({
+        metric: s.metric,
+        successes: s.successes,
+        total: s.total,
+        errors: s.errors,
+        avgDurationMs: 0,
+      })),
     };
   }
 
@@ -231,6 +260,12 @@ export async function runEvals(
         evalCount++;
         const elapsed = Date.now() - t0;
         logger.debug(`eval [${evalCount}/${tasks.length}] ${task.metric} ${judgeProvider}/${judgeModel} trace=${task.span.traceId.slice(0, 8)}… ${elapsed}ms score=${evalResult.score.value}`);
+        const stats = evaluatorStats.get(task.metric);
+        if (stats) {
+          stats.total++;
+          stats.successes++;
+          stats.durationMs += elapsed;
+        }
         emit?.({
           phase: 'eval-completed',
           completed: evalCount,
@@ -244,6 +279,12 @@ export async function runEvals(
         evalCount++;
         evalErrors++;
         const elapsed = Date.now() - t0;
+        const stats = evaluatorStats.get(task.metric);
+        if (stats) {
+          stats.total++;
+          stats.errors++;
+          stats.durationMs += elapsed;
+        }
         emit?.({
           phase: 'eval-completed',
           completed: evalCount,
@@ -285,6 +326,13 @@ export async function runEvals(
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
     .map(([msg, count]) => count > 1 ? `${msg} (×${count})` : msg);
+  const evaluatorResults: EvaluatorRunResult[] = [...evaluatorStats.values()].map(s => ({
+    metric: s.metric,
+    successes: s.successes,
+    total: s.total,
+    errors: s.errors,
+    avgDurationMs: s.total > 0 ? Math.round(s.durationMs / s.total) : 0,
+  }));
 
   // 8. Write bizevents
   if (!emit) logger.step('Writing bizevents...');
@@ -347,6 +395,7 @@ export async function runEvals(
     errorSamples,
     thresholdBreaches,
     durationMs: Date.now() - startTime,
+    evaluatorResults,
   };
 
   if (!emit) logger.success(`Run complete: ${payloads.length} results written`);
