@@ -20,32 +20,29 @@ export async function processBatch<T, R>(
   config?: Partial<BatchConfig>,
 ): Promise<Array<BatchItemResult<T, R>>> {
   const { concurrency } = { ...DEFAULT_BATCH_CONFIG, ...config };
-  const results: Array<BatchItemResult<T, R>> = [];
+  if (!Number.isInteger(concurrency) || concurrency <= 0) {
+    throw new Error(`concurrency must be a positive integer, got ${concurrency}`);
+  }
 
-  // Process with concurrency limit using a semaphore-like approach
-  const queue = [...items];
-  const inFlight: Promise<void>[] = [];
+  const results = new Array<BatchItemResult<T, R>>(items.length);
+  let nextIndex = 0;
 
-  async function processItem(item: T): Promise<void> {
-    try {
-      const result = await handler(item);
-      results.push({ item, result });
-    } catch (err) {
-      results.push({
-        item,
-        error: err instanceof Error ? err : new Error(String(err)),
-      });
+  async function worker(): Promise<void> {
+    while (nextIndex < items.length) {
+      const index = nextIndex++;
+      const item = items[index]!;
+      try {
+        results[index] = { item, result: await handler(item) };
+      } catch (err) {
+        results[index] = {
+          item,
+          error: err instanceof Error ? err : new Error(String(err)),
+        };
+      }
     }
   }
 
-  // Chunk into groups and run concurrently within each group
-  for (let i = 0; i < items.length; i += concurrency) {
-    const batch = items.slice(i, i + concurrency);
-    const batchPromises = batch.map(item => processItem(item));
-    await Promise.all(batchPromises);
-  }
-
-  // Maintain original order
-  void inFlight;
+  const workerCount = Math.min(concurrency, items.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
   return results;
 }
