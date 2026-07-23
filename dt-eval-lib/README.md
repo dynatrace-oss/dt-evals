@@ -73,51 +73,75 @@ All built-in metrics return a **continuous** score in `[0.0, 1.0]`. The score is
 
 ## Providers
 
-Supports **OpenAI**, **Anthropic**, **Vertex AI**, and **Gemini Developer API**. Configure via API key in code or environment variables.
+Supports **OpenAI**, **Anthropic**, **Azure OpenAI**, **Vertex AI**, **Gemini Developer API**, and **Amazon Bedrock**. Configure via explicit options in code or environment variables.
 
 ### Environment Variables
 
 ```bash
 # OpenAI
-export OPENAI_API_KEY="sk-..."
-export OPENAI_BASE_URL="https://your-proxy.example.com/v1"  # optional
+OPENAI_API_KEY=sk-...
+OPENAI_BASE_URL=https://your-proxy.example.com/v1  # optional
 
 # Anthropic
-export ANTHROPIC_API_KEY="sk-ant-..."
-export ANTHROPIC_BASE_URL="https://your-proxy.example.com"  # optional
-
-# Google AI (Vertex AI & Gemini) — API key
-export GOOGLE_API_KEY="AIza..."
-```
-
-Or use a `.env` file (not committed to git):
-
-```bash
-OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
-OPENAI_BASE_URL=https://your-proxy.example.com/v1
-ANTHROPIC_BASE_URL=https://your-proxy.example.com
+ANTHROPIC_BASE_URL=https://your-proxy.example.com  # optional
+
+# Azure OpenAI (all three required)
+AZURE_OPENAI_API_KEY=...
+AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com
+AZURE_OPENAI_API_VERSION=2024-02-01
+
+# Vertex AI — ADC path (no API key needed)
+GOOGLE_CLOUD_PROJECT=my-gcp-project
+GOOGLE_CLOUD_LOCATION=us-central1  # optional, defaults to "global"
+
+# Gemini Developer API
 GOOGLE_API_KEY=AIza...
+
+# Amazon Bedrock — static credentials (optional if using IAM roles / SSO)
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+AWS_DEFAULT_REGION=us-east-1  # optional, defaults to "us-east-1"
 ```
+
+Config is resolved in this order for each option:
+
+1. Explicit value in `provider` options
+2. Environment variable
 
 ### Vertex AI Setup
 
-1. Get an API key from [Google Cloud Console](https://console.cloud.google.com/apis/credentials) (Vertex AI Express Mode)
-2. Set `GOOGLE_API_KEY` env var (or pass `apiKey` in provider config)
+Vertex AI supports two auth paths:
+
+**Application Default Credentials (ADC) — recommended for GKE / Cloud Run:**
 
 ```ts
 await evaluate(BuiltInMetric.Toxicity, input, {
   provider: {
     provider: "vertex",
-    apiKey: "AQ...",
+    project: "my-gcp-project",  // or set GOOGLE_CLOUD_PROJECT
+    location: "us-central1",    // or set GOOGLE_CLOUD_LOCATION (default: "global")
   },
 });
 ```
 
+**Explicit API key (Vertex AI Express Mode):**
+
+```ts
+await evaluate(BuiltInMetric.Toxicity, input, {
+  provider: {
+    provider: "vertex",
+    apiKey: "AQ...",  // must be set in code — GOOGLE_API_KEY env var is intentionally ignored for vertex
+  },
+});
+```
+
+> **Note:** `GOOGLE_API_KEY` is not read for the `vertex` provider — it is only used by `gemini`. Pass `apiKey` explicitly in config if you need key-based auth for Vertex.
+
 ### Gemini Developer API Setup
 
 1. Get an API key from [Google AI Studio](https://aistudio.google.com/apikey)
-2. Set `GOOGLE_API_KEY` env var (or pass `apiKey` in provider config)
+2. Set `GOOGLE_API_KEY` or pass `apiKey` in config
 
 ```ts
 await evaluate(BuiltInMetric.Toxicity, input, {
@@ -128,28 +152,39 @@ await evaluate(BuiltInMetric.Toxicity, input, {
 });
 ```
 
-> **Note:** Both `vertex` and `gemini` use the `@google/genai` SDK and require Node.js ≥ 20.
+### Azure OpenAI Setup
 
-When calling `evaluate()`, the library resolves config in this order:
-
-1. Explicit value in `provider` options (e.g., `provider.apiKey`, `provider.baseUrl`)
-2. Environment variable (`OPENAI_API_KEY`, `OPENAI_BASE_URL`, etc.)
+`apiKey`, `baseUrl` (endpoint), `apiVersion`, and `model` (deployment name) are all required — Azure deployment names are user-defined so there is no default model.
 
 ```ts
-// Option 1: explicit config
 await evaluate(BuiltInMetric.Toxicity, input, {
   provider: {
-    provider: "openai",
-    apiKey: "sk-...",
-    baseUrl: "https://your-proxy.example.com/v1",
+    provider: "azure-openai",
+    apiKey: "...",                                    // or AZURE_OPENAI_API_KEY
+    baseUrl: "https://<resource>.openai.azure.com",  // or AZURE_OPENAI_ENDPOINT
+    apiVersion: "2024-02-01",                         // or AZURE_OPENAI_API_VERSION
+    model: "my-gpt4-deployment",                      // deployment name — required, no default
   },
 });
+```
 
-// Option 2: env vars (no apiKey/baseUrl needed)
+### Amazon Bedrock Setup
+
+Bedrock uses the AWS SDK credential chain. Static credentials are optional — IAM roles, SSO, and `AWS_PROFILE` are all resolved automatically.
+
+```ts
 await evaluate(BuiltInMetric.Toxicity, input, {
-  provider: { provider: "openai" },
+  provider: {
+    provider: "bedrock",
+    model: "us.anthropic.claude-3-5-haiku-20241022-v1:0",  // optional — this is the default
+    region: "us-east-1",                                    // or AWS_DEFAULT_REGION / AWS_REGION
+    apiKey: "...",                                           // optional — AWS_ACCESS_KEY_ID
+    secretKey: "...",                                        // optional — AWS_SECRET_ACCESS_KEY
+  },
 });
 ```
+
+> **Note:** `vertex` and `gemini` both use the `@google/genai` SDK; `azure-openai` and `openai` both use the `openai` SDK.
 
 ## Metric Identification
 
