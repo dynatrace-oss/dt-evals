@@ -288,7 +288,6 @@ name: travel-assistant-prod
 
 dynatrace:
   environmentUrl: https://your-env.live.dynatrace.com
-  # apiToken: use DT_API_TOKEN env var instead of hardcoding here
   dtctlContext: my-prod-context
 
 judge:
@@ -386,21 +385,24 @@ for end-to-end instrumentation examples.
 Each entry accepts a single attribute or a list of candidates; the first
 non-null value wins, with the built-in defaults appended as fallback.
 
-**Example 1 — non-semconv spans:**
+**Example 1 — OTel GenAI variant** (some Bedrock / Vertex SDK emitters
+serialize the full message array under the plural attribute
+`gen_ai.output.messages` instead of the singular
+`gen_ai.output.message`):
 
 ```yaml
 scope:
-  service: my-llm-service
-  since: 30m
+  service: pydantic-ai-music-agent
   spanFields:
-    input: custom.user_query           # or [custom.user_query, custom.prompt]
-    output: custom.llm_response
-    context: custom.rag_context        # any span field — e.g. RAG context, system prompt
-    systemInstruction: custom.system_prompt
-    model: custom.model_id
+    output: [gen_ai.output.message, gen_ai.output.messages]
 ```
 
-**Example 2 — OpenInference spans:**
+The runner stringifies whatever it finds, so a JSON array under
+`gen_ai.output.messages` reaches the judge as the assistant turn(s).
+This is still OTel GenAI-compatible — `spanFields` just lets you handle
+emitter-specific variants explicitly.
+
+**Example 2 — non-OTel spans (OpenInference):**
 
 ```yaml
 scope:
@@ -416,22 +418,6 @@ OpenInference usually stores chat turns in `llm.input_messages` /
 `llm.output_messages` and plain-text payloads in `input.value` /
 `output.value`, so listing both keeps the mapping resilient across
 instrumentations.
-
-**Example 3 — OTel GenAI plural form** (some Bedrock / Vertex SDK
-emitters serialize the full message array under the plural attribute
-name `gen_ai.output.messages` instead of the singular `gen_ai.output.message`):
-
-```yaml
-scope:
-  service: pydantic-ai-music-agent
-  spanFields:
-    output: gen_ai.output.messages     # JSON-encoded array of {role, parts}
-```
-
-The runner stringifies whatever it finds, so a JSON array under
-`gen_ai.output.messages` reaches the judge as the assistant turn(s).
-This is convention-friendly: list every variant you've seen and the
-parser walks them in order.
 
 ### Per-metric input routing
 

@@ -361,7 +361,6 @@ name: travel-assistant-prod
 
 dynatrace:
   environmentUrl: https://your-env.live.dynatrace.com
-  # apiToken: use DT_API_TOKEN env var instead of hardcoding here
 
 judge:
   provider: openai
