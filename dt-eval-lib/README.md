@@ -50,23 +50,26 @@ console.log(result.explanation); // { summary: "...", reasoning: "..." }
 
 ## Available Metrics
 
-| Metric | Enum | Type | Required Fields |
-|--------|------|------|-----------------|
-| `toxicity` | `BuiltInMetric.Toxicity` | binary | input, output |
-| `faithfulness` | `BuiltInMetric.Faithfulness` | continuous | input, output, context |
-| `hallucination` | `BuiltInMetric.Hallucination` | binary | input, output, context |
-| `pii-leakage` | `BuiltInMetric.PiiLeakage` | binary | input, output |
-| `relevance` | `BuiltInMetric.Relevance` | continuous | input, output |
-| `factual-accuracy` | `BuiltInMetric.FactualAccuracy` | continuous | input, output, expectedOutput |
-| `user-frustration` | `BuiltInMetric.UserFrustration` | binary | input |
-| `context-relevance` | `BuiltInMetric.ContextRelevance` | continuous | input, context |
-| `answer-completeness` | `BuiltInMetric.AnswerCompleteness` | continuous | input, output |
-| `prompt-injection` | `BuiltInMetric.PromptInjection` | binary | input, output |
-| `bias` | `BuiltInMetric.Bias` | binary | input, output |
-| `summarization-quality` | `BuiltInMetric.SummarizationQuality` | continuous | input, output |
-| `conciseness` | `BuiltInMetric.Conciseness` | continuous | input, output |
+All built-in metrics return a **continuous** score in `[0.0, 1.0]`. The score is labeled `"pass"` when `value >= threshold` and `"fail"` otherwise. Every built-in metric defaults to `threshold: 0.5` — override it per-call via `EvalConfig.scoring.thresholdOverride`. Source of truth: [`src/prompts/catalog-data.ts`](src/prompts/catalog-data.ts).
 
-> **Note:** The "Required Fields" column lists the `EvalInput` property names you pass to `evaluate()`.
+| Metric | Enum | Score range | Fields used from `EvalInput` |
+|--------|------|-------------|-------------------------------|
+| `answer-completeness` | `BuiltInMetric.AnswerCompleteness` | 0.0 – 1.0 | `input`, `output` |
+| `bias` | `BuiltInMetric.Bias` | 0.0 – 1.0 | `input`, `output` |
+| `conciseness` | `BuiltInMetric.Conciseness` | 0.0 – 1.0 | `input`, `output` |
+| `context-relevance` | `BuiltInMetric.ContextRelevance` | 0.0 – 1.0 | `input` |
+| `factual-accuracy` | `BuiltInMetric.FactualAccuracy` | 0.0 – 1.0 | `input`, `output` |
+| `faithfulness` | `BuiltInMetric.Faithfulness` | 0.0 – 1.0 | `input`, `output` |
+| `fluency` | `BuiltInMetric.Fluency` | 0.0 – 1.0 | `input`, `output` |
+| `hallucination` | `BuiltInMetric.Hallucination` | 0.0 – 1.0 | `input`, `output` |
+| `pii-leakage` | `BuiltInMetric.PiiLeakage` | 0.0 – 1.0 | `input`, `output` |
+| `prompt-injection` | `BuiltInMetric.PromptInjection` | 0.0 – 1.0 | `input` |
+| `relevance` | `BuiltInMetric.Relevance` | 0.0 – 1.0 | `input`, `output` |
+| `summarization-quality` | `BuiltInMetric.SummarizationQuality` | 0.0 – 1.0 | `input`, `output` |
+| `toxicity` | `BuiltInMetric.Toxicity` | 0.0 – 1.0 | `output` |
+| `user-frustration` | `BuiltInMetric.UserFrustration` | 0.0 – 1.0 | `input` |
+
+> **Note:** The "Fields used" column lists which fields the metric prompt actually reads. `EvalInput.output` is required at the TypeScript type level for all calls — pass `output: ""` for metrics that only use `input`.
 
 ## Providers
 
@@ -164,7 +167,7 @@ Use `listPrompts()` and `getPrompt()` to discover available metrics:
 ```ts
 import { listPrompts, getPrompt, BuiltInMetric } from "@dynatrace-oss/dt-eval-lib";
 
-const all = listPrompts();                        // all 13 built-in metrics
+const all = listPrompts();                        // all 14 built-in metrics
 const tox = getPrompt(BuiltInMetric.Toxicity);    // single metric by ID
 ```
 
