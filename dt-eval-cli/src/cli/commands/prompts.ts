@@ -5,6 +5,7 @@ import { loadConfig } from '../../config/index.js';
 import { renderTable } from '../../ui/table.js';
 import { Spinner } from '../../ui/spinner.js';
 import { logger } from '../../logger/index.js';
+import { buildCustomScoring } from './custom-scoring.js';
 
 export function createPromptsCommand(): Command {
   const cmd = new Command('prompts');
@@ -112,10 +113,10 @@ export function createPromptsCommand(): Command {
         description: description || name,
         prompt: template,
         requiredFields: requiredFields as ('input' | 'output' | 'context' | 'expectedOutput')[],
-        scoring: {
-          type: scoringType as 'continuous' | 'binary' | 'likert',
+        scoring: buildCustomScoring(
+          scoringType as 'continuous' | 'binary' | 'likert',
           threshold,
-        } as Parameters<typeof createCustomPrompt>[0]['scoring'],
+        ),
       });
       logger.success(`Custom prompt "${id}" created`);
     } catch (err) {

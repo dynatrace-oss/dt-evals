@@ -577,6 +577,48 @@ Drift results are written back as the same event type with `gen_ai.evaluation.ty
 | `summarization-quality` | Summary faithfulness, coverage, and conciseness | `input`, `output` |
 | `conciseness` | Whether the answer avoids filler and unnecessary padding | `input`, `output` |
 
+### Custom evaluators
+
+You can create a custom judge metric with `dt-evals evaluators add`, then
+enable it in `metrics.enabled` like any built-in evaluator.
+
+**Example custom evaluator definition** (created by the interactive wizard
+and stored locally):
+
+```json
+{
+  "id": "answer-style",
+  "version": "1",
+  "name": "Answer Style",
+  "description": "Checks whether the answer is concise, direct, and well structured.",
+  "prompt": "Evaluate the answer style for this request. User request: {{input}} Answer: {{output}} Return a continuous score from 0.0 to 1.0.",
+  "requiredFields": ["input", "output"],
+  "scoring": {
+    "type": "continuous",
+    "range": [0, 1],
+    "threshold": 0.7
+  }
+}
+```
+
+Enable it in your eval config:
+
+```yaml
+metrics:
+  enabled:
+    - faithfulness
+    - answer-style
+```
+
+Useful commands:
+
+```bash
+dt-evals evaluators add
+dt-evals evaluators list
+dt-evals evaluators show answer-style
+dt-evals evaluators test answer-style
+```
+
 ### Drift detection
 
 `drift` compares current score distributions against a 7 day baseline of prior evaluation events.
