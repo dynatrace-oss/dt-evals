@@ -39,7 +39,7 @@ export const DEFAULT_CONFIG: Omit<DtEvalConfig, 'dynatrace' | 'judge'> & {
     since: '1h',
     sampling: {
       strategy: 'random',
-      percent: 100,
+      percent: 5,
     },
   },
   metrics: {
