@@ -111,50 +111,11 @@ Config is resolved in this order for each option:
 
 ### Vertex AI Setup
 
-Vertex AI supports two auth paths:
-
-**Application Default Credentials (ADC) — recommended for GKE / Cloud Run:**
-
-```ts
-await evaluate(BuiltInMetric.Toxicity, input, {
-  provider: {
-    provider: "vertex",
-    project: "my-gcp-project",  // or set GOOGLE_CLOUD_PROJECT
-    location: "us-central1",    // or set GOOGLE_CLOUD_LOCATION (default: "global")
-  },
-});
-```
-
-**Explicit API key (Vertex AI Express Mode):**
-
-```ts
-await evaluate(BuiltInMetric.Toxicity, input, {
-  provider: {
-    provider: "vertex",
-    apiKey: "AQ...",  // must be set in code — GOOGLE_API_KEY env var is intentionally ignored for vertex
-  },
-});
-```
-
-> **Note:** `GOOGLE_API_KEY` is not read for the `vertex` provider — it is only used by `gemini`. Pass `apiKey` explicitly in config if you need key-based auth for Vertex.
-
-### Gemini Developer API Setup
-
-1. Get an API key from [Google AI Studio](https://aistudio.google.com/apikey)
-2. Set `GOOGLE_API_KEY` or pass `apiKey` in config
-
-```ts
-await evaluate(BuiltInMetric.Toxicity, input, {
-  provider: {
-    provider: "gemini",
-    apiKey: "AIza...",
-  },
-});
-```
+Uses Application Default Credentials (ADC) by default — no API key needed when running on GKE or Cloud Run with Workload Identity. Pass `apiKey` explicitly in config for key-based auth (Vertex AI Express Mode).
 
 ### Azure OpenAI Setup
 
-`apiKey`, `baseUrl` (endpoint), `apiVersion`, and `model` (deployment name) are all required — Azure deployment names are user-defined so there is no default model.
+All four fields are required — `model` is your Azure deployment name, which is user-defined and has no default.
 
 ```ts
 await evaluate(BuiltInMetric.Toxicity, input, {
@@ -163,26 +124,14 @@ await evaluate(BuiltInMetric.Toxicity, input, {
     apiKey: "...",                                    // or AZURE_OPENAI_API_KEY
     baseUrl: "https://<resource>.openai.azure.com",  // or AZURE_OPENAI_ENDPOINT
     apiVersion: "2024-02-01",                         // or AZURE_OPENAI_API_VERSION
-    model: "my-gpt4-deployment",                      // deployment name — required, no default
+    model: "my-gpt4-deployment",                      // your deployment name
   },
 });
 ```
 
 ### Amazon Bedrock Setup
 
-Bedrock uses the AWS SDK credential chain. Static credentials are optional — IAM roles, SSO, and `AWS_PROFILE` are all resolved automatically.
-
-```ts
-await evaluate(BuiltInMetric.Toxicity, input, {
-  provider: {
-    provider: "bedrock",
-    model: "us.anthropic.claude-3-5-haiku-20241022-v1:0",  // optional — this is the default
-    region: "us-east-1",                                    // or AWS_DEFAULT_REGION / AWS_REGION
-    apiKey: "...",                                           // optional — AWS_ACCESS_KEY_ID
-    secretKey: "...",                                        // optional — AWS_SECRET_ACCESS_KEY
-  },
-});
-```
+Uses the AWS SDK credential chain — IAM roles, SSO, and `AWS_PROFILE` are all resolved automatically. Static credentials are only needed if you can't use role-based auth.
 
 > **Note:** `vertex` and `gemini` both use the `@google/genai` SDK; `azure-openai` and `openai` both use the `openai` SDK.
 
