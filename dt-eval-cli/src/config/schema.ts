@@ -67,6 +67,8 @@ export interface SpanFieldsMap {
 export interface ScopeConfig {
   service?: string; // service.name to filter spans (previously 'app')
   since: string; // e.g. "1h", "6h", "24h"
+  /** GenAI operation names to keep when fetching spans. Empty array disables this filter. */
+  operationNames?: string[];
   sampling?: {
     strategy: 'random' | 'latest' | 'errors-only';
     percent?: number; // for random

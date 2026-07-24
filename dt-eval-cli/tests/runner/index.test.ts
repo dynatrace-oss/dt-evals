@@ -117,6 +117,26 @@ describe('runEvals', () => {
     expect(result.resultsWritten).toBe(4);
   });
 
+  it('passes configured operation-name keep-list to the DQL query', async () => {
+    const dtClient = makeDtClient([makeSpan()]);
+    const config = makeConfig({
+      scope: {
+        since: '1h',
+        operationNames: ['chat'],
+        sampling: { strategy: 'random', percent: 100 },
+      },
+    });
+
+    await runEvals(
+      dtClient as unknown as import('../../src/dt/client.js').DynatraceClient,
+      config,
+      { since: '1h' },
+    );
+
+    const [query] = dtClient.executeDql.mock.calls[0] as [string];
+    expect(query).toContain('| filter in(gen_ai.operation.name, array("chat"))');
+  });
+
   it('applies sampling (sample=50 takes ~half)', async () => {
     const spans = Array.from({ length: 20 }, (_, i) => makeSpan({ traceId: `trace-${i}` }));
     const dtClient = makeDtClient(spans);

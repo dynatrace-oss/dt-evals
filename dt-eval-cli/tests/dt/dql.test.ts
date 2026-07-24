@@ -25,6 +25,29 @@ describe('buildGenAiSpanQuery', () => {
     expect(query).toContain('isNotNull(gen_ai.provider.name)');
   });
 
+  it('filters to chat and text generation operation names by default', () => {
+    const query = buildGenAiSpanQuery({ since: '1h' });
+    expect(query).toContain(
+      '| filter in(gen_ai.operation.name, array("chat", "text_completion", "generate_content"))',
+    );
+  });
+
+  it('uses custom operation names when configured', () => {
+    const query = buildGenAiSpanQuery({
+      since: '1h',
+      operationNames: ['chat', 'custom"operation'],
+    });
+    expect(query).toContain(
+      '| filter in(gen_ai.operation.name, array("chat", "custom\\"operation"))',
+    );
+    expect(query).not.toContain('text_completion');
+  });
+
+  it('does not add an operation-name filter when configured with an empty list', () => {
+    const query = buildGenAiSpanQuery({ since: '1h', operationNames: [] });
+    expect(query).not.toContain('gen_ai.operation.name, array(');
+  });
+
   it('filters by app via service.name (OTel) and dt.service.name (Dynatrace semconv)', () => {
     const query = buildGenAiSpanQuery({ since: '1h', app: 'my-service' });
     expect(query).toContain('service.name == "my-service"');
@@ -72,6 +95,7 @@ describe('buildGenAiSpanQuery', () => {
     expect(query).toContain('gen_ai.output.messages');
     expect(query).not.toContain('gen_ai.output.message,');
     expect(query).toContain('gen_ai.system');
+    expect(query).toContain('gen_ai.operation.name');
     expect(query).toContain('trace.id');
     expect(query).toContain('start_time');
     // OpenLLMetry fields

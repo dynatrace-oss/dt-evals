@@ -21,6 +21,8 @@ export const ALL_METRICS = [
 // Sensible starter set — users can expand via dt-evals configure
 export const DEFAULT_METRICS = ['toxicity', 'relevance', 'faithfulness'];
 
+export const DEFAULT_OPERATION_NAMES = ['chat', 'text_completion', 'generate_content'];
+
 export const DEFAULT_CONFIG: Omit<DtEvalConfig, 'dynatrace' | 'judge'> & {
   dynatrace: Partial<DtEvalConfig['dynatrace']>;
   judge: Partial<DtEvalConfig['judge']>;
@@ -37,6 +39,7 @@ export const DEFAULT_CONFIG: Omit<DtEvalConfig, 'dynatrace' | 'judge'> & {
   },
   scope: {
     since: '1h',
+    operationNames: DEFAULT_OPERATION_NAMES,
     sampling: {
       strategy: 'random',
       percent: 5,

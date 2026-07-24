@@ -300,6 +300,7 @@ judge:
 scope:
   service: travel-assistant
   since: 1h
+  operationNames: [chat, text_completion, generate_content]
   sampling:
     strategy: random
     percent: 10
@@ -320,6 +321,12 @@ alerts:
 
 storeEvaluatedPrompt: false
 ```
+
+By default, the runner keeps only chat/text-generation spans:
+`chat`, `text_completion`, and `generate_content`. Configure
+`scope.operationNames` to narrow or extend that keep-list, for example
+`operationNames: [chat]`. Set it to `[]` only if you intentionally want to
+disable the operation-name filter.
 
 Sampling strategies:
 
@@ -461,6 +468,7 @@ judge:
 scope:
   service: travel-assistant
   since: 1h
+  operationNames: [chat, text_completion, generate_content]
   sampling:
     strategy: latest
     count: 50

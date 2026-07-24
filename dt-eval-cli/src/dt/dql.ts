@@ -1,6 +1,7 @@
 import type { GenAiSpan } from './types.js';
 import type { SpanFieldsMap } from '../config/schema.js';
 import { toCandidateList } from '../config/schema.js';
+import { DEFAULT_OPERATION_NAMES } from '../config/defaults.js';
 
 export interface DqlQueryOptions {
   app?: string;     // service/app name to filter spans
@@ -9,6 +10,8 @@ export interface DqlQueryOptions {
   errorsOnly?: boolean;
   /** Custom span attribute candidates. Tried before built-in defaults. */
   spanFields?: SpanFieldsMap;
+  /** GenAI operation names to keep. Empty array disables this filter. */
+  operationNames?: string[];
 }
 
 export type DqlResult = GenAiSpan[];
@@ -49,8 +52,13 @@ function resolveFields(spanFields: SpanFieldsMap | undefined): ResolvedFields {
   };
 }
 
+function dqlStringLiteral(value: string): string {
+  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
 export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
   const { app, since, limit = 1000, errorsOnly = false, spanFields } = opts;
+  const operationNames = opts.operationNames ?? DEFAULT_OPERATION_NAMES;
   const fields = resolveFields(spanFields);
 
   // Use explicit from:/to: timeframe — a filter alone leaves Grail's default
@@ -59,6 +67,11 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
 
   // Support both OTel GenAI semconv (gen_ai.system) and OpenLLMetry (gen_ai.provider.name)
   lines.push('| filter isNotNull(gen_ai.system) or isNotNull(gen_ai.provider.name)');
+
+  if (operationNames.length > 0) {
+    const names = operationNames.map(dqlStringLiteral).join(', ');
+    lines.push(`| filter in(gen_ai.operation.name, array(${names}))`);
+  }
 
   if (app) {
     // Match by either service.name (OTel GenAI semconv) or dt.service.name
@@ -94,6 +107,7 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
     'start_time',
     'end_time',
     'status.code',
+    'gen_ai.operation.name',
     'gen_ai.system',
     'gen_ai.provider.name',
     ...fields.input,

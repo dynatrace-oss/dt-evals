@@ -162,6 +162,7 @@ export async function runEvals(
     since,
     errorsOnly: evalConfig.scope.sampling?.strategy === 'errors-only',
     spanFields: evalConfig.scope.spanFields,
+    operationNames: evalConfig.scope.operationNames,
   });
   logger.debug(`DQL query:\n${query}`);
 
