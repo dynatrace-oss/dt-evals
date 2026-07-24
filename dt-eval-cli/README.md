@@ -402,7 +402,7 @@ The runner stringifies whatever it finds, so a JSON array under
 This is still OTel GenAI-compatible — `spanFields` just lets you handle
 emitter-specific variants explicitly.
 
-**Example 2 — non-OTel spans (OpenInference):**
+**Example 2 — OTel spans not following the GenAI SemConv (OpenInference):**
 
 ```yaml
 scope:
