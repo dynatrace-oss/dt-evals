@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.11-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.10-alpha...v0.2.11-alpha) (2026-07-24)
+
+
+### 🐛 Bug Fixes
+
+* **dt-eval-cli:** skip doctor ai probe without config (AI-319) ([#144](https://github.com/dynatrace-oss/dt-evals/issues/144)) ([6fd603b](https://github.com/dynatrace-oss/dt-evals/commit/6fd603b41858606b85d1ef05ee1e5e10ae12e804))
+* **dt-eval-cli:** suggest correct default model per provider in wizard ([#138](https://github.com/dynatrace-oss/dt-evals/issues/138)) ([0c16412](https://github.com/dynatrace-oss/dt-evals/commit/0c1641233698862bb976184657c85242671da333))
+* persist complete custom evaluator scoring ([#153](https://github.com/dynatrace-oss/dt-evals/issues/153)) ([4a39b19](https://github.com/dynatrace-oss/dt-evals/commit/4a39b19cc2616d132053c298eb4eed2e35a446ff))
+
+
+### 📚 Documentation
+
+* audit and fix dt-eval-lib, dt-eval-cli, and root README ([#146](https://github.com/dynatrace-oss/dt-evals/issues/146)) ([d78c66c](https://github.com/dynatrace-oss/dt-evals/commit/d78c66c82e0972fe24a9cdb6bb325345db69ed1a))
+* **main:** correct bizevent read scope (AI-319) ([#143](https://github.com/dynatrace-oss/dt-evals/issues/143)) ([f4e98b9](https://github.com/dynatrace-oss/dt-evals/commit/f4e98b9e4abedd982399bad5e4268bd6a112f39e))
+
 ## [0.2.10-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.9-alpha...v0.2.10-alpha) (2026-07-22)
 
 
