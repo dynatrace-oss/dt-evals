@@ -69,7 +69,8 @@ describe('buildGenAiSpanQuery', () => {
     const query = buildGenAiSpanQuery({ since: '1h' });
     // OTel GenAI fields
     expect(query).toContain('gen_ai.input.messages');
-    expect(query).toContain('gen_ai.output.message');
+    expect(query).toContain('gen_ai.output.messages');
+    expect(query).not.toContain('gen_ai.output.message,');
     expect(query).toContain('gen_ai.system');
     expect(query).toContain('trace.id');
     expect(query).toContain('start_time');
@@ -88,7 +89,7 @@ describe('parseSpanResults', () => {
         'span.id': 'span001',
         'start_time': '2026-03-01T10:00:00Z',
         'gen_ai.input.messages': '[{"role":"user","content":"Hello"}]',
-        'gen_ai.output.message': 'Hi there!',
+        'gen_ai.output.messages': 'Hi there!',
         'gen_ai.system_instruction': 'Be helpful.',
         'gen_ai.system': 'openai',
         'gen_ai.request.model': 'gpt-4o',
@@ -144,7 +145,7 @@ describe('parseSpanResults', () => {
       {
         'trace.id': 'trace-min',
         'gen_ai.input.messages': 'question',
-        'gen_ai.output.message': 'answer',
+        'gen_ai.output.messages': 'answer',
       },
     ];
 
@@ -160,8 +161,8 @@ describe('parseSpanResults', () => {
 
   it('skips records with no traceId', () => {
     const records = [
-      { 'gen_ai.input.messages': 'q', 'gen_ai.output.message': 'a' },
-      { 'trace.id': 'valid-trace', 'gen_ai.input.messages': 'q2', 'gen_ai.output.message': 'a2' },
+      { 'gen_ai.input.messages': 'q', 'gen_ai.output.messages': 'a' },
+      { 'trace.id': 'valid-trace', 'gen_ai.input.messages': 'q2', 'gen_ai.output.messages': 'a2' },
     ];
 
     const spans = parseSpanResults(records);
@@ -176,7 +177,7 @@ describe('parseSpanResults', () => {
       'string',
       42,
       // valid record with both input and output
-      { 'trace.id': 'valid', 'gen_ai.input.messages': 'q', 'gen_ai.output.message': 'a' },
+      { 'trace.id': 'valid', 'gen_ai.input.messages': 'q', 'gen_ai.output.messages': 'a' },
     ];
     const spans = parseSpanResults(records as unknown[]);
     expect(spans).toHaveLength(1);
@@ -188,7 +189,7 @@ describe('parseSpanResults', () => {
       {
         'trace.id': 'err-trace',
         'gen_ai.input.messages': 'q',
-        'gen_ai.output.message': 'a',
+        'gen_ai.output.messages': 'a',
         'status.code': 'ERROR',
       },
     ];
@@ -206,7 +207,7 @@ describe('parseSpanResults', () => {
       {
         'trace.id': 'obj-input',
         'gen_ai.input.messages': [{ role: 'user', content: 'Hello' }],
-        'gen_ai.output.message': 'Hi',
+        'gen_ai.output.messages': 'Hi',
       },
     ];
 
@@ -219,7 +220,7 @@ describe('parseSpanResults', () => {
       {
         'trace.id': 'provider-trace',
         'gen_ai.input.messages': 'q',
-        'gen_ai.output.message': 'a',
+        'gen_ai.output.messages': 'a',
         'gen_ai.provider.name': 'anthropic',
       },
     ];
@@ -247,7 +248,7 @@ describe('parseSpanResults', () => {
       {
         'trace.id': 'no-user',
         'gen_ai.input.messages': 'something',
-        'gen_ai.output.message': 'reply',
+        'gen_ai.output.messages': 'reply',
       },
     ];
     expect(parseSpanResults(records)[0]!.userPrompt).toBeUndefined();
@@ -269,6 +270,22 @@ describe('parseSpanResults', () => {
     expect(spans).toHaveLength(1);
     expect(spans[0]!.output).toBe('Here is your answer.');
   });
+
+  it('does not use legacy gen_ai.output.message unless explicitly configured', () => {
+    const records = [
+      {
+        'trace.id': 'legacy-output',
+        'gen_ai.input.messages': '[{"role":"user","content":"What is 2+2?"}]',
+        'gen_ai.output.message': 'Legacy answer.',
+      },
+    ];
+    expect(parseSpanResults(records)).toHaveLength(0);
+
+    const spans = parseSpanResults(records, { spanFields: { output: 'gen_ai.output.message' } });
+    expect(spans).toHaveLength(1);
+    expect(spans[0]!.output).toBe('Legacy answer.');
+  });
+
 });
 
 describe('spanFields configuration', () => {
@@ -289,7 +306,7 @@ describe('spanFields configuration', () => {
     });
     expect(query).toContain('llm.response');
     expect(query).toContain('custom.completion');
-    expect(query).toContain('gen_ai.output.message');
+    expect(query).toContain('gen_ai.output.messages');
   });
 
   it('buildGenAiSpanQuery includes user-supplied context candidate in fields clause', () => {
@@ -306,7 +323,7 @@ describe('spanFields configuration', () => {
         'trace.id': 'custom-input-trace',
         'llm.user_input': 'hello from non-semconv span',
         'gen_ai.input.messages': 'this should not win',
-        'gen_ai.output.message': 'a',
+        'gen_ai.output.messages': 'a',
       },
     ];
     const spans = parseSpanResults(records, { spanFields: { input: 'llm.user_input' } });
@@ -318,7 +335,7 @@ describe('spanFields configuration', () => {
       {
         'trace.id': 'fallback-trace',
         'gen_ai.input.messages': 'default input',
-        'gen_ai.output.message': 'a',
+        'gen_ai.output.messages': 'a',
       },
     ];
     const spans = parseSpanResults(records, { spanFields: { input: 'not.present' } });
@@ -342,7 +359,7 @@ describe('spanFields configuration', () => {
       {
         'trace.id': 'custom-model',
         'gen_ai.input.messages': 'q',
-        'gen_ai.output.message': 'a',
+        'gen_ai.output.messages': 'a',
         'llm.model': 'claude-sonnet',
       },
     ];
@@ -355,7 +372,7 @@ describe('spanFields configuration', () => {
       {
         'trace.id': 'custom-context',
         'gen_ai.input.messages': 'q',
-        'gen_ai.output.message': 'a',
+        'gen_ai.output.messages': 'a',
         'rag.context': 'retrieved facts',
       },
     ];
@@ -406,7 +423,7 @@ describe('JSON-stringified message arrays (OTel GenAI evolved form)', () => {
             ],
           },
         ]),
-        'gen_ai.output.message': 'Second answer',
+        'gen_ai.output.messages': 'Second answer',
       },
     ];
     const spans = parseSpanResults(records);
@@ -422,7 +439,7 @@ describe('JSON-stringified message arrays (OTel GenAI evolved form)', () => {
           { role: 'system', content: 'sys instructions' },
           { role: 'user', content: 'hello' },
         ]),
-        'gen_ai.output.message': 'hi back',
+        'gen_ai.output.messages': 'hi back',
       },
     ];
     const spans = parseSpanResults(records);
@@ -435,7 +452,7 @@ describe('JSON-stringified message arrays (OTel GenAI evolved form)', () => {
       {
         'trace.id': 'plain',
         'gen_ai.input.messages': 'just a plain question',
-        'gen_ai.output.message': 'an answer',
+        'gen_ai.output.messages': 'an answer',
       },
     ];
     const spans = parseSpanResults(records);
@@ -450,7 +467,7 @@ describe('JSON-stringified message arrays (OTel GenAI evolved form)', () => {
         'trace.id': 'mixed',
         'gen_ai.system_instruction': 'explicit system',
         'gen_ai.input.messages': inputJson,
-        'gen_ai.output.message': 'answer',
+        'gen_ai.output.messages': 'answer',
       },
     ];
     const spans = parseSpanResults(records);
@@ -463,7 +480,7 @@ describe('JSON-stringified message arrays (OTel GenAI evolved form)', () => {
         'trace.id': 'custom-structured-input',
         'custom.input': 'use this exact input',
         'gen_ai.input.messages': inputJson,
-        'gen_ai.output.message': 'answer',
+        'gen_ai.output.messages': 'answer',
       },
     ];
     const spans = parseSpanResults(records, { spanFields: { input: 'custom.input' } });

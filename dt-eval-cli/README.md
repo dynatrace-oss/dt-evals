@@ -374,7 +374,7 @@ For `dt-evals alerts apply` (Dynatrace Workflows), grant these additionally on t
 ### Custom span field mapping
 
 By default, the CLI reads OTel GenAI semconv (`gen_ai.input.messages`,
-`gen_ai.output.messages`, `gen_ai.output.message`, …). It also probes a
+`gen_ai.output.messages`, …). It also probes a
 small set of legacy fallback attributes (`gen_ai.prompt.N.*`,
 `gen_ai.completion.0.content`) for compatibility with older emitters. If
 your spans expose the LLM I/O under different attribute names — for
@@ -385,22 +385,18 @@ for end-to-end instrumentation examples.
 Each entry accepts a single attribute or a list of candidates; the first
 non-null value wins, with the built-in defaults appended as fallback.
 
-**Example 1 — OTel GenAI variant** (some Bedrock / Vertex SDK emitters
-serialize the full message array under the plural attribute
-`gen_ai.output.messages` instead of the singular
-`gen_ai.output.message`):
+**Example 1 — explicit legacy output mapping** (only needed for emitters
+that still use the non-semconv singular attribute `gen_ai.output.message`):
 
 ```yaml
 scope:
   service: pydantic-ai-music-agent
   spanFields:
-    output: [gen_ai.output.message, gen_ai.output.messages]
+    output: gen_ai.output.message
 ```
 
-The runner stringifies whatever it finds, so a JSON array under
-`gen_ai.output.messages` reaches the judge as the assistant turn(s).
-This is still OTel GenAI-compatible — `spanFields` just lets you handle
-emitter-specific variants explicitly.
+The default output mapping uses `gen_ai.output.messages`. `spanFields` lets
+you opt into legacy or emitter-specific attributes explicitly.
 
 **Example 2 — OTel spans not following the GenAI SemConv (OpenInference):**
 
@@ -471,7 +467,6 @@ scope:
     count: 50
   spanFields:
     context: span.context
-    output: [gen_ai.output.message, gen_ai.output.messages]
     # input, systemInstruction, model use built-in defaults
 
 metrics:
@@ -640,7 +635,7 @@ The CLI reads OTel GenAI semconv fields by default:
 | Canonical field | Default attributes read |
 |----------------|------------------------|
 | `input` | `gen_ai.input.messages` |
-| `output` | `gen_ai.output.message`, `gen_ai.output.messages` |
+| `output` | `gen_ai.output.messages` |
 | `model` | `gen_ai.request.model` |
 | `systemInstruction` | `gen_ai.system_instruction` |
 

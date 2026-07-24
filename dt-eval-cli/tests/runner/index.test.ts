@@ -69,7 +69,7 @@ function makeDtClient(spans: GenAiSpan[]) {
     'span.id': s.spanId,
     timestamp: s.timestamp,
     'gen_ai.input.messages': s.input,
-    'gen_ai.output.message': s.output,
+    'gen_ai.output.messages': s.output,
     'gen_ai.system': s.system,
     'gen_ai.request.model': s.requestModel,
     'rag.context': s.context,

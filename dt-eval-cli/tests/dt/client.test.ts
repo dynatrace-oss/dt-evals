@@ -58,7 +58,7 @@ describe('DynatraceClient', () => {
   });
 
   it('executeDql returns records when state=SUCCEEDED immediately', async () => {
-    const records = [{ 'trace.id': 'abc', 'gen_ai.input.messages': 'q', 'gen_ai.output.message': 'a' }];
+    const records = [{ 'trace.id': 'abc', 'gen_ai.input.messages': 'q', 'gen_ai.output.messages': 'a' }];
     globalThis.fetch = vi.fn().mockResolvedValue(
       makeSuccessResponse({ state: 'SUCCEEDED', result: { records } }),
     );

@@ -21,7 +21,7 @@ const PROMPT_SLOTS = 3;
 // candidates are prepended to these so the user's choice wins, but the
 // defaults remain as a fallback.
 const DEFAULT_INPUT_FIELDS = ['gen_ai.input.messages'];
-const DEFAULT_OUTPUT_FIELDS = ['gen_ai.output.message', 'gen_ai.output.messages', 'gen_ai.completion.0.content'];
+const DEFAULT_OUTPUT_FIELDS = ['gen_ai.output.messages', 'gen_ai.completion.0.content'];
 const DEFAULT_CONTEXT_FIELDS: string[] = [];
 const DEFAULT_SYSTEM_INSTRUCTION_FIELDS = ['gen_ai.system_instruction'];
 const DEFAULT_MODEL_FIELDS = ['gen_ai.request.model'];
