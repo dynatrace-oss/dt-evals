@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.15-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.14-alpha...dt-eval-lib-v0.0.15-alpha) (2026-07-24)
+
+
+### 📚 Documentation
+
+* audit and fix dt-eval-lib, dt-eval-cli, and root README ([#146](https://github.com/dynatrace-oss/dt-evals/issues/146)) ([d78c66c](https://github.com/dynatrace-oss/dt-evals/commit/d78c66c82e0972fe24a9cdb6bb325345db69ed1a))
+
 ## [0.0.14-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.13-alpha...dt-eval-lib-v0.0.14-alpha) (2026-07-22)
 
 
