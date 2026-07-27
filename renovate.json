@@ -1,0 +1,59 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "semanticCommitType": "deps",
+  "semanticCommitScope": null,
+  "timezone": "Europe/Vienna",
+  "schedule": ["before 6am on monday"],
+  "prConcurrentLimit": 10,
+  "prHourlyLimit": 0,
+  "labels": ["dependencies"],
+  "rangeStrategy": "bump",
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on the first day of the month"]
+  },
+  "packageRules": [
+    {
+      "description": "Group non-major devDependencies across all npm packages",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "npm dev dependencies (non-major)"
+    },
+    {
+      "description": "Group AWS SDK v3 packages together",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["@aws-sdk/**"],
+      "groupName": "aws-sdk"
+    },
+    {
+      "description": "Label major SDK bumps for review; keep them separate",
+      "matchManagers": ["npm"],
+      "matchPackageNames": [
+        "@anthropic-ai/sdk",
+        "@google/genai",
+        "openai",
+        "typescript"
+      ],
+      "matchUpdateTypes": ["major"],
+      "labels": ["dependencies", "major", "breaking"]
+    },
+    {
+      "description": "Group GitHub Actions digest and version updates",
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions"
+    },
+    {
+      "description": "Group Python (dt-ai-ingest) non-major updates",
+      "matchManagers": ["pep621"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "python dependencies (non-major)"
+    }
+  ]
+}
