@@ -44,35 +44,30 @@ jobs:
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
         env:
           CHANGED_ITEMS: ${{ steps.release.outputs.paths_released }}
-          ARTIFACT_TAG_NAME: ${{ steps.release.outputs[format('{0}--tag_name', fromJson(steps.release.outputs.paths_released)[0])] }}
+          RELEASE_OUTPUTS: ${{ toJSON(steps.release.outputs) }}
         with:
           script: |
             const changedItems = JSON.parse(process.env.CHANGED_ITEMS || '[]');
+            const releaseOutputs = JSON.parse(process.env.RELEASE_OUTPUTS || '{}');
             console.log("changed items", changedItems);
             console.log("setting up release config...");
-            let releaseConfig = {};
-            changedItems.forEach(item => {
-                switch (item) {
-                    case "dt-eval-cli":
-                    case "dt-eval-lib":
-                        releaseConfig = {
-                            name: item,
-                            folder: item,
-                            tagName: process.env.ARTIFACT_TAG_NAME,
-                            mode: "npm"
-                        };
-                        break;
-                    // add more cases for other languages/artifacts as needed
-                    default:
-                        break;
-                }
-            });
-            console.log("release config: " + JSON.stringify(releaseConfig));
-            return releaseConfig;
+            // Build a publish target for EVERY released npm package, not just
+            // the last one. node-workspace can co-release lib + cli in one run.
+            const npmPackages = ["dt-eval-cli", "dt-eval-lib"];
+            const targets = changedItems
+                .filter(item => npmPackages.includes(item))
+                .map(item => ({
+                    name: item,
+                    folder: item,
+                    tagName: releaseOutputs[`${item}--tag_name`],
+                    mode: "npm"
+                }));
+            console.log("publish targets: " + JSON.stringify(targets));
+            return targets;
 
     outputs:
         release_created: ${{ steps.release.outputs.releases_created }}
-        build_config: ${{ steps.build-config.outputs.result }}
+        publish_targets: ${{ steps.build-config.outputs.result }}
 
   publish-npm:
       runs-on: ubuntu-latest
@@ -81,13 +76,17 @@ jobs:
       permissions:
           id-token: write # OIDC token for npm trusted publishing
           contents: read
-      if: ${{ fromJSON(needs.release-please.outputs.build_config).mode == 'npm' && fromJSON(needs.release-please.outputs.release_created || false) }}
+      if: ${{ fromJSON(needs.release-please.outputs.release_created || false) && needs.release-please.outputs.publish_targets != '' && needs.release-please.outputs.publish_targets != '[]' }}
+      strategy:
+        fail-fast: false
+        matrix:
+          target: ${{ fromJSON(needs.release-please.outputs.publish_targets) }}
       defaults:
         run:
           shell: bash
-          working-directory: ${{ fromJSON(needs.release-please.outputs.build_config).folder }}
+          working-directory: ${{ matrix.target.folder }}
       env:
-          FOLDER: ${{ fromJSON(needs.release-please.outputs.build_config).folder }}
+          FOLDER: ${{ matrix.target.folder }}
 
       steps:
           - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
