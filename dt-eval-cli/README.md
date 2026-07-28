@@ -385,14 +385,13 @@ for end-to-end instrumentation examples.
 Each entry accepts a single attribute or a list of candidates; the first
 non-null value wins, with the built-in defaults appended as fallback.
 
-**Example 1 — explicit legacy output mapping** (only needed for emitters
-that still use the non-semconv singular attribute `gen_ai.output.message`):
+**Example 1 — explicit legacy output mapping**:
 
 ```yaml
 scope:
   service: pydantic-ai-music-agent
   spanFields:
-    output: gen_ai.output.message
+    output: `gen_ai.completion.0.content
 ```
 
 The default output mapping uses `gen_ai.output.messages`. `spanFields` lets
