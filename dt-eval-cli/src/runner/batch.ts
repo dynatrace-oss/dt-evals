@@ -1,6 +1,5 @@
 export interface BatchConfig {
   concurrency: number; // default 5
-  batchSize: number;   // default 10
 }
 
 export interface BatchItemResult<T, R> {
@@ -11,7 +10,6 @@ export interface BatchItemResult<T, R> {
 
 const DEFAULT_BATCH_CONFIG: BatchConfig = {
   concurrency: 5,
-  batchSize: 10,
 };
 
 export async function processBatch<T, R>(
