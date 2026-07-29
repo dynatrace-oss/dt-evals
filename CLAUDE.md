@@ -17,13 +17,18 @@ This is a monorepo with four packages:
 
 ### TypeScript packages (dt-eval-cli, dt-eval-lib, dt-eval-deploy)
 
+There is no root `package.json` / npm workspace — each package has its own dependencies and must be installed separately.
+
 ```bash
-# Install all workspace dependencies (run from root)
-npm install
+# Install dependencies (run inside each package directory)
+cd dt-eval-cli && npm install
+cd dt-eval-lib && npm install
+cd dt-eval-deploy && npm install
 
 # Run tests for a package
 cd dt-eval-cli && npm test
 cd dt-eval-lib && npm test
+cd dt-eval-deploy && npm test
 
 # Run a single test file
 cd dt-eval-cli && npx vitest run tests/runner/index.test.ts
@@ -35,6 +40,7 @@ cd dt-eval-cli && npm run dev -- configure
 # Build a package
 cd dt-eval-lib && npm run build
 cd dt-eval-cli && npm run build
+cd dt-eval-deploy && npm run build
 
 # Lint (dt-eval-lib only uses Biome)
 cd dt-eval-lib && npm run lint
@@ -44,6 +50,8 @@ cd dt-eval-lib && npm run lint:fix
 make markdownlint
 make markdownlint-fix
 ```
+
+`dt-eval-lib` is the only package with a lint script; `dt-eval-cli` and `dt-eval-deploy` don't run Biome/ESLint. CI (`.github/workflows/ci-*.yml`) runs each package's install/test/build independently, scoped by path filters, so a change to one package doesn't trigger the others' CI (except `dt-eval-deploy`, which also runs on `dt-eval-lib` changes since it depends on it).
 
 ### Python package (dt-ai-ingest)
 
@@ -92,7 +100,7 @@ Cross-tenant config: `dynatrace.origin` for reading spans (DQL), `dynatrace.dest
 
 ### Custom evaluators
 
-Stored via `PromptStore` interface. CLI uses `~/.dt-eval/prompts.json` as the backing store (`cli/src/prompts/fs-store.ts`). Library consumers register a store via `registerPromptStore()`.
+Stored via `PromptStore` interface. CLI uses `~/.dt-eval/prompts.json` as the backing store (`dt-eval-cli/src/prompts/fs-store.ts`). Library consumers register a store via `registerPromptStore()`.
 
 ### Prompt templates
 
@@ -100,9 +108,10 @@ All built-in evaluator prompts are embedded at build time in `dt-eval-lib/src/pr
 
 ## Key conventions
 
-- Both TypeScript packages use `tsup` to build to `dist/`, ESM output only (`"type": "module"`)
+- All three TypeScript packages use `tsup` to build to `dist/`, ESM output only (`"type": "module"`)
 - Tests use `vitest`; `dt-eval-lib` also uses `@biomejs/biome` for lint/format
 - The CLI uses `commander` for argument parsing and `@inquirer/prompts` for interactive wizards
 - Run history is persisted to `~/.dt-eval/runs.json` via `runner/checkpoint.ts`
 - The `schemaVersion` field in `.dt-eval.yaml` is currently `2`
-- `dt-eval-lib` is a peer dependency of the CLI; local development resolves it via the npm workspace
+- `dt-eval-cli` and `dt-eval-deploy` depend on published `@dynatrace-oss/dt-eval-lib` versions from npm (there is no workspace linking them) — after changing `dt-eval-lib`, bump/publish it (or `npm link`) before the dependent packages will pick up the change
+- `dt-eval-deploy` wraps the same CLI to run as a scheduled AWS Lambda / Cloud Run / Azure Functions handler or Docker container (`src/index.ts`); it's triggered by `dt-evals deploy` / `dt-evals schedule` rather than run interactively
