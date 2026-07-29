@@ -21,12 +21,14 @@ export interface DynatraceConfig extends Partial<DynatraceEndpoint> {
 }
 
 export interface JudgeConfig {
-  provider: 'openai' | 'anthropic' | 'azure-openai' | 'gemini' | 'vertex' | 'bedrock';
-  /** API key. For Bedrock: AWS access key ID. Optional for Vertex AI when using Workload Identity / ADC. */
+  provider: 'openai' | 'anthropic' | 'azure-openai' | 'gemini' | 'vertex' | 'bedrock' | 'openai-compatible';
+  /** Display name for openai-compatible providers (e.g. "Ollama", "LiteLLM"). Shown in evaluation bizevents as gen_ai.provider.name. */
+  name?: string;
+  /** API key. For Bedrock: AWS access key ID. Optional for Vertex AI when using Workload Identity / ADC. Optional for Ollama. */
   apiKey?: string;
   /** For Bedrock: AWS secret access key. Falls back to AWS_SECRET_ACCESS_KEY env var. */
   secretKey?: string;
-  /** For azure-openai: endpoint URL (e.g. https://my-resource.openai.azure.com/). Falls back to AZURE_OPENAI_ENDPOINT. */
+  /** For azure-openai and openai-compatible: base URL of the API endpoint. Falls back to AZURE_OPENAI_ENDPOINT for azure-openai. */
   baseUrl?: string;
   /** For azure-openai: API version (e.g. 2025-04-01-preview). Falls back to AZURE_OPENAI_API_VERSION. Required for azure-openai. */
   apiVersion?: string;

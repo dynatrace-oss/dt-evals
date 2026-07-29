@@ -175,12 +175,14 @@ export function createConfigureCommand(): Command {
 
   cmd.option('--env-url <url>', 'Dynatrace environment URL');
   cmd.option('--api-token <token>', 'Dynatrace API token');
-  cmd.option('--provider <provider>', 'Judge provider (openai|anthropic|azure-openai|gemini|vertex|bedrock)');
+  cmd.option('--provider <provider>', 'Judge provider (openai|anthropic|azure-openai|gemini|vertex|bedrock|openai-compatible)');
   cmd.option('--api-key <key>', 'Judge provider API key');
   cmd.option('--model <model>', 'Judge model override');
   cmd.option('--project <project>', 'Vertex AI GCP project ID');
   cmd.option('--location <location>', 'Vertex AI location (for example global or us-central1)');
   cmd.option('--since <duration>', 'Default time window (e.g. 1h, 6h, 24h)');
+  cmd.option('--base-url <url>', 'API base URL for openai-compatible provider (e.g. http://localhost:11434/v1)');
+  cmd.option('--judge-name <name>', 'Display name for openai-compatible provider (e.g. Ollama, LiteLLM)');
   cmd.option('--show', 'Print current resolved config with secrets redacted');
   cmd.option('--output <path>', 'Output config file path (default: <name>.dt-eval.yaml or .dt-eval.yaml)');
 
@@ -192,6 +194,8 @@ export function createConfigureCommand(): Command {
     model?: string;
     project?: string;
     location?: string;
+    baseUrl?: string;
+    judgeName?: string;
     since?: string;
     show?: boolean;
     output?: string;
@@ -216,6 +220,8 @@ export function createConfigureCommand(): Command {
       options.model ||
       options.project ||
       options.location ||
+      options.baseUrl ||
+      options.judgeName ||
       options.since
     );
 
@@ -292,12 +298,13 @@ export function createConfigureCommand(): Command {
       const provider = await select({
         message: 'Evaluator provider',
         choices: [
-          { name: 'openai       — OpenAI API (GPT models)', value: 'openai' as const },
-          { name: 'anthropic    — Anthropic API (Claude models)', value: 'anthropic' as const },
-          { name: 'azure-openai — Azure OpenAI deployment', value: 'azure-openai' as const },
-          { name: 'gemini       — Google Gemini API', value: 'gemini' as const },
-          { name: 'vertex       — Vertex AI (ADC / Workload Identity by default)', value: 'vertex' as const },
-          { name: 'bedrock      — AWS Bedrock (uses AWS credential chain)', value: 'bedrock' as const },
+          { name: 'openai            — OpenAI API (GPT models)', value: 'openai' as const },
+          { name: 'anthropic         — Anthropic API (Claude models)', value: 'anthropic' as const },
+          { name: 'azure-openai      — Azure OpenAI deployment', value: 'azure-openai' as const },
+          { name: 'gemini            — Google Gemini API', value: 'gemini' as const },
+          { name: 'vertex            — Vertex AI (ADC / Workload Identity by default)', value: 'vertex' as const },
+          { name: 'bedrock           — AWS Bedrock (uses AWS credential chain)', value: 'bedrock' as const },
+          { name: 'openai-compatible — LiteLLM Router, Ollama, or any OpenAI-compatible endpoint', value: 'openai-compatible' as const },
         ],
         default: existing.judge?.provider ?? 'openai',
       });
@@ -319,6 +326,8 @@ export function createConfigureCommand(): Command {
       let azureApiVersion = '';
       let vertexProject = '';
       let vertexLocation = '';
+      let compatibleName = '';
+      let compatibleBaseUrl = '';
 
       if (provider === 'bedrock') {
         apiKey = await input({
@@ -365,6 +374,20 @@ export function createConfigureCommand(): Command {
           message: 'Vertex AI location (for example global or us-central1)',
           default: existing.judge?.location ?? process.env['GOOGLE_CLOUD_LOCATION'] ?? 'global',
         });
+      } else if (provider === 'openai-compatible') {
+        compatibleName = await input({
+          message: 'Provider display name  (shown in Dynatrace bizevents, e.g. Ollama, LiteLLM)',
+          default: existing.judge?.name ?? 'ollama',
+        });
+        compatibleBaseUrl = await input({
+          message: 'API base URL  (e.g. http://localhost:11434/v1 for Ollama, http://localhost:4000/v1 for LiteLLM)',
+          default: existing.judge?.baseUrl ?? '',
+          validate: (v) => v.trim().length > 0 ? true : 'Base URL is required',
+        });
+        apiKey = await input({
+          message: 'API key  (leave blank for Ollama or unauthenticated servers)',
+          default: existingProviderApiKey ?? '',
+        });
       } else {
         apiKey = await password({
           message: providerApiKeyLabel[provider] ?? `${provider} API key`,
@@ -374,6 +397,8 @@ export function createConfigureCommand(): Command {
       const modelPlaceholder =
         provider === 'azure-openai'
           ? 'Required: enter your Azure deployment name (e.g. my-gpt4-deployment)'
+          : provider === 'openai-compatible'
+          ? 'Required: model name served by your endpoint (e.g. llama3.2, qwen2.5, mistral)'
           : 'Leave blank for provider default';
 
       const model = await input({
@@ -429,6 +454,10 @@ export function createConfigureCommand(): Command {
           ...(provider === 'vertex' && {
             project: vertexProject || existing.judge?.project,
             location: vertexLocation || existing.judge?.location,
+          }),
+          ...(provider === 'openai-compatible' && {
+            name: compatibleName || existing.judge?.name,
+            baseUrl: compatibleBaseUrl || existing.judge?.baseUrl,
           }),
           // Never carry over another provider's model (e.g. the OpenAI default
           // that resolveEffectiveConfig injects). Fall back to this provider's
@@ -517,6 +546,8 @@ export function createConfigureCommand(): Command {
         model: options.model ?? (suggestModelForProvider(provider, existing.judge?.provider, existing.judge?.model) || undefined),
         project: options.project ?? existing.judge?.project,
         location: options.location ?? existing.judge?.location,
+        ...(options.baseUrl ? { baseUrl: options.baseUrl } : existing.judge?.baseUrl ? { baseUrl: existing.judge.baseUrl } : {}),
+        ...(options.judgeName ? { name: options.judgeName } : existing.judge?.name ? { name: existing.judge.name } : {}),
         timeout: existing.judge?.timeout ?? 30000,
         maxRetries: existing.judge?.maxRetries ?? 2,
       },

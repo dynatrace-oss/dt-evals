@@ -9,6 +9,7 @@ const DEFAULT_MODELS: Record<string, string> = {
   gemini: "gemini-3-flash-preview",
   // azure-openai: no default — deployment names are user-defined in Azure portal
   bedrock: "us.anthropic.claude-3-5-haiku-20241022-v1:0",
+  // openai-compatible: no default — model name depends on what the server has loaded
 };
 
 const ENV_API_KEY: Record<string, string> = {
@@ -33,6 +34,7 @@ const VALID_PROVIDERS = new Set([
   "gemini",
   "azure-openai",
   "bedrock",
+  "openai-compatible",
 ]);
 
 export async function createProvider(options: ProviderOptions): Promise<LLMProvider> {
@@ -127,6 +129,27 @@ export async function createProvider(options: ProviderOptions): Promise<LLMProvi
       timeout,
       region:
         options.region ?? process.env.AWS_DEFAULT_REGION ?? process.env.AWS_REGION ?? "us-east-1",
+    });
+  }
+
+  // --- OpenAI-compatible (LiteLLM, Ollama, etc.) ---
+  if (provider === "openai-compatible") {
+    if (!options.baseUrl) {
+      throw new EvalConfigError(
+        "openai-compatible requires provider.baseUrl (e.g. http://localhost:11434/v1 for Ollama)",
+      );
+    }
+    if (!options.model) {
+      throw new EvalConfigError(
+        "openai-compatible requires provider.model (the model name served by your endpoint, e.g. llama3.2)",
+      );
+    }
+    const { OpenAICompatibleProvider } = await import("./openai-compatible");
+    return new OpenAICompatibleProvider({
+      apiKey: options.apiKey ?? process.env["OPENAI_API_KEY"] ?? "",
+      model,
+      timeout,
+      baseUrl: options.baseUrl,
     });
   }
 

@@ -132,6 +132,9 @@ function applyEnvVars(config: DtEvalConfig): DtEvalConfig {
     if (process.env['GOOGLE_CLOUD_LOCATION']) result.judge.location = process.env['GOOGLE_CLOUD_LOCATION'];
   } else if (provider === 'bedrock') {
     if (process.env['AWS_REGION']) result.judge.region = process.env['AWS_REGION'];
+  } else if (provider === 'openai-compatible') {
+    if (process.env['OPENAI_COMPATIBLE_API_KEY']) result.judge.apiKey = process.env['OPENAI_COMPATIBLE_API_KEY'];
+    if (process.env['OPENAI_COMPATIBLE_BASE_URL']) result.judge.baseUrl = process.env['OPENAI_COMPATIBLE_BASE_URL'];
   }
 
   return result;
@@ -226,8 +229,15 @@ export function validateConfig(config: DtEvalConfig): void {
 
   if (!config.judge?.provider) {
     issues.push('judge.provider is required');
-  } else if (!['openai', 'anthropic', 'azure-openai', 'gemini', 'vertex', 'bedrock'].includes(config.judge.provider)) {
-    issues.push(`judge.provider must be one of: openai, anthropic, azure-openai, gemini, vertex, bedrock (got "${config.judge.provider}")`);
+  } else if (!['openai', 'anthropic', 'azure-openai', 'gemini', 'vertex', 'bedrock', 'openai-compatible'].includes(config.judge.provider)) {
+    issues.push(`judge.provider must be one of: openai, anthropic, azure-openai, gemini, vertex, bedrock, openai-compatible (got "${config.judge.provider}")`);
+  } else if (config.judge.provider === 'openai-compatible') {
+    if (!config.judge.baseUrl) {
+      issues.push('judge.baseUrl is required for openai-compatible (e.g. http://localhost:11434/v1)');
+    }
+    if (!config.judge.model) {
+      issues.push('judge.model is required for openai-compatible (model name served by your endpoint)');
+    }
   }
 
   if (config.judge?.concurrency) {

@@ -189,7 +189,7 @@ export async function runEvals(
   }
 
   // 5. Build provider config for dt-eval-lib
-  const judgeProvider = evalConfig.judge.provider;
+  const judgeProvider = evalConfig.judge.name ?? evalConfig.judge.provider;
   const judgeModel = evalConfig.judge.model ?? '';
 
   const libConfig: EvalConfig = {

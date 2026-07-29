@@ -1,7 +1,7 @@
 import type { Score } from "../scoring/types";
 
 /** Provider selection */
-export type Provider = "openai" | "anthropic" | "vertex" | "gemini" | "azure-openai" | "bedrock";
+export type Provider = "openai" | "anthropic" | "vertex" | "gemini" | "azure-openai" | "bedrock" | "openai-compatible";
 
 /** Provider-related configuration */
 export interface ProviderOptions {
@@ -23,6 +23,8 @@ export interface ProviderOptions {
   location?: string;
   /** Model override — defaults to gpt-4.1 / claude-sonnet-4-6 / gemini-2.5-pro (vertex) / gemini-2.5-flash (gemini) */
   model?: string;
+  /** Display name for openai-compatible providers (e.g. "Ollama", "LiteLLM"). Used in evaluation output and bizevents. */
+  name?: string;
   /** Request timeout in ms — default 30000 */
   timeout?: number;
   /** Max retries on transient errors — default 2 */

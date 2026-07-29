@@ -183,6 +183,21 @@ export async function probeProvider(opts: ProbeOptions): Promise<ProbeResult> {
       }
     }
 
+    if (provider === 'openai-compatible') {
+      const base = opts.baseUrl;
+      if (!base) return { ok: false, model, error: 'baseUrl not configured (set judge.baseUrl to your endpoint, e.g. http://localhost:11434/v1)' };
+      const apiKey = opts.apiKey ?? process.env['OPENAI_API_KEY'] ?? 'ollama';
+      const url = `${base.replace(/\/$/, '')}/chat/completions`;
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, messages: [{ role: 'user', content: 'ok' }], max_tokens: 1 }),
+        signal: AbortSignal.timeout(timeout),
+      });
+      if (r.ok) return { ok: true, model };
+      return { ok: false, model, error: `${r.status} ${await readErrorBody(r)}` };
+    }
+
     return { ok: false, model, error: `Unknown provider: ${provider}` };
   } catch (err) {
     return { ok: false, model, error: compactError((err as Error).message ?? String(err)) };
