@@ -73,12 +73,11 @@ export function buildEvaluationResultRows(metrics: string[], result: RunResult):
     const metricResult = byMetric.get(m);
     const total = metricResult?.total ?? 0;
     const successes = metricResult?.successes ?? 0;
-    const errors = metricResult?.errors ?? 0;
+    const passPercentage = total === 0 ? 0 : Math.round((successes / total) * 100);
 
     return [
       m,
-      `${successes}/${total}`,
-      `${errors}/${total}`,
+      `${successes}/${total} (${passPercentage}% passed)`,
       formatDuration(metricResult?.avgDurationMs ?? 0),
     ];
   });
@@ -181,7 +180,7 @@ export function createRunCommand(): Command {
         const metrics = options.metric ? [options.metric] : config.metrics.enabled.map(metricId);
 
         console.log('\nEvaluation results:');
-        const headers = ['Evaluator', 'Results', 'Errors', 'Avg Duration'];
+        const headers = ['Evaluator', 'Results', 'Avg Duration'];
         const rows = buildEvaluationResultRows(metrics, result);
         console.log(renderTable(headers, rows));
 

@@ -118,6 +118,18 @@ interface EvaluatorRunStats {
   durationMs: number;
 }
 
+function recordEvaluatorOutcome(stats: EvaluatorRunStats | undefined, succeeded: boolean, durationMs: number): void {
+  if (!stats) return;
+
+  stats.total++;
+  stats.durationMs += durationMs;
+  if (succeeded) {
+    stats.successes++;
+  } else {
+    stats.errors++;
+  }
+}
+
 export type { EvalResult };
 
 export interface DtClients {
@@ -260,12 +272,7 @@ export async function runEvals(
         evalCount++;
         const elapsed = Date.now() - t0;
         logger.debug(`eval [${evalCount}/${tasks.length}] ${task.metric} ${judgeProvider}/${judgeModel} trace=${task.span.traceId.slice(0, 8)}… ${elapsed}ms score=${evalResult.score.value}`);
-        const stats = evaluatorStats.get(task.metric);
-        if (stats) {
-          stats.total++;
-          stats.successes++;
-          stats.durationMs += elapsed;
-        }
+        recordEvaluatorOutcome(evaluatorStats.get(task.metric), true, elapsed);
         emit?.({
           phase: 'eval-completed',
           completed: evalCount,
@@ -279,12 +286,7 @@ export async function runEvals(
         evalCount++;
         evalErrors++;
         const elapsed = Date.now() - t0;
-        const stats = evaluatorStats.get(task.metric);
-        if (stats) {
-          stats.total++;
-          stats.errors++;
-          stats.durationMs += elapsed;
-        }
+        recordEvaluatorOutcome(evaluatorStats.get(task.metric), false, elapsed);
         emit?.({
           phase: 'eval-completed',
           completed: evalCount,

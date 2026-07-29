@@ -3,7 +3,7 @@ import { buildEvaluationResultRows } from '../../../src/cli/commands/run.js';
 import type { RunResult } from '../../../src/runner/index.js';
 
 describe('buildEvaluationResultRows', () => {
-  it('renders per-evaluator ratios instead of redistributed aggregate counts', () => {
+  it('renders per-evaluator success ratios with a pass percentage', () => {
     const result: RunResult = {
       runId: 'run-test',
       spansEvaluated: 1,
@@ -18,9 +18,10 @@ describe('buildEvaluationResultRows', () => {
       ],
     };
 
-    expect(buildEvaluationResultRows(['toxicity', 'relevance'], result)).toEqual([
-      ['toxicity', '1/1', '0/1', '100ms'],
-      ['relevance', '0/1', '1/1', '200ms'],
+    expect(buildEvaluationResultRows(['toxicity', 'relevance', 'completeness'], result)).toEqual([
+      ['toxicity', '1/1 (100% passed)', '100ms'],
+      ['relevance', '0/1 (0% passed)', '200ms'],
+      ['completeness', '0/0 (0% passed)', '0ms'],
     ]);
   });
 });
