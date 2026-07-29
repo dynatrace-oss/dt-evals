@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.12-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.11-alpha...v0.2.12-alpha) (2026-07-29)
+
+
+### 🐛 Bug Fixes
+
+* **dt-eval-cli:** ai-336 align output messages parsing ([#159](https://github.com/dynatrace-oss/dt-evals/issues/159)) ([55263d8](https://github.com/dynatrace-oss/dt-evals/commit/55263d896ed0fb43db47df2321266f9213e334a9))
+
 ## [0.2.11-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.10-alpha...v0.2.11-alpha) (2026-07-24)
 
 
