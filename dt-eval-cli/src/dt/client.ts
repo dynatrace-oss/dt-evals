@@ -70,7 +70,9 @@ const POLL_INTERVAL_MS = 1000;
 const POLL_TIMEOUT_MS = 60_000;
 
 /**
- * Translate `*.apps.dynatrace.com` → `*.live.dynatrace.com`.
+ * Translate `*.apps.dynatrace.com` → `*.live.dynatrace.com`, and
+ * `*.apps.dynatracelabs.com` → `*.dynatracelabs.com` (sprint/staging tenants
+ * don't have a separate `.live.` subdomain — dropping `.apps.` is enough).
  *
  * Modern Dynatrace platform splits its surface across two subdomains:
  *   - `.apps.` hosts the platform-storage / DQL APIs (`/platform/storage/...`).
@@ -79,13 +81,15 @@ const POLL_TIMEOUT_MS = 60_000;
  * Users supply a single `environmentUrl` for the tenant — by convention the
  * `.apps.` form (because DQL is the entry point). For ingest endpoints
  * (`/api/v2/bizevents/ingest`, `/api/v2/metrics/ingest`) we need to redirect
- * to `.live.`, otherwise the apps gateway returns 400 *Invalid app context*.
+ * off `.apps.`, otherwise the apps gateway returns 400 *Invalid app context*.
  *
  * Idempotent on URLs that already point at `.live.` or any other host
  * (cluster-managed, on-prem, dev sandboxes), so it's safe to call always.
  */
 function liveSubdomain(url: string): string {
-  return url.replace(/^(https?:\/\/[^/]+?)\.apps\.dynatrace\.com/, '$1.live.dynatrace.com');
+  return url
+    .replace(/^(https?:\/\/[^/]+?)\.apps\.dynatrace\.com/, '$1.live.dynatrace.com')
+    .replace(/^(https?:\/\/[^/]+?)\.apps\.dynatracelabs\.com/, '$1.dynatracelabs.com');
 }
 
 export class DynatraceClient {

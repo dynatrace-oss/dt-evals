@@ -206,6 +206,25 @@ describe('DynatraceClient', () => {
     expect(metricsUrl).toBe('https://abc12345.live.dynatrace.com/api/v2/metrics/ingest');
   });
 
+  it('ingest endpoints rewrite *.apps.dynatracelabs.com → *.dynatracelabs.com', async () => {
+    // Sprint/staging/labs tenants (e.g. `<id>.sprint.apps.dynatracelabs.com`)
+    // don't have a separate .live. host — just dropping .apps. is enough.
+    // Regression test for the "Invalid app context" 400 seen when ingest
+    // requests were left on the .apps. gateway for these tenants.
+    const mockFetch = vi.fn().mockResolvedValue(new Response('', { status: 202 }));
+    globalThis.fetch = mockFetch;
+
+    const client = new DynatraceClient({
+      environmentUrl: 'https://uim8926h.sprint.apps.dynatracelabs.com/',
+      apiToken: PLATFORM_TOKEN,
+    });
+
+    await client.ingestBizevents([{ 'event.type': 'x' }]);
+
+    const bizUrl = mockFetch.mock.calls[0]?.[0];
+    expect(bizUrl).toBe('https://uim8926h.sprint.dynatracelabs.com/api/v2/bizevents/ingest');
+  });
+
   it('ingest endpoints leave non-.apps. environmentUrls unchanged', async () => {
     const mockFetch = vi.fn().mockResolvedValue(new Response('', { status: 202 }));
     globalThis.fetch = mockFetch;
