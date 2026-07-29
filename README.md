@@ -35,7 +35,7 @@ End-to-end LLM evaluation toolkit for Dynatrace AI Observability.
 - Python `>=3.10` (dt-ai-ingest)
 - A Dynatrace environment with GenAI spans (`gen_ai.*` OTEL attributes)
 - A Dynatrace platform token (generated at [myaccount.dynatrace.com/platformTokens](https://myaccount.dynatrace.com/platformTokens) — `dt-evals doctor` walks you through it)
-- Credentials for your judge provider (OpenAI, Anthropic, Google, AWS Bedrock, or Azure OpenAI)
+- Credentials for your judge provider (OpenAI, Anthropic, Google, AWS Bedrock, Azure OpenAI, or any OpenAI-compatible endpoint such as LiteLLM Router or Ollama)
 
 ## Install
 
@@ -112,13 +112,22 @@ Set up Dynatrace and judge provider credentials. Writes to `.dt-eval.yaml` in th
 # Interactive wizard
 dt-evals configure
 
-# Non-interactive
+# Non-interactive (cloud provider)
 dt-evals configure \
   --env-url https://your-env.live.dynatrace.com \
   --api-token "$DT_API_TOKEN" \
   --provider openai \
   --api-key "$OPENAI_API_KEY" \
   --model gpt-4.1
+
+# Non-interactive (Ollama / LiteLLM)
+dt-evals configure \
+  --env-url https://your-env.live.dynatrace.com \
+  --api-token "$DT_API_TOKEN" \
+  --provider openai-compatible \
+  --base-url http://localhost:11434/v1 \
+  --judge-name Ollama \
+  --model llama3.1:8b
 
 # Show resolved config with secrets redacted
 dt-evals configure --show
@@ -346,6 +355,7 @@ DT_API_TOKEN=dt0c01.xxxxx
 | `gemini` | `gemini-3.1-flash-live` | `GOOGLE_API_KEY` |
 | `bedrock` | `anthropic.claude-opus-4-7` | `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` |
 | `azure-openai` | user-provided deployment name | `AZURE_OPENAI_API_KEY` + `AZURE_OPENAI_ENDPOINT` + `AZURE_OPENAI_API_VERSION` |
+| `openai-compatible` | user-provided model name | Any OpenAI-compatible endpoint — LiteLLM Router, Ollama, vLLM, etc. Requires `judge.baseUrl` and `judge.model`. API key is optional (Ollama and other unauthenticated servers work without one). Set `judge.name` to control how the provider appears in Dynatrace bizevents. |
 
 Override the model with `--model <id>` or set `judge.model` in config.
 
@@ -413,6 +423,29 @@ judge:
   # or use AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT + AZURE_OPENAI_API_VERSION env vars
 ```
 
+**Ollama example:**
+
+```yaml
+judge:
+  provider: openai-compatible
+  name: Ollama               # shown as gen_ai.provider.name in Dynatrace bizevents
+  baseUrl: http://localhost:11434/v1
+  model: llama3.1:8b         # any model pulled with `ollama pull`
+  timeout: 60000             # local models can be slower — increase if needed
+  # no apiKey required
+```
+
+**LiteLLM Router example:**
+
+```yaml
+judge:
+  provider: openai-compatible
+  name: LiteLLM
+  baseUrl: http://localhost:4000/v1
+  model: gpt-4o              # virtual model name configured in your LiteLLM router
+  # or use OPENAI_COMPATIBLE_BASE_URL + OPENAI_COMPATIBLE_API_KEY env vars
+```
+
 Key environment variables:
 
 ```bash
@@ -439,6 +472,9 @@ AWS_REGION=us-east-1
 AZURE_OPENAI_API_KEY=...
 AZURE_OPENAI_ENDPOINT=https://my-resource.openai.azure.com/
 AZURE_OPENAI_API_VERSION=2025-04-01-preview
+# OpenAI-compatible (LiteLLM, Ollama, vLLM, etc.)
+OPENAI_COMPATIBLE_BASE_URL=http://localhost:11434/v1
+OPENAI_COMPATIBLE_API_KEY=...   # optional — omit for unauthenticated servers
 ```
 
 ---
