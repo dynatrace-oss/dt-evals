@@ -360,7 +360,9 @@ export async function createPlatformToken(
   name: string,
   scopes: string[],
 ): Promise<PlatformToken> {
-  const url = `${environmentUrl.replace(/\/$/, '')}/api/v2/apiTokens`;
+  // Classic env-api endpoint — route through liveSubdomain() so `.apps.` hosts
+  // (prod and labs) reach the env-api host, not the apps gateway.
+  const url = `${liveSubdomain(environmentUrl.replace(/\/$/, ''))}/api/v2/apiTokens`;
   const response = await fetch(url, {
     method: 'POST',
     headers: { Authorization: authScheme(bearerToken), 'Content-Type': 'application/json' },
