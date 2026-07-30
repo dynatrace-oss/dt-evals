@@ -24,6 +24,34 @@ The config points at it:
 ollama serve            # if not already running
 ollama pull llama3.2    # model referenced in the config
 ```
+Example Config
+
+```
+schemaVersion: 2
+name: llm-local
+dynatrace:
+  environmentUrl: https://{id}.sprint.apps.dynatracelabs.com/
+judge:
+  provider: openai-compatible
+  name: "Ollama "
+  baseUrl: http://localhost:11434/v1
+  model: llama3.2:latest
+  timeout: 120000
+  maxRetries: 2
+scope:
+  service: llama-client
+  since: 12h
+  sampling:
+    strategy: random
+    percent: 30
+metrics:
+  enabled:
+    - answer-completeness
+    - factual-accuracy
+    - hallucination
+    - drift
+
+```
 
 ### 3. Provide the Dynatrace token
 
