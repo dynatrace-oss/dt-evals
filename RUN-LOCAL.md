@@ -1,6 +1,6 @@
 # Running dt-evals locally
 
-Steps to run the evals locally against the `llm-local.dt-eval.yaml` config.
+Steps to run the evals locally against the `.dt-eval.yaml` config.
 
 This config is wired for a **local Ollama judge** (openai-compatible, `localhost:11434`,
 model `llama3.2`) and reads GenAI spans from the `uim8926h` sprint tenant.
