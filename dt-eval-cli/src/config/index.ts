@@ -243,6 +243,19 @@ export function validateConfig(config: DtEvalConfig): void {
     issues.push('scope.since must be a duration like "1h", "30m", "24h"');
   }
 
+  const operationNames = config.scope?.operationNames as unknown;
+  if (operationNames !== undefined) {
+    if (!Array.isArray(operationNames)) {
+      issues.push('scope.operationNames must be an array of non-empty strings');
+    } else {
+      for (const [i, name] of operationNames.entries()) {
+        if (typeof name !== 'string' || !name.trim()) {
+          issues.push(`scope.operationNames[${i}] must be a non-empty string`);
+        }
+      }
+    }
+  }
+
   const { strategy } = config.scope?.sampling ?? {};
   if (strategy && !['random', 'latest', 'errors-only'].includes(strategy)) {
     issues.push(`scope.sampling.strategy must be one of: random, latest, errors-only`);

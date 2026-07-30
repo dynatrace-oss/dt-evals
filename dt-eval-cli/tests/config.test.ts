@@ -280,6 +280,45 @@ describe('config', () => {
       expect(() => validateConfig(config)).toThrowError(ConfigValidationError);
     });
 
+    it('allows an empty scope.operationNames list to disable the operation-name filter', () => {
+      const config = makeValidConfig({
+        scope: {
+          since: '1h',
+          operationNames: [],
+          sampling: { strategy: 'random', percent: 100 },
+        },
+      });
+
+      expect(() => validateConfig(config)).not.toThrow();
+    });
+
+    it('throws when scope.operationNames is not an array', () => {
+      const config = makeValidConfig();
+      (config.scope as unknown as { operationNames: unknown }).operationNames = 'chat';
+
+      expect(() => validateConfig(config)).toThrowError(ConfigValidationError);
+      try {
+        validateConfig(config);
+      } catch (err) {
+        const issues = (err as InstanceType<typeof ConfigValidationError>).issues;
+        expect(issues).toContain('scope.operationNames must be an array of non-empty strings');
+      }
+    });
+
+    it('throws when scope.operationNames contains non-string or blank entries', () => {
+      const config = makeValidConfig();
+      (config.scope as unknown as { operationNames: unknown[] }).operationNames = ['chat', '', 42];
+
+      expect(() => validateConfig(config)).toThrowError(ConfigValidationError);
+      try {
+        validateConfig(config);
+      } catch (err) {
+        const issues = (err as InstanceType<typeof ConfigValidationError>).issues;
+        expect(issues).toContain('scope.operationNames[1] must be a non-empty string');
+        expect(issues).toContain('scope.operationNames[2] must be a non-empty string');
+      }
+    });
+
     it('passes when only origin/destination are set (no top-level url)', async () => {
       const { resolveEndpoints } = await import('../src/config/schema.js');
       const config = makeValidConfig();
