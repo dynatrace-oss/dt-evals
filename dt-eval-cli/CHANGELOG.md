@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.13-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.12-alpha...v0.2.13-alpha) (2026-07-30)
+
+
+### 🐛 Bug Fixes
+
+* show evaluator result ratios ([#154](https://github.com/dynatrace-oss/dt-evals/issues/154)) ([1cc305d](https://github.com/dynatrace-oss/dt-evals/commit/1cc305d6b48d143ede1c2cc436a444b27271993e))
+
 ## [0.2.12-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.11-alpha...v0.2.12-alpha) (2026-07-29)
 
 
