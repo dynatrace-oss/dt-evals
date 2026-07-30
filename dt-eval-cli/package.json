@@ -21,6 +21,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "preinstall": "npm --prefix ../dt-eval-lib install && npm --prefix ../dt-eval-lib run build",
     "build": "tsup",
     "test": "vitest run",
     "dev": "tsx src/index.ts"
@@ -37,7 +38,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.0",
     "@aws-sdk/client-bedrock-runtime": "^3.0.0",
-    "@dynatrace-oss/dt-eval-lib": "^0.0.15-alpha",
+    "@dynatrace-oss/dt-eval-lib": "file:../dt-eval-lib",
     "@google/genai": "^1.0.0",
     "@inquirer/prompts": "^7.10.1",
     "@types/figlet": "^1.7.0",
@@ -53,5 +54,12 @@
     "tsx": "^4.0.0",
     "typescript": "^5.7.0",
     "vitest": "^2.1.0"
+  },
+  "allowScripts": {
+    "@google/genai@1.52.0": true,
+    "esbuild@0.27.4": true,
+    "esbuild@0.21.5": true,
+    "fsevents@2.3.3": true,
+    "protobufjs@7.5.8": true
   }
 }
