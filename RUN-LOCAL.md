@@ -46,23 +46,23 @@ from inside `dt-eval-cli/`, so reference the repo-root file with `../`:
 cd dt-eval-cli
 
 # dry run first — fetches + transforms, prints payloads, sends nothing
-npm run dev -- run ../llm-local.dt-eval.yaml --dry-run
+npm run dev -- run ../.dt-eval.yaml --dry-run
 
 # real run
-npm run dev -- run ../llm-local.dt-eval.yaml
+npm run dev -- run ../.dt-eval.yaml
 ```
 
 ## Useful variants
 
 ```bash
 # validate the config without running
-npm run dev -- validate ../llm-local.dt-eval.yaml
+npm run dev -- validate ../.dt-eval.yaml
 
 # single metric, more logging
-npm run dev -- run ../llm-local.dt-eval.yaml --metric factual-accuracy --debug
+npm run dev -- run ../.dt-eval.yaml --metric factual-accuracy --debug
 
 # override the time window / sampling from the config
-npm run dev -- run ../llm-local.dt-eval.yaml --since 6h --sample 10
+npm run dev -- run ../.dt-eval.yaml --since 6h --sample 10
 ```
 
 ## Notes
