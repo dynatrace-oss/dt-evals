@@ -206,6 +206,58 @@ describe('DynatraceClient', () => {
     expect(metricsUrl).toBe('https://abc12345.live.dynatrace.com/api/v2/metrics/ingest');
   });
 
+  it('ingest endpoints strip the apps. label for *.apps.dynatracelabs.com (sprint/dev)', async () => {
+    // Internal labs tenants supply a .apps. URL like {env}.sprint.apps.dynatracelabs.com,
+    // but their classic env-api lives at {env}.sprint.dynatracelabs.com (no .apps., no .live.).
+    // Leaving .apps. in place makes ingest hit the apps gateway → 400 "Invalid app context".
+    const mockFetch = vi.fn().mockResolvedValue(new Response('', { status: 202 }));
+    globalThis.fetch = mockFetch;
+
+    const client = new DynatraceClient({
+      environmentUrl: 'https://uim8926h.sprint.apps.dynatracelabs.com',
+      apiToken: PLATFORM_TOKEN,
+    });
+
+    await client.ingestBizevents([{ 'event.type': 'x' }]);
+    await client.ingestMetrics('my.metric 1.0');
+
+    const bizUrl = mockFetch.mock.calls[0]?.[0];
+    const metricsUrl = mockFetch.mock.calls[1]?.[0];
+    expect(bizUrl).toBe('https://uim8926h.sprint.dynatracelabs.com/api/v2/bizevents/ingest');
+    expect(metricsUrl).toBe('https://uim8926h.sprint.dynatracelabs.com/api/v2/metrics/ingest');
+  });
+
+  it('ingest strips the apps. label for the .dev. labs variant too', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(new Response('', { status: 202 }));
+    globalThis.fetch = mockFetch;
+
+    const client = new DynatraceClient({
+      environmentUrl: 'https://uim8926h.dev.apps.dynatracelabs.com',
+      apiToken: PLATFORM_TOKEN,
+    });
+
+    await client.ingestBizevents([{ 'event.type': 'x' }]);
+
+    expect(mockFetch.mock.calls[0]?.[0]).toBe('https://uim8926h.dev.dynatracelabs.com/api/v2/bizevents/ingest');
+  });
+
+  it('DQL queries stay on .apps. for dynatracelabs tenants', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      makeSuccessResponse({ state: 'SUCCEEDED', result: { records: [] } }),
+    );
+    globalThis.fetch = mockFetch;
+
+    const client = new DynatraceClient({
+      environmentUrl: 'https://uim8926h.sprint.apps.dynatracelabs.com',
+      apiToken: PLATFORM_TOKEN,
+    });
+
+    await client.executeDql('fetch spans | limit 1');
+
+    const url = mockFetch.mock.calls[0]?.[0] as string;
+    expect(url).toBe('https://uim8926h.sprint.apps.dynatracelabs.com/platform/storage/query/v1/query:execute');
+  });
+
   it('ingest endpoints leave non-.apps. environmentUrls unchanged', async () => {
     const mockFetch = vi.fn().mockResolvedValue(new Response('', { status: 202 }));
     globalThis.fetch = mockFetch;

@@ -70,22 +70,30 @@ const POLL_INTERVAL_MS = 1000;
 const POLL_TIMEOUT_MS = 60_000;
 
 /**
- * Translate `*.apps.dynatrace.com` → `*.live.dynatrace.com`.
+ * Rewrite a platform (`.apps.`) host to its classic environment-API host.
  *
  * Modern Dynatrace platform splits its surface across two subdomains:
  *   - `.apps.` hosts the platform-storage / DQL APIs (`/platform/storage/...`).
- *   - `.live.` hosts the classic environment APIs (`/api/v2/...`).
+ *   - the env-api host hosts the classic environment APIs (`/api/v2/...`).
  *
  * Users supply a single `environmentUrl` for the tenant — by convention the
  * `.apps.` form (because DQL is the entry point). For ingest endpoints
  * (`/api/v2/bizevents/ingest`, `/api/v2/metrics/ingest`) we need to redirect
- * to `.live.`, otherwise the apps gateway returns 400 *Invalid app context*.
+ * to the env-api host, otherwise the apps gateway returns 400 *Invalid app
+ * context*.
  *
- * Idempotent on URLs that already point at `.live.` or any other host
+ * The env-api host differs by environment family:
+ *   - Production SaaS: `{env}.apps.dynatrace.com` → `{env}.live.dynatrace.com`.
+ *   - Internal labs (sprint/dev): the env-api simply drops the `apps.` label,
+ *     e.g. `{env}.sprint.apps.dynatracelabs.com` → `{env}.sprint.dynatracelabs.com`.
+ *
+ * Idempotent on URLs that already point at the env-api host or any other host
  * (cluster-managed, on-prem, dev sandboxes), so it's safe to call always.
  */
 function liveSubdomain(url: string): string {
-  return url.replace(/^(https?:\/\/[^/]+?)\.apps\.dynatrace\.com/, '$1.live.dynatrace.com');
+  return url
+    .replace(/^(https?:\/\/[^/]+?)\.apps\.dynatrace\.com/, '$1.live.dynatrace.com')
+    .replace(/^(https?:\/\/[^/]+?)\.apps\.(dynatracelabs\.com)/, '$1.$2');
 }
 
 export class DynatraceClient {
@@ -176,7 +184,7 @@ export class DynatraceClient {
   }
 
   async ingestBizevents(events: object[]): Promise<void> {
-    // Classic env-api on `.live.` subdomain. See `liveSubdomain()` for why.
+    // Classic env-api host. See `liveSubdomain()` for the host rewrite.
     const url = `${this.liveBaseUrl}/api/v2/bizevents/ingest`;
     const response = await fetch(url, {
       method: 'POST',
@@ -194,7 +202,7 @@ export class DynatraceClient {
   }
 
   async ingestMetrics(lines: string): Promise<void> {
-    // Classic env-api on `.live.` subdomain. See `liveSubdomain()` for why.
+    // Classic env-api host. See `liveSubdomain()` for the host rewrite.
     const url = `${this.liveBaseUrl}/api/v2/metrics/ingest`;
     const response = await fetch(url, {
       method: 'POST',
