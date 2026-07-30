@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.14-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.13-alpha...v0.2.14-alpha) (2026-07-30)
+
+
+### 🐛 Bug Fixes
+
+* **dt-eval-cli:** route ingest to env-api on labs tenants ([#171](https://github.com/dynatrace-oss/dt-evals/issues/171)) ([43ed449](https://github.com/dynatrace-oss/dt-evals/commit/43ed449ba4fc5cc3d0b4e8c0da528b74b2c8ef3c))
+
 ## [0.2.13-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.12-alpha...v0.2.13-alpha) (2026-07-30)
 
 
