@@ -132,8 +132,11 @@ describe('processBatch', () => {
     expect(maxConcurrent).toBeLessThanOrEqual(5);
   });
 
-  it('rejects invalid concurrency', async () => {
-    await expect(processBatch([1], async n => n, { concurrency: 0 }))
-      .rejects.toThrow('concurrency must be a positive integer');
-  });
+  it.each([0, -1, 2.5, NaN])(
+    "rejects invalid concurrency: %s",
+    async invalid => {
+      await expect(processBatch([1], async n => n, { concurrency: invalid }))
+        .rejects.toThrow("concurrency must be a positive integer");
+    },
+  );
 });

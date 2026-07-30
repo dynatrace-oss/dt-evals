@@ -17,7 +17,7 @@ export async function processBatch<T, R>(
   handler: (item: T) => Promise<R>,
   config?: Partial<BatchConfig>,
 ): Promise<Array<BatchItemResult<T, R>>> {
-  const { concurrency } = { ...DEFAULT_BATCH_CONFIG, ...config };
+  const concurrency = config?.concurrency ?? DEFAULT_BATCH_CONFIG.concurrency;
   if (!Number.isInteger(concurrency) || concurrency <= 0) {
     throw new Error(`concurrency must be a positive integer, got ${concurrency}`);
   }
