@@ -71,6 +71,8 @@ function makeDtClient(spans: GenAiSpan[]) {
     'gen_ai.input.messages': s.input,
     'gen_ai.output.messages': s.output,
     'gen_ai.system': s.system,
+    // Default to a kept operation so fixtures survive the operation-name safety net
+    'gen_ai.operation.name': s.operationName ?? 'chat',
     'gen_ai.request.model': s.requestModel,
     'rag.context': s.context,
     'gen_ai.system_instruction': s.systemInstruction,
@@ -135,6 +137,31 @@ describe('runEvals', () => {
 
     const [query] = dtClient.executeDql.mock.calls[0] as [string];
     expect(query).toContain('| filter in(gen_ai.operation.name, array("chat"))');
+  });
+
+  it('drops spans whose operation name is not in the keep-list (parser safety net)', async () => {
+    // Simulate the DQL returning an extra non-model span despite the query filter.
+    const dtClient = makeDtClient([
+      makeSpan({ traceId: 'kept', operationName: 'chat' }),
+      makeSpan({ traceId: 'leaked', operationName: 'execute_tool' }),
+    ]);
+    const config = makeConfig({
+      scope: {
+        since: '1h',
+        operationNames: ['chat'],
+        sampling: { strategy: 'random', percent: 100 },
+      },
+    });
+
+    const result = await runEvals(
+      dtClient as unknown as import('../../src/dt/client.js').DynatraceClient,
+      config,
+      { since: '1h' },
+    );
+
+    // Only the "chat" span survives → 1 span × 2 metrics = 2 evaluations
+    expect(result.spansEvaluated).toBe(1);
+    expect(evaluate).toHaveBeenCalledTimes(2);
   });
 
   it('applies sampling (sample=50 takes ~half)', async () => {

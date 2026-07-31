@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildGenAiSpanQuery, parseSpanResults } from '../../src/dt/dql.js';
+import { buildGenAiSpanQuery, parseSpanResults, filterSpansByOperationName } from '../../src/dt/dql.js';
+import type { GenAiSpan } from '../../src/dt/types.js';
 
 describe('buildGenAiSpanQuery', () => {
   it('uses explicit from:/to: timeframe (not a filter clause) for the given since value', () => {
@@ -46,6 +47,13 @@ describe('buildGenAiSpanQuery', () => {
   it('does not add an operation-name filter when configured with an empty list', () => {
     const query = buildGenAiSpanQuery({ since: '1h', operationNames: [] });
     expect(query).not.toContain('gen_ai.operation.name, array(');
+  });
+
+  it('trims stray whitespace around configured operation names', () => {
+    const query = buildGenAiSpanQuery({ since: '1h', operationNames: [' chat ', 'text_completion '] });
+    expect(query).toContain(
+      '| filter in(gen_ai.operation.name, array("chat", "text_completion"))',
+    );
   });
 
   it('filters by app via service.name (OTel) and dt.service.name (Dynatrace semconv)', () => {
@@ -116,6 +124,7 @@ describe('parseSpanResults', () => {
         'gen_ai.output.messages': 'Hi there!',
         'gen_ai.system_instruction': 'Be helpful.',
         'gen_ai.system': 'openai',
+        'gen_ai.operation.name': 'chat',
         'gen_ai.request.model': 'gpt-4o',
         'status.code': 'OK',
       },
@@ -132,6 +141,7 @@ describe('parseSpanResults', () => {
     expect(span.output).toBe('Hi there!');
     expect(span.systemInstruction).toBe('Be helpful.');
     expect(span.system).toBe('openai');
+    expect(span.operationName).toBe('chat');
     expect(span.requestModel).toBe('gpt-4o');
     expect(span.isError).toBeUndefined();
   });
@@ -509,5 +519,52 @@ describe('JSON-stringified message arrays (OTel GenAI evolved form)', () => {
     ];
     const spans = parseSpanResults(records, { spanFields: { input: 'custom.input' } });
     expect(spans[0]!.input).toBe('use this exact input');
+  });
+});
+
+describe('filterSpansByOperationName', () => {
+  const span = (operationName?: string): GenAiSpan => ({
+    traceId: `t-${operationName ?? 'none'}`,
+    input: 'q',
+    output: 'a',
+    operationName,
+  });
+
+  it('keeps only spans whose operationName is in the keep-list', () => {
+    const spans = [span('chat'), span('execute_tool'), span('generate_content')];
+
+    const kept = filterSpansByOperationName(spans, ['chat', 'generate_content']);
+
+    expect(kept.map(s => s.operationName)).toEqual(['chat', 'generate_content']);
+  });
+
+  it('drops spans with no operationName when the filter is active', () => {
+    const spans = [span('chat'), span(undefined)];
+
+    const kept = filterSpansByOperationName(spans, ['chat']);
+
+    expect(kept.map(s => s.operationName)).toEqual(['chat']);
+  });
+
+  it('applies the default keep-list when operationNames is undefined', () => {
+    const spans = [span('chat'), span('embeddings')];
+
+    const kept = filterSpansByOperationName(spans, undefined);
+
+    expect(kept.map(s => s.operationName)).toEqual(['chat']);
+  });
+
+  it('returns all spans unchanged when the keep-list is empty', () => {
+    const spans = [span('chat'), span('execute_tool'), span(undefined)];
+
+    expect(filterSpansByOperationName(spans, [])).toEqual(spans);
+  });
+
+  it('trims keep-list entries so a whitespace-padded config value still matches spans', () => {
+    const spans = [span('chat'), span('execute_tool')];
+
+    const kept = filterSpansByOperationName(spans, [' chat ']);
+
+    expect(kept.map(s => s.operationName)).toEqual(['chat']);
   });
 });

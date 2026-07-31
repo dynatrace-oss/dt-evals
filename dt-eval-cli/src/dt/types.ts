@@ -8,6 +8,7 @@ export interface GenAiSpan {
   context?: string;           // evaluator context from scope.spanFields.context
   systemInstruction?: string; // gen_ai.system_instruction
   system?: string;            // gen_ai.provider.name (e.g. "openai")
+  operationName?: string;     // gen_ai.operation.name (e.g. "chat", "text_completion")
   requestModel?: string;      // gen_ai.request.model
   /** Latest user-role content extracted from prompt slots or structured messages.
    * Useful for metrics that should score the user's turn alone. */

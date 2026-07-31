@@ -4,7 +4,7 @@ import type { DynatraceClient } from '../dt/client.js';
 import type { DtEvalConfig, MetricEntry, MetricInputs, CanonicalSpanField } from '../config/schema.js';
 import { metricId, metricInputs } from '../config/schema.js';
 import type { GenAiSpan, BizeventPayload } from '../dt/types.js';
-import { buildGenAiSpanQuery, parseSpanResults } from '../dt/dql.js';
+import { buildGenAiSpanQuery, parseSpanResults, filterSpansByOperationName } from '../dt/dql.js';
 import { BizeventWriter, buildBizeventPayload } from '../dt/bizevent.js';
 import { DRIFT_METRIC_ID, runDriftDetection, buildDriftBizevents } from './drift.js';
 import { applySampling } from './sampler.js';
@@ -172,8 +172,15 @@ export async function runEvals(
   logger.timing('DQL fetch', dqlMs, { rawRecords: (rawRecords as unknown[]).length });
 
   const t0Parse = Date.now();
-  const allSpans = parseSpanResults(rawRecords, { spanFields: evalConfig.scope.spanFields });
-  logger.timing('Parse spans', Date.now() - t0Parse, { spans: allSpans.length });
+  const parsedSpans = parseSpanResults(rawRecords, { spanFields: evalConfig.scope.spanFields });
+  // Safety net: re-apply the operation-name keep-list at the parser layer so a DQL
+  // change or unexpected extra records can't leak non-keep-listed operation spans
+  // into evaluation.
+  const allSpans = filterSpansByOperationName(parsedSpans, evalConfig.scope.operationNames);
+  logger.timing('Parse spans', Date.now() - t0Parse, {
+    spans: allSpans.length,
+    dropped: parsedSpans.length - allSpans.length,
+  });
   emit?.({ phase: 'fetched', spans: allSpans.length, durationMs: dqlMs });
 
   // 2. Apply sampling
