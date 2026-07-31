@@ -246,7 +246,7 @@ export function validateConfig(config: DtEvalConfig): void {
   const operationNames = config.scope?.operationNames as unknown;
   if (operationNames !== undefined) {
     if (!Array.isArray(operationNames)) {
-      issues.push('scope.operationNames must be an array of non-empty strings');
+      issues.push('scope.operationNames must be an array of strings (use [] to disable the filter)');
     } else {
       for (const [i, name] of operationNames.entries()) {
         if (typeof name !== 'string' || !name.trim()) {

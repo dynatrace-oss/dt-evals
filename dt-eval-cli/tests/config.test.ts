@@ -301,7 +301,7 @@ describe('config', () => {
         validateConfig(config);
       } catch (err) {
         const issues = (err as InstanceType<typeof ConfigValidationError>).issues;
-        expect(issues).toContain('scope.operationNames must be an array of non-empty strings');
+        expect(issues).toContain('scope.operationNames must be an array of strings (use [] to disable the filter)');
       }
     });
 
