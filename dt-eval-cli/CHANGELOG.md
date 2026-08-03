@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.15-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.14-alpha...v0.2.15-alpha) (2026-08-03)
+
+
+### ✨ New Features
+
+* **dt-eval-cli:** ai-337 add operation-name span filter ([#160](https://github.com/dynatrace-oss/dt-evals/issues/160)) ([3119def](https://github.com/dynatrace-oss/dt-evals/commit/3119deffc75d8568f27e14d13d8ffcefe39fdb07))
+
+
+### 🐛 Bug Fixes
+
+* **dt-eval-cli:** remove batch head-of-line blocking in eval runner ([#147](https://github.com/dynatrace-oss/dt-evals/issues/147)) ([1af4c53](https://github.com/dynatrace-oss/dt-evals/commit/1af4c532ed33defa7bfc6949f902e5c4b591e843))
+
 ## [0.2.14-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.13-alpha...v0.2.14-alpha) (2026-07-30)
 
 
