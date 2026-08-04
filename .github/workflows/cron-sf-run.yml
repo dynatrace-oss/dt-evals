@@ -1,9 +1,6 @@
 name: Run dt-evals for smartfreight each 1h
 
 on:
-  push:
-    branches:
-      - add-sf-cron-workflow
   schedule:
     - cron: "10 * * * *"
 
