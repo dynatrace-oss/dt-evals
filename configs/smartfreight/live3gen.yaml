@@ -1,0 +1,38 @@
+schemaVersion: 2
+name: smartfreight
+
+dynatrace: {}
+
+judge:
+  provider: vertex
+  model: gemini-3.5-flash
+  location: global
+  timeout: 60000
+  maxRetries: 2
+
+scope:
+  service: smartfreight-agent-service
+  sampling:
+    strategy: latest
+    percent: 20
+  spanFields:
+    output: gen_ai.output.messages
+    systemInstruction: gen_ai.context
+
+metrics:
+  enabled:
+    # - fluency
+    - toxicity
+    # - faithfulness
+    - hallucination
+    # - pii-leakage
+    - relevance
+    # - factual-accuracy
+    - user-frustration
+    # - context-relevance
+    # - answer-completeness
+    - prompt-injection
+    - bias
+    # - summarization-quality
+    # - conciseness
+    # - drift
