@@ -56,7 +56,7 @@ jobs:
       - name: Authenticate to AWS
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: "arn:aws:iam::246186168471:role/gha-dczupryn-dt-dt-evals-cron-dcbb7e"
+          role-to-assume: "arn:aws:iam::246186168471:role/gha-dynatrace-oss-dt-evals-fa0cfd"
           aws-region: us-east-1
 
       - name: Get Dynatrace URL and API token from AWS Secrets Manager
@@ -71,7 +71,7 @@ jobs:
         with:
           project_id: dynatrace-demoability
           workload_identity_provider: "projects/959021067757/locations/global/workloadIdentityPools/github-actions/providers/github-actions-oidc"
-          service_account: "gha-dczupryn-dt-dt-ev-dcbb7e@dynatrace-demoability.iam.gserviceaccount.com"
+          service_account: "gha-dt-evals-fa0cfdd3@dynatrace-demoability.iam.gserviceaccount.com"
 
       - uses: actions/setup-node@v6
         with:
