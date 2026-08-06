@@ -1,0 +1,224 @@
+---
+name: E2E — dt-evals CLI
+
+# Runs the built CLI against a real Dynatrace tenant and a real judge provider.
+#
+# Deliberately NOT triggered by pull_request. Real secrets and real judge spend stay
+# off the PR path — that is the safety property, and it is the reason the suite lives
+# in its own workspace (test/e2e) rather than under dt-eval-cli/tests, which
+# ci-cli.yml runs on every PR.
+#
+# Scheduled a few hours after the fixture spans are seeded. This suite does not seed:
+# dynatrace-ai-agent-instrumentation-examples replays 28 deterministic conversations
+# into the tenant nightly at ~03:00 UTC, and the contract suite reads them back.
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC — after the upstream ~03:00 UTC seeding
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "Run only this suite (cli, tenant, contract, validate, run, evallogic). Blank runs all."
+        required: false
+        type: string
+      fixture_lookback:
+        description: "How far back to look for fixture spans (DQL duration, e.g. 24h, 7d)"
+        required: false
+        default: "24h"
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      # Surfaced so the notify job can distinguish "the pipeline is broken" from
+      # "the judge disagreed", which the design doc treats very differently.
+      verdict_outcome: ${{ steps.verdict.outcome }}
+    # Scopes the credentials to this workflow instead of exposing them to every job
+    # in the repo.
+    #
+    # This only protects anything once the environment actually exists with a
+    # deployment-branch policy limiting it to `main` — GitHub auto-creates a
+    # referenced environment with NO rules, which would make this line pure
+    # namespacing. Configure it in the repo settings alongside the E2E_* secrets;
+    # the `release` environment in this repo is already set up that way.
+    #
+    # Deliberately no required reviewers: those pause the job until a human
+    # approves, which would stop the weekly scheduled run from ever completing
+    # unattended. The branch policy is the control here, not reviewer approval.
+    environment: e2e
+    defaults:
+      run:
+        shell: bash
+        working-directory: test/e2e
+    # Only non-secrets live at job level. Every credential is attached to the
+    # "Run E2E suite" step instead, so the two `npm ci` steps below never see
+    # them: `npm ci` executes dependency install scripts, and a single
+    # compromised package anywhere in either tree could read a job-level secret
+    # straight out of process.env. Two packages in test/e2e alone have install
+    # scripts today.
+    env:
+      # Judge provider. Bedrock matches the credentials the sibling E2E suite
+      # already provisions; switch E2E_JUDGE_PROVIDER to use another.
+      E2E_JUDGE_PROVIDER: ${{ vars.E2E_JUDGE_PROVIDER || 'bedrock' }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      # Left empty so the CLI's own default applies — currently the haiku-4-5
+      # inference profile, which is what this account can invoke. Set the
+      # E2E_JUDGE_MODEL repo variable to override without touching this file:
+      # if the default model is ever not enabled in the account, every judge
+      # call fails for a reason that reads like a credential problem.
+      E2E_JUDGE_MODEL: ${{ vars.E2E_JUDGE_MODEL }}
+
+      # Missing credentials must fail the run, not skip it. A suite that skips
+      # everything still reports green, which is how E2E suites quietly rot.
+      E2E_REQUIRE_ENV: "1"
+
+      E2E_FIXTURE_LOOKBACK: ${{ inputs.fixture_lookback || '24h' }}
+
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          # Nothing here pushes or authenticates to git, so don't leave the
+          # GITHUB_TOKEN behind in .git/config where later steps can read it.
+          persist-credentials: false
+
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version-file: "dt-eval-cli/.nvmrc"
+          cache: "npm"
+          cache-dependency-path: |
+            dt-eval-cli/package-lock.json
+            test/e2e/package-lock.json
+
+      # The suite drives dt-eval-cli/dist/index.js — the artifact package.json#bin
+      # maps `dt-evals` to. Building from this checkout means the run tests the
+      # commit under test, not whatever is published on npm.
+      - name: Build the CLI under test
+        working-directory: dt-eval-cli
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install E2E dependencies
+        run: npm ci
+
+      # Output goes to the Actions log and nowhere else. An earlier version teed it
+      # to a file and uploaded that as an artifact — but this repo is public, so
+      # the artifact was world-readable, and `tee` writes raw bytes that bypass the
+      # runner's secret masking. The CLI is known to echo raw provider errors, and
+      # the Gemini probe path puts its key in the request URL, so a failing run
+      # could have published a live credential. The Actions log keeps the same
+      # diagnostic value with masking applied.
+      #
+      # `suite` is passed through env and matched against a closed list rather than
+      # interpolated into this script: `${{ }}` is substituted before bash parses
+      # the line, so a `$(...)` payload in the input would execute with every
+      # credential below in scope.
+      #
+      # This is the blocking lane: everything whose failure means something is
+      # actually broken — auth, connectivity, the fixture contract, the pipeline.
+      - name: Run E2E suite
+        env:
+          # Every secret here is E2E_-prefixed and must be provisioned on the
+          # `e2e` *environment*, never at repo or org level.
+          #
+          # The prefix is not cosmetic. Unprefixed names read like shared repo
+          # credentials and get provisioned as such — and a repo secret is
+          # visible to every workflow, including the pull_request-triggered ones,
+          # which would undo the step-scoping above. Secret lookup also falls
+          # back environment → repo → organization, so an unprefixed name that is
+          # missing here would silently resolve to some org-wide credential and
+          # bill against it, with E2E_REQUIRE_ENV none the wiser because the
+          # variable is non-empty.
+          #
+          # For the tenant there is a second reason: reusing DT_ENV_URL /
+          # DT_API_TOKEN would collide with the music-agent workflow, which
+          # targets a different tenant.
+          DT_APPS_ENDPOINT: ${{ secrets.E2E_DT_APPS_ENDPOINT }}
+          DT_API_TOKEN: ${{ secrets.E2E_DT_API_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.E2E_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.E2E_AWS_SECRET_ACCESS_KEY }}
+          # Optional. A second tenant token deliberately issued without
+          # storage:spans:read, so the one probe that cannot be provoked with a
+          # merely invalid token gets a failure case. The test skips when unset.
+          E2E_DT_MISSCOPED_TOKEN: ${{ secrets.E2E_DT_MISSCOPED_TOKEN }}
+          SUITE: ${{ inputs.suite }}
+        run: |
+          set -euo pipefail
+          case "${SUITE:-}" in
+            "")
+              # Excluded rather than listed, so a suite added later lands in the
+              # blocking lane by default instead of silently running nowhere.
+              #
+              # --bail stops after the first failing file. Summing every test's
+              # own timeout, this lane could in principle run far past the job's
+              # 30-minute cap — and a job killed by that cap produces no vitest
+              # summary at all, which is the least useful output the suite can
+              # give. Bailing keeps a bad day conclusive instead of truncated.
+              npx vitest run --bail=1 --exclude 'suites/evallogic.e2e.test.ts'
+              ;;
+            cli | tenant | contract | validate | run | evallogic)
+              # An explicitly requested suite always blocks: someone asked for it.
+              npx vitest run "suites/${SUITE}.e2e.test.ts"
+              ;;
+            *)
+              echo "::error::unknown suite '${SUITE}' — expected one of: cli, tenant, contract, validate, run, evallogic" >&2
+              exit 1
+              ;;
+          esac
+
+      # The flaky lane. The design doc splits hard failures from score wobble:
+      # auth and connectivity block the run, a judge disagreeing about a verdict
+      # alerts instead. evallogic is the only suite that asserts on a judge's
+      # decision, so it is the only one that belongs here.
+      #
+      # Its failure still surfaces — the notify job reports it — it just does not
+      # turn the weekly run red on its own.
+      - name: Run verdict suite (non-blocking)
+        id: verdict
+        # `!inputs.suite` rather than `inputs.suite == ''`: on a schedule event
+        # the inputs context is empty, and relying on null-to-empty-string
+        # coercion to decide whether this lane runs at all is not worth the
+        # ambiguity. Falsy covers both spellings.
+        if: ${{ !inputs.suite }}
+        continue-on-error: true
+        env:
+          DT_APPS_ENDPOINT: ${{ secrets.E2E_DT_APPS_ENDPOINT }}
+          DT_API_TOKEN: ${{ secrets.E2E_DT_API_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.E2E_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.E2E_AWS_SECRET_ACCESS_KEY }}
+        run: npx vitest run suites/evallogic.e2e.test.ts
+
+      - name: Flag a verdict-lane failure
+        if: ${{ steps.verdict.outcome == 'failure' }}
+        run: |
+          echo "::warning title=Verdict lane failed::The judge did not return the expected pass/fail direction for the toxicity fixtures. Re-run once before treating it as a regression."
+
+  # Mirrors the notify job in dynatrace-ai-agent-instrumentation-examples: one
+  # sticky issue per label, commented on while the failure persists and closed
+  # when it clears. That keeps a scheduled run from failing silently — nobody
+  # watches a weekly workflow — without opening a fresh issue every Monday.
+  #
+  # Scheduled runs only. A manual dispatch has someone watching it already.
+  notify:
+    name: Notify on failure or recovery
+    needs: [e2e]
+    if: always() && github.event_name == 'schedule'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Open, update or close the alert issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          E2E_RESULT: ${{ needs.e2e.result }}
+          VERDICT_OUTCOME: ${{ needs.e2e.outputs.verdict_outcome }}
+        run: bash .github/scripts/notify-e2e.sh

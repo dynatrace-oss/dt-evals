@@ -1,0 +1,25 @@
+{
+  "name": "@dynatrace-oss/dt-evals-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "End-to-end suite for dt-evals: drives the built CLI against a real Dynatrace tenant and a real judge provider",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test:e2e": "vitest run",
+    "test:cli": "vitest run suites/cli.e2e.test.ts",
+    "test:tenant": "vitest run suites/tenant.e2e.test.ts",
+    "test:contract": "vitest run suites/contract.e2e.test.ts",
+    "test:validate": "vitest run suites/validate.e2e.test.ts",
+    "test:run": "vitest run suites/run.e2e.test.ts",
+    "test:evallogic": "vitest run suites/evallogic.e2e.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}
