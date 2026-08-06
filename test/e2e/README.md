@@ -60,7 +60,7 @@ this that only guarded the tenant let a CI run with `E2E_REQUIRE_ENV=1` skip the
 Run one at a time with `npm run test:contract`, `npm run test:validate`, and so on.
 `npm run typecheck` checks the workspace without running anything.
 
-`ci-e2e.yml` runs the typecheck and the whole suite on every pull request, with no
+`e2e-pr.yml` runs the typecheck and the whole suite on every pull request, with no
 credentials — so everything tenant-backed skips and only `cli.e2e.test.ts` plus the
 conversation-id block of `contract.e2e.test.ts` actually execute. That gate exists
 because the credentialed suite only runs weekly: without it a type error or a stale
@@ -109,61 +109,11 @@ way it does:
 | `gen_ai.context`, `gen_ai.reference` | present on grounding cases only | Non-semconv attributes that exist purely for dt-evals; need `scope.spanFields.context` |
 | `gen_ai.conversation.id` | on every span | Present, but `buildGenAiSpanQuery` never selects it — see below |
 
-## Provisioning CI
+## Provisioning CI and the two lanes
 
-Order matters, and so does where the secrets live.
-
-**1. Create the environment first.** `e2e.yml` references `environment: e2e`, and
-GitHub auto-creates a referenced environment with *no* rules — so referencing one
-that does not exist yet buys nothing but a namespace. Create it with a
-deployment-branch policy limited to `main`, and no required reviewers (those pause
-the job until a human approves, which a weekly unattended run would never get):
-
-```bash
-gh api -X PUT repos/dynatrace-oss/dt-evals/environments/e2e \
-  -f 'deployment_branch_policy[protected_branches]=true' \
-  -f 'deployment_branch_policy[custom_branch_policies]=false'
-```
-
-**2. Add all four secrets to that environment — never at repo or organization
-level.** A repo secret is visible to every workflow, including the ones that run
-on pull requests, which would undo the step-scoping in `e2e.yml`. Secret lookup
-also falls back environment → repo → organization, so a missing environment
-secret can silently resolve to some org-wide credential and bill against it.
-
-| Secret | Notes |
-|---|---|
-| `E2E_DT_APPS_ENDPOINT` | **No trailing slash.** The suite strips one before use, and the runner only masks the exact stored string — a stored `https://host/` would leak `https://host` unmasked. |
-| `E2E_DT_API_TOKEN` | Scoped to the six scopes listed in `.env.sample`, on the fixture tenant only. It carries write scopes. |
-| `E2E_AWS_ACCESS_KEY_ID` | IAM user scoped to `bedrock:InvokeModel` on the invokable model ARNs, nothing else. |
-| `E2E_AWS_SECRET_ACCESS_KEY` | |
-
-**3. First run manually**, via `workflow_dispatch`, not the schedule — someone
-should be watching. Start with `suite=contract`: it spends no judge calls and
-answers the question that goes wrong most often, namely whether the tenant has the
-fixture spans at all. Then `validate`, then leave the rest to the schedule.
-
-Until the secrets exist, a scheduled run goes red on purpose: `E2E_REQUIRE_ENV=1`
-turns a missing credential into a failure rather than a silent skip.
-
-## Two lanes, and what a red run means
-
-The weekly workflow splits the suite in two, following the design doc's
-flaky-test policy:
-
-- **Blocking lane** — everything except `evallogic`. A failure here is real:
-  credentials, connectivity, the fixture contract, the run pipeline. It turns the
-  run red.
-- **Verdict lane** — `evallogic` alone, run with `continue-on-error`. It is the
-  only suite that asserts on a judge's *decision*, and judges wobble. A failure
-  raises an alert but does not fail the run. Re-run once before treating it as a
-  regression.
-
-Either way the `notify` job opens (or comments on) a single sticky GitHub issue
-labelled `e2e-alert`, and closes it once the run is clean again — the same
-pattern `notify-nightly.sh` uses in the instrumentation-examples repo. A weekly
-workflow nobody watches needs that; the design doc asks for Slack, but a GitHub
-issue needs no webhook secret and lands in the same place as the code.
+Environment setup, secret scoping, the blocking-vs-verdict split, and the notify
+issue lifecycle are all documented as comments directly in `.github/workflows/e2e-weekly.yml`
+and `.github/scripts/notify-e2e.sh`, next to the code they govern — start there.
 
 ### Known gap: `sampling: latest` is only "latest" on a small service
 

@@ -1,0 +1,76 @@
+---
+name: CI — E2E suite (no credentials)
+
+# The PR-time gate for test/e2e. The credentialed suite (e2e-weekly.yml) only runs on a
+# weekly schedule, so without this a type error or a stale assertion in the
+# harness stays invisible until Monday — and ci-cli.yml does not help, because it
+# is scoped to dt-eval-cli/**.
+#
+# Deliberately runs no secret and spends nothing. Today that means the whole
+# workspace typechecks, the harness self-checks in cli.e2e.test.ts run
+# (isolation, redaction), and the conversation-id derivation in
+# contract.e2e.test.ts runs — everything else gates itself on credentials and
+# skips.
+#
+# The suite is invoked whole rather than as a list of files, and the skipping is
+# what makes that safe. Naming the two credential-free files would freeze this
+# job at today's coverage: a suite added later would run nowhere, silently.
+# Running everything means a new credential-free test is gated automatically,
+# and a new credentialed one skips on its own.
+#
+# E2E_REQUIRE_ENV is deliberately NOT set here. It is what turns a missing
+# credential into a red run, and it belongs in e2e-weekly.yml where credentials are
+# actually expected — here, skipping is the whole point.
+on:
+  pull_request:
+    paths:
+      - "test/e2e/**"
+      - ".github/workflows/e2e-pr.yml"
+      # The harness asserts on the CLI's own output strings and on its config
+      # and run-log behaviour, so a change here can break it. Catching that on
+      # the PR that causes it beats discovering it in the weekly run.
+      - "dt-eval-cli/**"
+  workflow_dispatch:
+
+# No token needed at all: checkout works unauthenticated on a public repo and
+# persist-credentials is off, so nothing here reads or writes via the API.
+permissions: {}
+
+jobs:
+  ci:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    name: Typecheck & credential-free tests
+    defaults:
+      run:
+        shell: bash
+        working-directory: test/e2e
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version-file: "dt-eval-cli/.nvmrc"
+          cache: "npm"
+          cache-dependency-path: |
+            dt-eval-cli/package-lock.json
+            test/e2e/package-lock.json
+
+      # cli.e2e.test.ts drives dist/index.js, so the artifact has to exist even
+      # though no tenant is involved.
+      - name: Build the CLI under test
+        working-directory: dt-eval-cli
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install E2E dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run everything that needs no credentials
+        run: npx vitest run

@@ -18,10 +18,6 @@ eval.md
 # (dt-eval-cli/example.dt-eval.yaml, evals/*.dt-eval.yaml) are deliberately unaffected.
 .dt-eval.yaml
 
-# Local planning artifacts (agent-skills plan/build workflow). Anchored to the
-# repo root so a legitimate source directory named `tasks/` is not swept up.
-/tasks/
-
 # Captured test output. CI no longer writes one, but reproducing a run locally
 # with `| tee` is a natural thing to do, and the CLI echoes raw provider and
 # tenant error bodies.
