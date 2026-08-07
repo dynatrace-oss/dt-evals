@@ -46,6 +46,52 @@ await dt_ai_ingest.submit(
 
 ```
 
+## Ingesting from files
+
+`ingest_file()` reads `.csv`, `.jsonl`, or `.json` and ships each row as a BizEvent.
+Every call stamps a shared `dataset_id` on all rows so you can `group by dt.eval.dataset_id` in DQL.
+Pass `dataset_id=` explicitly for a stable label; omit it to get an auto-generated UUID.
+
+**CSV** — column names that match `Eval` fields need no `mapping=`:
+
+```csv
+name,score,label,scoring_format,explanation,question,answer,model,model_provider,trace_id,span_id,run_id
+faithfulness,0.92,pass,score_0_to_1,grounded in context,What is the capital of France?,Paris.,gpt-4o,openai,4bf92f3577b34da6a,00f067aa0ba902b7,run-42
+toxicity,0.0,pass,score_0_to_1,no harmful content,What is the capital of France?,Paris.,gpt-4o,openai,4bf92f3577b34da6a,00f067aa0ba902b7,run-42
+helpfulness,4,pass,score_1_to_5,thorough and on-topic,How do I reset my password?,Open Settings > Security > Reset.,gpt-4o,openai,7c8d9e0f1a2b3c4d,a1b2c3d4e5f60718,run-42
+```
+
+```python
+await dt_ai_ingest.ingest_file("scores.csv", dataset_id="golden-set-v1")
+
+# Non-standard column names? Use mapping= to rename them onto Eval fields.
+await dt_ai_ingest.ingest_file(
+    "scores.csv",
+    mapping={"metric": "name", "rating": "score"},
+    dataset_id="golden-set-v1",
+)
+```
+
+**JSONL** — one JSON object per line, same field names:
+
+```jsonl
+{"name": "faithfulness", "score": 0.87, "label": "pass", "scoring_format": "score_0_to_1", "explanation": "grounded", "question": "What are the main benefits of observability?", "answer": "Observability helps you understand system behaviour from its outputs.", "model": "claude-sonnet-5", "model_provider": "anthropic", "trace_id": "a1b2c3d4e5f67890", "span_id": "b2c3d4e5f6789001", "run_id": "run-01"}
+{"name": "helpfulness", "score": 4, "label": "pass", "scoring_format": "score_1_to_5", "explanation": "clear, could use examples", "question": "What are the main benefits of observability?", "answer": "Observability helps you understand system behaviour from its outputs.", "model": "claude-sonnet-5", "model_provider": "anthropic", "trace_id": "a1b2c3d4e5f67890", "span_id": "b2c3d4e5f6789001", "run_id": "run-01"}
+```
+
+```python
+await dt_ai_ingest.ingest_file("scores.jsonl", dataset_id="golden-set-v1")
+```
+
+**Query by dataset in DQL:**
+
+```
+fetch bizevents
+| filter event.type == "gen_ai.evaluation.result"
+| filter dt.eval.dataset_id == "golden-set-v1"
+| fields timestamp, gen_ai.evaluation.name, gen_ai.evaluation.score.value, gen_ai.evaluation.score.label
+```
+
 ## More ways to send
 
 ```python
@@ -56,16 +102,6 @@ await dt_ai_ingest.ingest([
     Eval(name="faithfulness", score=0.92, label="pass", explanation="grounded"),
     {"name": "toxicity", "score": 0.0, "label": "pass"},
 ])
-
-# From a file (.csv / .jsonl / .json).
-# Column names that match Eval fields (name, score, label, trace_id, span_id, …) need no mapping.
-# A dataset_id is auto-generated per call so you can group by dt.eval.dataset_id in DQL.
-await dt_ai_ingest.ingest_file(
-    "scores.csv",
-    dataset_id="golden-set-v3",          # optional — auto-generated UUID if omitted
-    mapping={"metric": "name", "rating": "score"},  # only needed for non-standard column names
-    defaults={"method": "regex"},
-)
 
 # Inline — collect scores in a block; each links to the active OTel span, flushed on exit.
 async with dt_ai_ingest.evaluation(run_id="run-1") as record:
