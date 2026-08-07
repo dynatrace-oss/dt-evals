@@ -47,7 +47,9 @@ async def ingest_file(
 ) -> int:
     """Ingest a CSV/JSONL/JSON file of evals. See :meth:`DynatraceClient.ingest_file`."""
     async with DynatraceClient() as client:
-        return await client.ingest_file(path, mapping=mapping, defaults=defaults, dataset_id=dataset_id)
+        return await client.ingest_file(
+            path, mapping=mapping, defaults=defaults, dataset_id=dataset_id
+        )
 
 
 def evaluation(**attach: Any) -> EvaluationScope:

@@ -97,7 +97,7 @@ Row groups are streamed — large files are handled without loading everything i
 
 **Query by dataset in DQL:**
 
-```
+```dql
 fetch bizevents
 | filter event.type == "gen_ai.evaluation.result"
 | filter dt.eval.dataset_id == "golden-set-v1"
