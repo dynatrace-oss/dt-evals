@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import uuid
 from collections.abc import Iterable, Mapping
 from typing import Any
@@ -21,13 +22,9 @@ from dt_ai_ingest._transport import Transport
 from dt_ai_ingest.readers import rows_to_evals
 from dt_ai_ingest.schema import Eval
 from dt_ai_ingest.scope import EvaluationScope
-from dt_ai_ingest.utils.env import first_env
 from dt_ai_ingest.utils.spans import span_ids
 
 logger = logging.getLogger(__name__)
-
-_ENDPOINT_ENVS = ("DT_ENDPOINT", "DT_TENANT_URL")
-_TOKEN_ENVS = ("DT_API_TOKEN", "DT_ACCESS_TOKEN")
 
 
 class DynatraceClient:
@@ -55,8 +52,12 @@ class DynatraceClient:
         max_retries: int = 3,
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
-        self.endpoint = (endpoint or first_env(*_ENDPOINT_ENVS)).strip().rstrip("/")
-        self.token = (token or first_env(*_TOKEN_ENVS)).strip()
+        self.endpoint = (
+            endpoint or os.environ.get("DT_ENDPOINT") or os.environ.get("DT_TENANT_URL", "")
+        ).strip().rstrip("/")
+        self.token = (
+            token or os.environ.get("DT_API_TOKEN") or os.environ.get("DT_ACCESS_TOKEN", "")
+        ).strip()
         self.dry_run = dry_run
         self._transport = Transport(
             self.endpoint,
