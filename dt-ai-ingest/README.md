@@ -38,20 +38,19 @@ import dt_ai_ingest
 
 # Ship one evaluation result (reads DT_ENDPOINT + DT_API_TOKEN from the environment).
 await dt_ai_ingest.submit(
-    "faithfulness",              # metric name
+    "faithfulness",
     score=0.92,
     label="pass",
     question="What is the capital of France?",
     answer="Paris.",
     model="gpt-4o",
-    span_id="a1b2c3d4e5f60718",  # optional — links the score to a span (pass span_id/trace_id,
-)                                #            or span=<otel span>, or omit to send it standalone
-
+    span_id="a1b2c3d4e5f60718",  # optional — omit to send standalone, or pass span=<otel span>
+)
 ```
 
 ## Ingesting from files
 
-`ingest_file()` reads `.csv`, `.jsonl`, or `.json` and ships each row as a BizEvent.
+`ingest_file()` reads `.csv`, `.jsonl`, `.json`, or `.parquet` and ships each row as a BizEvent.
 Every call stamps a shared `dataset_id` on all rows so you can `group by dt.eval.dataset_id` in DQL.
 Pass `dataset_id=` explicitly for a stable label; omit it to get an auto-generated UUID.
 
