@@ -2,23 +2,34 @@
 
 ``Eval`` is the one representation an evaluation takes inside this library.
 ``Eval.to_bizevent()`` is the only serializer to the wire — a flat Dynatrace
-BizEvent dict of ``event.type = gen_ai.evaluation.result``.
+BizEvent dict of ``event.type = gen_ai.evaluation.result``. The key set and
+values mirror the ground-truth payload emitted by dt-eval-cli's ``bizevent.ts``
+so both clients render identically in the GenAI Observability app.
 """
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
 EVENT_TYPE = "gen_ai.evaluation.result"
 
-# scoring_format -> inclusive upper bound (the lower bound is always 0).
-SCORING_RANGES: dict[str, float] = {
-    "score_0_to_1": 1.0,
-    "score_0_to_5": 5.0,
-    "score_0_to_10": 10.0,
-    "score_0_to_100": 100.0,
+# This library, as recorded in the BizEvent's client-identity keys.
+CLIENT_NAME = "dt-ai-ingest"
+try:
+    CLIENT_VERSION = _pkg_version("dt-ai-ingest")
+except PackageNotFoundError:
+    CLIENT_VERSION = "dev"
+
+# scoring_format -> (inclusive lower bound, inclusive upper bound). Only the two
+# formats dt-eval-cli emits are accepted, so both clients render identically.
+SCORING_RANGES: dict[str, tuple[float, float]] = {
+    "score_0_to_1": (0.0, 1.0),
+    "score_1_to_5": (1.0, 5.0),
 }
 
 # Eval field -> BizEvent dot-key. Drives to_bizevent(); the field set is aligned
@@ -34,6 +45,8 @@ _FIELD_MAP: dict[str, str] = {
     "answer": "gen_ai.evaluation.input.answer",
     "system_prompt": "gen_ai.evaluation.input.system_prompt",
     "model": "gen_ai.request.model",
+    "model_provider": "gen_ai.provider.name",
+    "service_name": "dt.service.name",
     "trace_id": "trace_id",
     "span_id": "span_id",
     "run_id": "dt.eval.run_id",
@@ -52,20 +65,21 @@ class Eval(BaseModel):
     label: str | None = None
     scoring_format: str = "score_0_to_1"
     explanation: str | None = None
-    method: str = "programmatic"
+    method: str | None = None
 
     question: str | None = None
     answer: str | None = None
     system_prompt: str | None = None
     model: str | None = None
+    model_provider: str | None = None
 
+    service_name: str | None = None
     trace_id: str | None = None
     span_id: str | None = None
     run_id: str | None = None
     span_start: str | None = None
     span_end: str | None = None
 
-    provider: str = "custom"
     extra: dict[str, Any] = {}
 
     @model_validator(mode="after")
@@ -76,10 +90,10 @@ class Eval(BaseModel):
                 f"expected one of {sorted(SCORING_RANGES)}"
             )
         if self.score is not None:
-            upper = SCORING_RANGES[self.scoring_format]
-            if not 0 <= self.score <= upper:
+            lower, upper = SCORING_RANGES[self.scoring_format]
+            if not lower <= self.score <= upper:
                 raise ValueError(
-                    f"score {self.score} out of range 0..{upper} for {self.scoring_format}"
+                    f"score {self.score} out of range {lower}..{upper} for {self.scoring_format}"
                 )
         return self
 
@@ -87,12 +101,17 @@ class Eval(BaseModel):
         """Serialize to a flat Dynatrace BizEvent dict."""
         event: dict[str, Any] = {
             "event.type": EVENT_TYPE,
-            "event.provider": self.provider,
+            "event.provider": CLIENT_NAME,
+            "gen_ai.eval.client": CLIENT_NAME,
+            "gen_ai.eval.client.version": CLIENT_VERSION,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         for field, key in _FIELD_MAP.items():
             value = getattr(self, field)
             if value is not None:
                 event[key] = value
+        if self.span_id is not None:
+            event["gen_ai.response.id"] = self.span_id
         # Passthrough never overrides an authoritative key already set above.
         for key, value in self.extra.items():
             event.setdefault(key, value)

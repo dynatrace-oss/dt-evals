@@ -61,7 +61,7 @@ await dt_ai_ingest.ingest([
 await dt_ai_ingest.ingest_file(
     "scores.csv",
     mapping={"metric": "name", "rating": "score"},
-    defaults={"provider": "my-scorer"},
+    defaults={"method": "regex"},
 )
 
 # Inline — collect scores in a block; each links to the active OTel span, flushed on exit.
@@ -84,11 +84,12 @@ Anything not listed here goes into `extra` and is sent verbatim.
 | `name` | Metric name, e.g. `faithfulness`. **Required.** |
 | `score` | Numeric score. |
 | `label` | Categorical outcome, e.g. `pass` / `fail`. |
-| `scoring_format` | `score_0_to_1` (default), `score_0_to_5`, `score_0_to_10`, `score_0_to_100`. |
+| `scoring_format` | `score_0_to_1` (default) or `score_1_to_5`. |
 | `explanation`, `method` | Why the score was given; how it was produced. |
-| `question`, `answer`, `system_prompt`, `model` | The turn being scored. |
+| `question`, `answer`, `system_prompt` | The turn being scored. |
+| `model`, `model_provider` | The evaluator (judge) model and its provider, e.g. `gpt-4o` / `openai`. Omit for non-LLM scorers. |
+| `service_name` | Service the span belongs to (`dt.service.name`). |
 | `trace_id`, `span_id`, `run_id`, `span_start`, `span_end` | Span linkage. |
-| `provider` | Source of the score (default `custom`). |
 
 ## Roadmap
 

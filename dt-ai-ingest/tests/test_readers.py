@@ -30,13 +30,13 @@ def test_csv_mapping_defaults_and_extra(tmp_path):
         rows_to_evals(
             path,
             mapping={"metric": "name", "rating": "score"},
-            defaults={"provider": "my-scorer"},
+            defaults={"method": "regex"},
         )
     )
     ev = evals[0]
     assert ev.name == "faith"
     assert ev.score == 0.87  # CSV string coerced to float by Pydantic
-    assert ev.provider == "my-scorer"
+    assert ev.method == "regex"
     assert ev.extra == {"notes": "good"}
 
 
