@@ -40,6 +40,21 @@ def test_csv_mapping_defaults_and_extra(tmp_path):
     assert ev.extra == {"notes": "good"}
 
 
+def test_csv_native_column_names(tmp_path):
+    """Columns named after Eval fields (span_id, trace_id, etc.) need no mapping."""
+    path = tmp_path / "e.csv"
+    path.write_text(
+        "name,score,label,trace_id,span_id,run_id,model_provider\n"
+        "faithfulness,0.9,pass,traceval,spanval,run-1,openai\n"
+    )
+    ev = list(rows_to_evals(path))[0]
+    assert ev.name == "faithfulness"
+    assert ev.trace_id == "traceval"
+    assert ev.span_id == "spanval"
+    assert ev.run_id == "run-1"
+    assert ev.model_provider == "openai"
+
+
 def test_blank_csv_cell_is_absent(tmp_path):
     path = tmp_path / "e.csv"
     path.write_text("name,score\nfoo,\n")

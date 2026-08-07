@@ -35,21 +35,29 @@ SCORING_RANGES: dict[str, tuple[float, float]] = {
 # Eval field -> BizEvent dot-key. Drives to_bizevent(); the field set is aligned
 # with what the GenAI Observability app renders in the Prompts / Evals view.
 _FIELD_MAP: dict[str, str] = {
+    # Metric identity
     "name": "gen_ai.evaluation.name",
+    # Score
     "score": "gen_ai.evaluation.score.value",
     "label": "gen_ai.evaluation.score.label",
     "scoring_format": "gen_ai.evaluation.scoring_format",
+    # Scoring metadata
     "explanation": "gen_ai.evaluation.explanation",
     "method": "gen_ai.evaluation.method",
+    # Evaluated turn
     "question": "gen_ai.evaluation.input.question",
     "answer": "gen_ai.evaluation.input.answer",
     "system_prompt": "gen_ai.evaluation.input.system_prompt",
+    # Judge / provider
     "model": "gen_ai.request.model",
     "model_provider": "gen_ai.provider.name",
     "service_name": "dt.service.name",
+    # Span linkage
     "trace_id": "trace_id",
     "span_id": "span_id",
+    # Run / dataset grouping
     "run_id": "dt.eval.run_id",
+    "dataset_id": "dt.eval.dataset_id",
     "span_start": "span.start_time",
     "span_end": "span.end_time",
 }
@@ -77,6 +85,7 @@ class Eval(BaseModel):
     trace_id: str | None = None
     span_id: str | None = None
     run_id: str | None = None
+    dataset_id: str | None = None
     span_start: str | None = None
     span_end: str | None = None
 

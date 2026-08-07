@@ -41,6 +41,7 @@ def test_span_links_and_extra_passthrough():
         trace_id="t",
         span_id="s",
         run_id="r",
+        dataset_id="golden-v1",
         model="gpt-4o",
         model_provider="openai",
         extra={"custom.key": "v"},
@@ -49,6 +50,7 @@ def test_span_links_and_extra_passthrough():
     assert payload["span_id"] == "s"
     assert payload["gen_ai.response.id"] == "s"
     assert payload["dt.eval.run_id"] == "r"
+    assert payload["dt.eval.dataset_id"] == "golden-v1"
     assert payload["gen_ai.request.model"] == "gpt-4o"
     assert payload["gen_ai.provider.name"] == "openai"
     assert payload["custom.key"] == "v"
@@ -58,6 +60,11 @@ def test_score_1_to_5_range():
     assert Eval(name="x", score=4.0, scoring_format="score_1_to_5").score == 4.0
     with pytest.raises(ValueError, match="out of range"):
         Eval(name="x", score=0.5, scoring_format="score_1_to_5")
+
+
+def test_dataset_id_in_bizevent():
+    payload = Eval(name="x", dataset_id="golden-set-v2").to_bizevent()
+    assert payload["dt.eval.dataset_id"] == "golden-set-v2"
 
 
 def test_extra_does_not_override_authoritative_key():

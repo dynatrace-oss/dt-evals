@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import uuid
 from collections.abc import Iterable, Mapping
 from typing import Any
 
@@ -82,9 +83,18 @@ class DynatraceClient:
         *,
         mapping: Mapping[str, str] | None = None,
         defaults: Mapping[str, Any] | None = None,
+        dataset_id: str | None = None,
     ) -> int:
-        """Read a ``.csv`` / ``.jsonl`` / ``.json`` of eval results and ingest them."""
-        evals = await asyncio.to_thread(lambda: list(rows_to_evals(path, mapping, defaults)))
+        """Read a ``.csv`` / ``.jsonl`` / ``.json`` of eval results and ingest them.
+
+        All rows in a single call share the same ``dataset_id`` (``dt.eval.dataset_id``),
+        so you can later ``group by dt.eval.dataset_id`` in DQL to isolate this batch.
+        Pass ``dataset_id=`` explicitly for a stable, human-readable label; omit it to
+        get an auto-generated UUID.
+        """
+        _dataset_id = dataset_id if dataset_id is not None else str(uuid.uuid4())
+        _defaults: dict[str, Any] = {**(defaults or {}), "dataset_id": _dataset_id}
+        evals = await asyncio.to_thread(lambda: list(rows_to_evals(path, mapping, _defaults)))
         return await self.ingest(evals)
 
     async def submit(self, name: str, *, span: Any = None, **fields: Any) -> int:
