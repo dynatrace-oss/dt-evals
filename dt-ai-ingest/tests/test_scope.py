@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dt_ai_ingest.scope import EvaluationScope
-from dt_ai_ingest.utils.spans import current_span_ids, span_ids
+from dt_ai_ingest.spans import current_span_ids, span_ids
 
 
 class _Ctx:

@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from dt_ai_ingest.schema import Eval
-from dt_ai_ingest.utils.spans import current_span_ids
+from dt_ai_ingest.spans import current_span_ids
 
 if TYPE_CHECKING:
     from dt_ai_ingest.client import DynatraceClient

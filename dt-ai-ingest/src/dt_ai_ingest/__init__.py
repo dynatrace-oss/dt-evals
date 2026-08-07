@@ -13,7 +13,7 @@ from typing import Any
 from dt_ai_ingest.client import DynatraceClient
 from dt_ai_ingest.schema import Eval
 from dt_ai_ingest.scope import EvaluationScope
-from dt_ai_ingest.utils.spans import current_span_ids
+from dt_ai_ingest.spans import current_span_ids
 
 __all__ = [
     "DynatraceClient",

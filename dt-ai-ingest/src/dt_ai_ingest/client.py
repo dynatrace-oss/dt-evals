@@ -22,7 +22,7 @@ from dt_ai_ingest._transport import Transport
 from dt_ai_ingest.readers import rows_to_evals
 from dt_ai_ingest.schema import Eval
 from dt_ai_ingest.scope import EvaluationScope
-from dt_ai_ingest.utils.spans import span_ids
+from dt_ai_ingest.spans import span_ids
 
 logger = logging.getLogger(__name__)
 
