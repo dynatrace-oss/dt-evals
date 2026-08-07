@@ -13,6 +13,9 @@ evaluations and does not export traces.
 
 ```bash
 pip install dt-ai-ingest
+
+# Parquet support (pyarrow):
+pip install dt-ai-ingest[parquet]
 ```
 
 ## Configure
@@ -82,6 +85,15 @@ await dt_ai_ingest.ingest_file(
 ```python
 await dt_ai_ingest.ingest_file("scores.jsonl", dataset_id="golden-set-v1")
 ```
+
+**Parquet** — requires `pip install dt-ai-ingest[parquet]`. Column names follow the same conventions; nulls are dropped naturally:
+
+```python
+await dt_ai_ingest.ingest_file("scores.parquet", dataset_id="golden-set-v1")
+```
+
+Parquet preserves native types (`float64`, `int64`) so there is no string coercion step.
+Row groups are streamed — large files are handled without loading everything into memory.
 
 **Query by dataset in DQL:**
 

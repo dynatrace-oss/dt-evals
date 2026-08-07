@@ -1,4 +1,4 @@
-"""File readers: stream rows from ``.csv`` / ``.jsonl`` / ``.json`` into ``Eval``s.
+"""File readers: stream rows from ``.csv`` / ``.jsonl`` / ``.json`` / ``.parquet`` into ``Eval``s.
 
 ``mapping`` renames columns onto ``Eval`` field names, ``defaults`` fills fields
 the file omits, and any leftover columns land in ``Eval.extra``. Values are
@@ -19,8 +19,23 @@ from dt_ai_ingest.schema import Eval
 _FIELDS = set(Eval.model_fields) - {"extra"}
 
 
+def _read_parquet(path: Path) -> Iterator[dict[str, Any]]:
+    try:
+        import pyarrow.parquet as pq
+    except ImportError:
+        raise ImportError(
+            "pyarrow is required to read Parquet files: pip install dt-ai-ingest[parquet]"
+        ) from None
+    for batch in pq.ParquetFile(path).iter_batches():
+        # to_pydict() gives col->list; zip into row dicts and drop None values.
+        columns = batch.to_pydict()
+        keys = list(columns)
+        for values in zip(*[columns[k] for k in keys]):
+            yield {k: v for k, v in zip(keys, values) if v is not None}
+
+
 def read_rows(path: Path) -> Iterator[dict[str, Any]]:
-    """Yield raw row dicts from a supported file (streamed for jsonl/csv)."""
+    """Yield raw row dicts from a supported file (streamed for jsonl/csv/parquet)."""
     suffix = path.suffix.lower()
     if suffix == ".jsonl":
         with path.open(encoding="utf-8") as handle:
@@ -35,8 +50,10 @@ def read_rows(path: Path) -> Iterator[dict[str, Any]]:
     elif suffix == ".csv":
         with path.open(encoding="utf-8", newline="") as handle:
             yield from csv.DictReader(handle)
+    elif suffix == ".parquet":
+        yield from _read_parquet(path)
     else:
-        raise ValueError(f"unsupported file type {path.suffix!r} (use .jsonl/.json/.csv)")
+        raise ValueError(f"unsupported file type {path.suffix!r} (use .csv/.jsonl/.json/.parquet)")
 
 
 def rows_to_evals(
