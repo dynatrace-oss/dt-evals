@@ -36,23 +36,12 @@ jobs:
       # Surfaced so the notify job can distinguish "the pipeline is broken" from
       # "the judge disagreed", which the design doc treats very differently.
       verdict_outcome: ${{ steps.verdict.outcome }}
-    # Scopes the credentials to this workflow instead of exposing them to every job
-    # in the repo.
-    #
-    # This only protects anything once the environment actually exists with a
-    # deployment-branch policy limiting it to `main` — GitHub auto-creates a
-    # referenced environment with NO rules, which would make this line pure
-    # namespacing. `main` is not itself a GitHub-protected branch in this repo,
-    # so the policy has to be `custom_branch_policies` with an explicit `main`
-    # pattern, not `protected_branches` — `protected_branches` would allow
-    # nothing at all to deploy here. Configure it in the repo settings alongside
-    # the E2E_* secrets; the `release` environment in this repo is already set
-    # up that way, and is the one to copy.
-    #
-    # Deliberately no required reviewers: those pause the job until a human
-    # approves, which would stop the weekly scheduled run from ever completing
-    # unattended. The branch policy is the control here, not reviewer approval.
-    environment: e2e
+    # Uses plain repository secrets rather than a GitHub environment. An
+    # environment scoped to main would additionally stop these credentials from
+    # being reachable by a same-repo pull_request-triggered job (e2e-pr.yml is
+    # credential-free today, but nothing enforces that it stays that way) — a
+    # deliberate tradeoff against the extra setup cost of an admin-only
+    # environment. Revisit if that changes.
     defaults:
       run:
         shell: bash
@@ -126,17 +115,12 @@ jobs:
       # actually broken — auth, connectivity, the fixture contract, the pipeline.
       - name: Run E2E suite
         env:
-          # Every secret here is E2E_-prefixed and must be provisioned on the
-          # `e2e` *environment*, never at repo or org level.
-          #
-          # The prefix is not cosmetic. Unprefixed names read like shared repo
-          # credentials and get provisioned as such — and a repo secret is
-          # visible to every workflow, including the pull_request-triggered ones,
-          # which would undo the step-scoping above. Secret lookup also falls
-          # back environment → repo → organization, so an unprefixed name that is
-          # missing here would silently resolve to some org-wide credential and
-          # bill against it, with E2E_REQUIRE_ENV none the wiser because the
-          # variable is non-empty.
+          # Every secret here is E2E_-prefixed, provisioned as a repository
+          # secret. The prefix is not cosmetic even without an environment:
+          # secret lookup falls back repo → organization, so an unprefixed name
+          # that is missing here would silently resolve to some org-wide
+          # credential and bill against it, with E2E_REQUIRE_ENV none the wiser
+          # because the variable is non-empty.
           #
           # For the tenant there is a second reason: reusing DT_ENV_URL /
           # DT_API_TOKEN would collide with the music-agent workflow, which
