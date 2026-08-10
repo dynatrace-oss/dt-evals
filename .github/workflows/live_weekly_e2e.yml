@@ -130,10 +130,6 @@ jobs:
           DT_API_TOKEN: ${{ secrets.E2E_DT_API_TOKEN }}
           AWS_ACCESS_KEY_ID: ${{ secrets.E2E_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.E2E_AWS_SECRET_ACCESS_KEY }}
-          # Optional. A second tenant token deliberately issued without
-          # storage:spans:read, so the one probe that cannot be provoked with a
-          # merely invalid token gets a failure case. The test skips when unset.
-          E2E_DT_MISSCOPED_TOKEN: ${{ secrets.E2E_DT_MISSCOPED_TOKEN }}
           SUITE: ${{ inputs.suite }}
         run: |
           set -euo pipefail

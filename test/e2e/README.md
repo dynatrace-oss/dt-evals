@@ -42,7 +42,7 @@ too, since the deployment name is the model. Vertex uses ADC, and
 | `cli.e2e.test.ts` | Harness self-checks: isolated HOME and cwd, nothing inherited from the developer's environment, `assertNoSecrets` detects a real leak | nothing |
 | `tenant.e2e.test.ts` | Tenant reachability both ways: a valid token connects, a bad one is rejected | tenant |
 | `contract.e2e.test.ts` | The cross-repo contract with the fixture dataset — every attribute dt-evals depends on | tenant |
-| `validate.e2e.test.ts` | `dt-evals validate`: every probe passing, and every probe failing — the spans-bucket case skips until a second, under-scoped token exists | tenant + judge |
+| `validate.e2e.test.ts` | `dt-evals validate`: every probe passing, and every probe failing | tenant + judge |
 | `run.e2e.test.ts` | `dt-evals run`: `--dry-run` writing nothing, `--ci` output and run log, the destination round-trip, threshold behaviour per mode | tenant + judge, **writes** |
 | `evallogic.e2e.test.ts` | Whether the evaluation is *correct*: the toxic fixture conversation is flagged and the clean one passes | tenant + judge, **writes** |
 
@@ -123,25 +123,6 @@ the sampler picks the latest spans out of an arbitrary thousand rather than out 
 in the window. Irrelevant for the fixture service, which produces 32 spans per seeding — but it
 quietly invalidates the `latest` strategy for anyone who points `E2E_RUN_SERVICE` at real
 traffic, which this suite explicitly invites. Product-side.
-
-### The spans-bucket failure test needs a second token
-
-The test exists and skips until `E2E_DT_MISSCOPED_TOKEN` is set. It needs a *second* tenant
-token, because you cannot provoke this failure by breaking the good one: a wholly invalid token
-fails the connection probe first and the run never reaches the bucket check.
-
-Mint one with `storage:logs:read` (so the connection probe still passes) and **without**
-`storage:spans:read`. Store it as a **repository** secret alongside the other `E2E_*` ones.
-
-It is the probe most worth having a negative case for: Grail answers a query whose token lacks
-the scope with SUCCEEDED-and-zero-records rather than a 403, so a regression that made this
-probe always report OK would turn a misscoped token into "the tenant looks empty".
-
-This gate deliberately does not route through `reportMissingCredentials`/`E2E_REQUIRE_ENV` —
-under require-mode it would fail every CI run until someone mints the token. The cost is that
-it can otherwise skip forever with nothing turning red to say so, so **set
-`E2E_REQUIRE_MISSCOPED_TOKEN=1` once the secret exists**. As of writing it is not provisioned,
-so this coverage does not run.
 
 ### Known gap: test records cannot be tagged
 

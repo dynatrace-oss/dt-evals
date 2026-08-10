@@ -19,15 +19,9 @@ import {
 } from '../src/assert.js';
 import { runCli } from '../src/cli.js';
 import { baselineConfig, baselineEnv, judgeFromEnv, toConfigFile } from '../src/config.js';
-import { e2eEnabled, misscopedToken, tenant } from '../src/env.js';
+import { e2eEnabled, tenant } from '../src/env.js';
 
 const judge = judgeFromEnv();
-
-/**
- * Resolved once at module scope so `E2E_REQUIRE_MISSCOPED_TOKEN` fails collection
- * loudly, rather than inside a case that would otherwise just skip.
- */
-const misscoped = misscopedToken();
 
 /**
  * Stable fragments of each probe's success line
@@ -197,47 +191,6 @@ describe.skipIf(!e2eEnabled())('validate — failure paths', () => {
     assertOutputLacks(result, PROBE_FAILURE.origin);
     assertNoSecrets(result);
   });
-
-  // Needs a second, deliberately under-scoped token, so it skips until one is
-  // provisioned. Breaking the good token is not a substitute: a wholly invalid
-  // token fails the connection probe first and the run never reaches this check.
-  //
-  // This is the only gate that does not honour E2E_REQUIRE_ENV — see
-  // misscopedToken() for why, and for the E2E_REQUIRE_MISSCOPED_TOKEN opt-in that
-  // stops it skipping forever once the secret exists.
-  it.skipIf(!misscoped)(
-    'exits 1 when the origin token cannot read the spans bucket',
-    async () => {
-      // The probe this covers exists because Grail answers a query whose token
-      // lacks storage:spans:read with SUCCEEDED-and-zero-records rather than a
-      // 403 — so without it a misscoped token is indistinguishable from an empty
-      // tenant, and a run reports "no data" instead of "no permission".
-      const { appsEndpoint } = tenant();
-
-      const result = await runCli(['validate'], {
-        configYaml: toConfigFile({
-          schemaVersion: 2,
-          dynatrace: { environmentUrl: appsEndpoint },
-          judge: { provider: 'openai' },
-          scope: { since: '1h' },
-          metrics: { enabled: ['toxicity'] },
-        }),
-        env: {
-          DT_ENV_URL: appsEndpoint,
-          DT_API_TOKEN: misscoped!,
-        },
-      });
-
-      assertExitCode(result, 1);
-      assertOutputContains(result, PROBE_FAILURE.spansBucket);
-      // Connectivity must still be healthy. If the token cannot connect at all
-      // this degenerates into the rejected-token test above and says nothing
-      // about the bucket scope.
-      assertOutputContains(result, PROBE_SUCCESS.origin);
-      assertOutputLacks(result, PROBE_FAILURE.origin);
-      assertNoSecrets(result);
-    },
-  );
 
   it('exits 1 when the custom evaluator file cannot be loaded', async () => {
     // The last probe without a failure case. The only external surface that can

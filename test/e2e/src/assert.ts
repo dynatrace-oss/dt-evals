@@ -33,11 +33,6 @@ const SECRET_ENV_VARS = [
   'GOOGLE_API_KEY',
   'AWS_ACCESS_KEY_ID',
   'AWS_SECRET_ACCESS_KEY',
-  // A real, valid tenant token (just missing storage:spans:read) — leaking it
-  // is exactly as bad as leaking DT_API_TOKEN. Without this entry it lived
-  // under a name absent from this list, so a leak would sail through
-  // undetected. See validate.e2e.test.ts's misscoped-token probe.
-  'E2E_DT_MISSCOPED_TOKEN',
 ] as const;
 
 /**

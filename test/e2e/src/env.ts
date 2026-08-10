@@ -176,42 +176,6 @@ export function e2eEnabled(): boolean {
 }
 
 /**
- * The deliberately under-scoped tenant token, or `undefined` when unavailable.
- *
- * This is the one credential the suite treats as optional, because it cannot be
- * derived from the main one: provoking the spans-bucket probe needs a token that
- * connects successfully but lacks `storage:spans:read`, and a wholly invalid
- * token fails the connection probe first.
- *
- * That optionality has a cost the rest of the suite does not pay. Every other
- * gate routes through {@link reportMissingCredentials}, so `E2E_REQUIRE_ENV=1`
- * turns a missing credential red. This one cannot — under require-mode it would
- * fail every CI run until someone mints the second token — so the case would
- * otherwise skip forever, in CI, with nothing that ever goes red to say so. And
- * it covers the probe most worth having a negative case for: Grail answers a
- * missing-scope query with SUCCEEDED-and-zero-records rather than a 403, so a
- * regression here turns a misscoped token into "the tenant looks empty".
- *
- * `E2E_REQUIRE_MISSCOPED_TOKEN` is the escape from that trap: set it once the
- * secret is actually provisioned, and a later disappearance becomes a failure
- * instead of a silent skip. Off by default, so nothing breaks before then.
- */
-export function misscopedToken(): string | undefined {
-  const value = envOrUndefined('E2E_DT_MISSCOPED_TOKEN');
-  if (value) return value;
-
-  if (envOrUndefined('E2E_REQUIRE_MISSCOPED_TOKEN')) {
-    throw new Error(
-      'dt-evals E2E: E2E_REQUIRE_MISSCOPED_TOKEN is set, but E2E_DT_MISSCOPED_TOKEN is not. ' +
-        'The spans-bucket negative case cannot run. Either provision the second token ' +
-        '(scopes: storage:logs:read, and deliberately NOT storage:spans:read) or unset ' +
-        'E2E_REQUIRE_MISSCOPED_TOKEN — see test/e2e/README.md.',
-    );
-  }
-  return undefined;
-}
-
-/**
  * Per-request HTTP timeout for Dynatrace platform API calls. Must exceed the
  * server-side `requestTimeoutMilliseconds` (25s) with headroom for gateway
  * latency. Override with `E2E_DT_HTTP_TIMEOUT` in milliseconds.
