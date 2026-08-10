@@ -48,6 +48,8 @@ class Transport:
         self.token = token
         self.timeout = timeout
         self.chunk_size = chunk_size
+        if max_retries < 1:
+            raise ValueError("max_retries must be >= 1")
         self.max_retries = max_retries
         self._external = http_client
         self._owned: httpx.AsyncClient | None = None
@@ -89,7 +91,11 @@ class Transport:
             async with sem:
                 await self._send_chunk(chunk)
 
-        await asyncio.gather(*[_guarded(chunk) for chunk in chunks])
+        results = await asyncio.gather(*[_guarded(chunk) for chunk in chunks], return_exceptions=True)
+        errors = [e for e in results if isinstance(e, BaseException)]
+        if errors:
+        logger.error("%d/%d chunk(s) failed", len(errors), len(chunks))
+        raise errors[0]
 
     async def _send_chunk(self, chunk: list[dict[str, Any]]) -> None:
         response = await self._request_with_retry(chunk)
