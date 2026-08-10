@@ -57,15 +57,24 @@ echo "blocking lane: ${E2E_RESULT:-unknown} | verdict lane: ${VERDICT_OUTCOME:-n
 # A failed lookup must not be read as "no issue is open" — that is how a
 # transient gh error opens a duplicate and orphans the original, which nothing
 # afterwards would ever comment on or close again.
+#
+# stdout and stderr are captured separately, not merged with 2>&1: OPEN_ISSUES
+# is later word-split into issue numbers to close or comment on, and gh is
+# known to write things like update-available notices to stderr even on a
+# successful call. Merging them would feed that noise in as if it were a real
+# issue number.
+GH_STDERR="$(mktemp)"
+trap 'rm -f "$GH_STDERR"' EXIT
+
 if ! OPEN_ISSUES=$(gh issue list \
   --label "$LABEL" \
   --state open \
   --limit 100 \
   --json number \
   --jq '.[].number' \
-  --repo "$REPO" 2>&1); then
+  --repo "$REPO" 2>"$GH_STDERR"); then
   if [ "$SHOULD_ALERT" = "true" ]; then
-    echo "::error::could not list issues, and this run needs to alert: ${OPEN_ISSUES}"
+    echo "::error::could not list issues, and this run needs to alert: $(cat "$GH_STDERR")"
     exit 1
   fi
   echo "::warning::could not list issues, but the run is green so there is nothing to report"
