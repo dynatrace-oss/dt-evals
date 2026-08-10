@@ -9,7 +9,7 @@ so both clients render identically in the GenAI Observability app.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 from typing import Any
@@ -113,7 +113,7 @@ class Eval(BaseModel):
             "event.provider": CLIENT_NAME,
             "gen_ai.eval.client": CLIENT_NAME,
             "gen_ai.eval.client.version": CLIENT_VERSION,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
         for field, key in _FIELD_MAP.items():
             value = getattr(self, field)
