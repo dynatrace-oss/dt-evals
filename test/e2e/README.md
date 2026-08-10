@@ -101,18 +101,20 @@ step because `continue-on-error` masks a step failure but not a job timeout — 
 meant a slow blocking lane could cancel the job and get the verdict lane reported as a hard
 failure.
 
-### Not yet provisioned: an `e2e` environment
+### Accepted risk: no GitHub environment around the secrets
 
-The four `E2E_*` credentials are plain **repository** secrets. `workflow_dispatch` lets the
-dispatcher choose any ref, and the workflow that runs is the one on *that* ref — so anyone
-with push access can run modified workflow code with these secrets in scope, and runner log
-masking does not survive a `base64`. There is currently no branch protection or ruleset on
-`main` either.
+The four `E2E_*` credentials are plain **repository** secrets, not scoped to a GitHub
+environment. `workflow_dispatch` lets the dispatcher choose any ref, and the workflow that
+runs is the one on *that* ref — so anyone with push access can in principle run modified
+workflow code with these secrets in scope, and runner log masking does not survive a
+`base64`. There is no branch protection or ruleset on `main` either.
 
-Closing this needs an admin to create an `e2e` environment with a deployment branch policy
-limited to `main`, move the `E2E_*` secrets into it, and add `environment: e2e` to the `e2e`
-and `verdict` jobs. The repo's existing `release` environment is the precedent. Longer term,
-GitHub OIDC would remove the static AWS keys entirely.
+An `e2e` environment with a deployment branch policy limited to `main` would close this, but
+creating one needs admin rights nobody working on this currently has, and the team decided
+the extra setup cost isn't worth it right now — the same tradeoff already recorded for the
+tenant/judge secrets in `ccb95a9`. Revisit if that changes; the repo's existing `release`
+environment is the precedent for how it would look. GitHub OIDC would additionally remove the
+static AWS keys, independent of the environment question.
 
 ### Known gap: `sampling: latest` is only "latest" on a small service
 
