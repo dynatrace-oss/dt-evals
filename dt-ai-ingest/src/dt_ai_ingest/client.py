@@ -12,6 +12,8 @@ import asyncio
 import json
 import logging
 import os
+import queue
+import threading
 import uuid
 from collections.abc import Iterable, Mapping
 from typing import Any
@@ -25,6 +27,53 @@ from dt_ai_ingest.scope import EvaluationScope
 from dt_ai_ingest.spans import span_ids
 
 logger = logging.getLogger(__name__)
+
+_QUEUE_SENTINEL = object()
+_MAX_QUEUED_BATCHES = 2
+_QUEUE_POLL_SECONDS = 0.1
+
+
+def _produce_batches(
+    path: str,
+    mapping: Mapping[str, str] | None,
+    defaults: Mapping[str, Any] | None,
+    batch_size: int,
+    out: queue.Queue[Any],
+    stop: threading.Event,
+) -> None:
+    """Read *path* row-by-row and push bounded-size batches onto *out*.
+
+    Runs in a worker thread so the event loop stays free while a large file
+    is being parsed. Backpressure comes from ``out``'s maxsize: ``_emit()``
+    blocks once the consumer falls behind, but re-checks *stop* every
+    ``_QUEUE_POLL_SECONDS`` so a consumer that bails out early (e.g. because
+    ``ingest()`` raised) can abandon this thread instead of deadlocking it
+    forever on a full queue nobody is draining.
+    """
+
+    def _emit(item: Any) -> bool:
+        while not stop.is_set():
+            try:
+                out.put(item, timeout=_QUEUE_POLL_SECONDS)
+                return True
+            except queue.Full:
+                continue
+        return False
+
+    try:
+        batch: list[Eval] = []
+        for eval_ in rows_to_evals(path, mapping, defaults):
+            batch.append(eval_)
+            if len(batch) >= batch_size:
+                if not _emit(batch):
+                    return
+                batch = []
+        if batch:
+            _emit(batch)
+    except Exception as exc:  # noqa: BLE001 - forwarded to the consumer, not swallowed
+        _emit(exc)
+    finally:
+        _emit(_QUEUE_SENTINEL)
 
 
 class DynatraceClient:
@@ -86,7 +135,10 @@ class DynatraceClient:
         defaults: Mapping[str, Any] | None = None,
         dataset_id: str | None = None,
     ) -> int:
-        """Read a ``.csv`` / ``.jsonl`` / ``.json`` of eval results and ingest them.
+        """Read a ``.csv`` / ``.jsonl`` / ``.json`` / ``.parquet`` of eval results and ingest them.
+
+        Rows are streamed from disk and sent in bounded batches, so memory use
+        stays flat regardless of file size.
 
         All rows in a single call share the same ``dataset_id`` (``dt.eval.dataset_id``),
         so you can later ``group by dt.eval.dataset_id`` in DQL to isolate this batch.
@@ -95,8 +147,35 @@ class DynatraceClient:
         """
         _dataset_id = dataset_id if dataset_id is not None else str(uuid.uuid4())
         _defaults: dict[str, Any] = {**(defaults or {}), "dataset_id": _dataset_id}
-        evals = await asyncio.to_thread(lambda: list(rows_to_evals(path, mapping, _defaults)))
-        return await self.ingest(evals)
+        batch_size = self._transport.chunk_size
+        out: queue.Queue[Any] = queue.Queue(maxsize=_MAX_QUEUED_BATCHES)
+        stop = threading.Event()
+        producer = threading.Thread(
+            target=_produce_batches,
+            args=(path, mapping, _defaults, batch_size, out, stop),
+            daemon=True,
+            name="dt-ai-ingest-file-reader",
+        )
+        producer.start()
+        total = 0
+        try:
+            # No timeout here is safe: `stop` is only set below, in this same
+            # loop's `finally`, which only runs after we've already left this
+            # `get()` (via `break` or a raised exception) — so there's never
+            # a pending `get()` waiting on a producer we've told to abandon.
+            while True:
+                item = await asyncio.to_thread(out.get)
+                if item is _QUEUE_SENTINEL:
+                    break
+                if isinstance(item, Exception):
+                    raise item
+                total += await self.ingest(item)
+        finally:
+            # Tell the producer to abandon a full queue instead of blocking on
+            # it forever if we're bailing out early (e.g. ingest() raised).
+            stop.set()
+            await asyncio.to_thread(producer.join)
+        return total
 
     async def submit(self, name: str, *, span: Any = None, **fields: Any) -> int:
         """Submit one evaluation, optionally linked to an OTel *span*."""

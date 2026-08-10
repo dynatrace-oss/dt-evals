@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import threading
 
 import pytest
 
@@ -55,3 +57,89 @@ async def test_ingest_posts_bizevents(httpx_mock):
     body = json.loads(requests[0].content)
     assert body[0]["event.type"] == "gen_ai.evaluation.result"
     assert body[0]["gen_ai.evaluation.score.value"] == 1.0
+
+
+async def test_ingest_file_streams_in_batches(tmp_path, httpx_mock):
+    path = tmp_path / "scores.csv"
+    path.write_text("name,score\na,0.1\nb,0.2\nc,0.3\n")
+    httpx_mock.add_response()
+    httpx_mock.add_response()
+    httpx_mock.add_response()
+    client = DynatraceClient(
+        endpoint="https://t.live.dynatrace.com",
+        token="dt0c01.x",
+        dry_run=False,
+        chunk_size=1,
+    )
+
+    total = await client.ingest_file(str(path))
+
+    assert total == 3
+    assert len(httpx_mock.get_requests()) == 3
+
+
+async def test_ingest_file_dry_run_counts_without_network(tmp_path):
+    path = tmp_path / "scores.csv"
+    path.write_text("name,score\na,0.1\nb,0.2\n")
+    client = DynatraceClient(
+        endpoint="https://t.live.dynatrace.com", token="dt0c01.x", dry_run=True
+    )
+
+    assert await client.ingest_file(str(path)) == 2
+
+
+async def test_ingest_file_shares_dataset_id(tmp_path, httpx_mock):
+    path = tmp_path / "scores.csv"
+    path.write_text("name,score\na,0.1\nb,0.2\n")
+    httpx_mock.add_response()
+    client = DynatraceClient(
+        endpoint="https://t.live.dynatrace.com", token="dt0c01.x", dry_run=False
+    )
+
+    await client.ingest_file(str(path), dataset_id="golden-set-v1")
+
+    body = json.loads(httpx_mock.get_requests()[0].content)
+    assert {row["dt.eval.dataset_id"] for row in body} == {"golden-set-v1"}
+
+
+async def test_ingest_file_missing_file_raises(tmp_path):
+    client = DynatraceClient(
+        endpoint="https://t.live.dynatrace.com", token="dt0c01.x", dry_run=True
+    )
+
+    with pytest.raises(FileNotFoundError):
+        await client.ingest_file(str(tmp_path / "missing.csv"))
+
+
+async def test_ingest_file_mid_stream_failure_does_not_deadlock(tmp_path):
+    """Regression test: a failing ingest() used to leave the producer thread
+    blocked forever on a full queue, hanging the whole event loop (not just
+    this task) instead of propagating the error.
+    """
+    path = tmp_path / "scores.csv"
+    rows = "\n".join(f"e{i},0.1" for i in range(10))
+    path.write_text(f"name,score\n{rows}\n")
+    client = DynatraceClient(
+        endpoint="https://t.live.dynatrace.com",
+        token="dt0c01.x",
+        chunk_size=1,
+    )
+    calls = 0
+
+    # `ingest()` is fully replaced, so `dry_run` is irrelevant here — this
+    # only exercises ingest_file()'s producer/consumer plumbing, not egress.
+    async def failing_ingest(evals):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("boom")
+        return len(evals)
+
+    client.ingest = failing_ingest
+
+    with pytest.raises(RuntimeError, match="boom"):
+        await asyncio.wait_for(client.ingest_file(str(path)), timeout=5)
+
+    # ingest_file's `finally` awaits producer.join(), so by the time the
+    # exception surfaces the background reader thread must already be gone.
+    assert not any(t.name == "dt-ai-ingest-file-reader" for t in threading.enumerate())
