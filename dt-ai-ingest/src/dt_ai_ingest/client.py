@@ -37,6 +37,7 @@ def _produce_batches(
     path: str,
     mapping: Mapping[str, str] | None,
     defaults: Mapping[str, Any] | None,
+    dataset_id: str,
     batch_size: int,
     out: queue.Queue[Any],
     stop: threading.Event,
@@ -49,6 +50,12 @@ def _produce_batches(
     ``_QUEUE_POLL_SECONDS`` so a consumer that bails out early (e.g. because
     ``ingest()`` raised) can abandon this thread instead of deadlocking it
     forever on a full queue nobody is draining.
+
+    *dataset_id* is forced onto every row after conversion rather than being
+    folded into *defaults*: it's a property of this ingest_file() call, not
+    per-row data, so a file that happens to carry its own ``dataset_id``
+    column must not be able to override it (see ``rows_to_evals``'s
+    ``{**fill, **known}`` merge, where file columns normally win).
     """
 
     def _emit(item: Any) -> bool:
@@ -63,6 +70,7 @@ def _produce_batches(
     try:
         batch: list[Eval] = []
         for eval_ in rows_to_evals(path, mapping, defaults):
+            eval_.dataset_id = dataset_id
             batch.append(eval_)
             if len(batch) >= batch_size:
                 if not _emit(batch):
@@ -146,13 +154,12 @@ class DynatraceClient:
         get an auto-generated UUID.
         """
         _dataset_id = dataset_id if dataset_id is not None else str(uuid.uuid4())
-        _defaults: dict[str, Any] = {**(defaults or {}), "dataset_id": _dataset_id}
         batch_size = self._transport.chunk_size
         out: queue.Queue[Any] = queue.Queue(maxsize=_MAX_QUEUED_BATCHES)
         stop = threading.Event()
         producer = threading.Thread(
             target=_produce_batches,
-            args=(path, mapping, _defaults, batch_size, out, stop),
+            args=(path, mapping, defaults, _dataset_id, batch_size, out, stop),
             daemon=True,
             name="dt-ai-ingest-file-reader",
         )
