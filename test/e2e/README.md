@@ -140,6 +140,12 @@ whose token lacks the scope with SUCCEEDED-and-zero-records rather than a 403, s
 a regression that made this probe always report OK would turn a misscoped token
 into "the tenant looks empty".
 
+This test skips on a missing token like any other credential gate, but it does
+not route through `reportMissingCredentials`/`E2E_REQUIRE_ENV` — by design, since
+the token is optional. The cost is that it can skip forever, in CI, with nothing
+that ever turns red to say so. Confirm `E2E_DT_MISSCOPED_TOKEN` is actually set
+on the `e2e` environment; otherwise this specific coverage never runs.
+
 ### Known gap: test records cannot be tagged
 
 The design doc asks for every test record to be tagged so it can be found and
@@ -149,6 +155,11 @@ config or the flags adds custom attributes. The only handles are `dt.service.nam
 (which changes *what* is evaluated, so it is not free), the evaluator name, and
 the generated `dt.eval.run_id` — which the `--ci` output prints, so a run's
 records can at least be found after the fact by run id.
+
+The flip side is retention: `run.e2e.test.ts` and `evallogic.e2e.test.ts` write
+real bizevents into the tenant every week, indefinitely, with no cleanup job.
+Finding and deleting them needs exactly the tagging this gap describes, so the
+two are the same problem — closing one closes both.
 
 ### Known gap: evaluators cannot be scoped to the cases tagged for them
 

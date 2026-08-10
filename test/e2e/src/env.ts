@@ -118,6 +118,29 @@ export function requireEnv(): boolean {
 }
 
 /**
+ * Names already warned about by {@link reportMissingCredentials} in this run.
+ *
+ * Stored on `process.env` rather than a module-level `Set`: vitest gives each
+ * suite file its own fresh module registry even within one forked process
+ * (`e2eEnabled()`/`judgeFromEnv()` are called at module scope in five separate
+ * files), so a `let` here would reset per file and warn every time regardless.
+ * `process.env` is the one thing that actually survives that reset, because it
+ * mirrors the OS process's real environment table rather than JS module state.
+ * The variable is internal bookkeeping, not a credential, and never reaches the
+ * CLI subprocess — the child's env is built explicitly from scratch, not copied
+ * from this process's.
+ */
+const WARNED_VAR = '__DT_EVALS_E2E_CREDENTIALS_WARNED__';
+
+function alreadyWarned(what: string): boolean {
+  const seen = new Set((process.env[WARNED_VAR] ?? '').split(',').filter(Boolean));
+  if (seen.has(what)) return true;
+  seen.add(what);
+  process.env[WARNED_VAR] = [...seen].join(',');
+  return false;
+}
+
+/**
  * Report a credential set the suite needs but does not have.
  *
  * Skips by default, throws under {@link requireEnv}. Every gate goes through
@@ -134,6 +157,7 @@ export function reportMissingCredentials(what: string, missing: string[]): void 
       `${detail}. E2E_REQUIRE_ENV is set, so this is a failure rather than a skip.`,
     );
   }
+  if (alreadyWarned(what)) return;
   console.warn(`${detail}. Skipping the suites that need it.`);
 }
 

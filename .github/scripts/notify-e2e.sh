@@ -89,8 +89,11 @@ if [ "$SHOULD_ALERT" = "false" ]; then
   # Every matching issue, not just the newest: if a duplicate ever appeared,
   # acting only on the first would leave the other open forever.
   for issue in $OPEN_ISSUES; do
+    # RUN_URL goes in as a %s argument, not baked into the format string: it is
+    # built only from GITHUB_REPOSITORY/GITHUB_RUN_ID today, but a value with a
+    # literal % in it would otherwise be interpreted as a printf directive.
     gh issue close "$issue" \
-      --comment "$(printf '%b' "## E2E recovered\n\nBoth lanes are green again.\n\n**Run:** ${RUN_URL}")" \
+      --comment "$(printf '## E2E recovered\n\nBoth lanes are green again.\n\n**Run:** %s' "$RUN_URL")" \
       --repo "$REPO" || echo "Warning: failed to close issue #${issue}"
   done
   exit 0
@@ -107,7 +110,11 @@ if [ "$VERDICT_FAILED" = "true" ]; then
   BODY_PARTS="${BODY_PARTS}$(printf '%b' "\n## Verdict lane failed\n\nThe judge did not return the expected pass/fail direction for the toxicity fixtures. Judges wobble, so re-run once before treating this as a regression. If it repeats, the evaluator or the fixture has genuinely changed.\n")"
 fi
 
-BODY="$(printf '%b' "**Run:** ${RUN_URL}\n${BODY_PARTS}")"
+# Same reasoning as the close-comment above: RUN_URL and BODY_PARTS travel as
+# %s arguments rather than interpolated into the format string. The format
+# string's own \n is interpreted by printf regardless of which specifier
+# handles the arguments.
+BODY="$(printf '**Run:** %s\n%s' "$RUN_URL" "$BODY_PARTS")"
 
 if [ -n "${OPEN_ISSUES:-}" ]; then
   for issue in $OPEN_ISSUES; do
