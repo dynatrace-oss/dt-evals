@@ -209,7 +209,12 @@ function spawnCli(
 
     const timer = setTimeout(() => {
       child.kill('SIGKILL');
-      reject(new Error(`dt-evals ${args.join(' ')} did not exit within ${timeoutMs}ms`));
+      // argv redacted for the same reason describeResult and assertNoSecrets do
+      // it: no test puts a real credential in argv today, but these two paths
+      // are the only ones that would print it raw if one ever did.
+      reject(
+        new Error(`dt-evals ${redactSecrets(args.join(' '))} did not exit within ${timeoutMs}ms`),
+      );
     }, timeoutMs);
 
     child.on('error', (err) => {
@@ -222,7 +227,9 @@ function spawnCli(
     child.on('close', (code, signal) => {
       clearTimeout(timer);
       if (code === null) {
-        reject(new Error(`dt-evals ${args.join(' ')} was killed by signal ${signal}`));
+        reject(
+          new Error(`dt-evals ${redactSecrets(args.join(' '))} was killed by signal ${signal}`),
+        );
         return;
       }
       resolve({ exitCode: code, stdout, stderr, output: stdout + stderr, args, homeFiles: {} });

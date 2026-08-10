@@ -12,6 +12,7 @@
  * `GET /platform/storage/query/v1/query:poll` while the query is RUNNING.
  */
 
+import { redactSecrets } from './assert.js';
 import { dtHttpTimeoutMs } from './env.js';
 
 export type DqlRecord = Record<string, unknown>;
@@ -73,7 +74,12 @@ export class DynatraceClient {
     const response = await this.post(dql);
 
     if (response.error) {
-      throw new Error(`DT API error ${response.error.code ?? '?'}: ${response.error.message ?? ''}`);
+      // Tenant-authored text, same reasoning as decode().
+      throw new Error(
+        redactSecrets(
+          `DT API error ${response.error.code ?? '?'}: ${response.error.message ?? ''}`,
+        ),
+      );
     }
     if (response.state === 'RUNNING' && response.requestToken) {
       return this.poll(response.requestToken);
@@ -185,7 +191,9 @@ export class DynatraceClient {
           await sleep(2_000);
           break;
         default:
-          throw new Error(`query failed: ${body.error?.message ?? body.state ?? '<none>'}`);
+          throw new Error(
+            redactSecrets(`query failed: ${body.error?.message ?? body.state ?? '<none>'}`),
+          );
       }
     }
   }
@@ -200,8 +208,16 @@ export class DynatraceClient {
       // pointing at the wrong tenant — a DNS failure — is the single most
       // common way this suite goes red. Say which host and why.
       const cause = (err as { cause?: Error }).cause;
+      // Redacted: the origin *is* the tenant host, and this message goes
+      // straight into vitest output — i.e. the Actions log of a public repo.
+      // The runner's own masking cannot be relied on here: it matches the
+      // registered secret exactly, while `tenant()` strips a trailing slash, so
+      // a secret stored as `https://host/` would print unmasked in its stripped
+      // form. That is precisely the spelling this line produces.
       throw new Error(
-        `request to ${new URL(url).origin} failed: ${cause?.message ?? (err as Error).message}`,
+        redactSecrets(
+          `request to ${new URL(url).origin} failed: ${cause?.message ?? (err as Error).message}`,
+        ),
         { cause: err },
       );
     } finally {
@@ -213,14 +229,16 @@ export class DynatraceClient {
    * Decode a platform-storage response, surfacing HTTP errors with their body.
    *
    * The body is included because a 403 here is almost always a missing token
-   * scope, and the tenant names the scope in the response. Note this is the one
-   * place the suite handles raw tenant output: callers that log it must run it
-   * through `assertNoSecrets` first.
+   * scope, and the tenant names the scope in the response. It is also raw tenant
+   * output on a path that ends in a public Actions log, so it is redacted here
+   * rather than at the call sites: an earlier version documented that obligation
+   * in this docstring and no caller honoured it, which is how the raw body kept
+   * reaching vitest unredacted.
    */
   private async decode(response: Response): Promise<QueryResponse> {
     if (!response.ok) {
       const body = await response.text().catch(() => '');
-      const message = `DT API returned HTTP ${response.status}: ${body}`;
+      const message = redactSecrets(`DT API returned HTTP ${response.status}: ${body}`);
       // 4xx is a verdict, not a hiccup — retrying it just wastes the deadline.
       // 408 and 429 are the exceptions: both explicitly invite a retry.
       const permanent =

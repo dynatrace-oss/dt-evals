@@ -60,6 +60,67 @@ const REDACT_ONLY_VARS = ['DT_APPS_ENDPOINT', 'DT_ENV_URL'] as const;
 const OUTPUT_EXCERPT = 4_000;
 
 /**
+ * Below this length a value is ignored by both {@link redactSecrets} and
+ * {@link assertNoSecrets}: a short token matches by coincidence and turns the
+ * leak scanner into a source of false failures.
+ *
+ * The cost is that a genuinely short credential silently disables *both*
+ * mechanisms, which is the worst possible failure mode for a safety net — so
+ * {@link warnAboutShortSecrets} makes it audible instead.
+ */
+const MIN_SECRET_LENGTH = 12;
+
+/** Names already warned about, so the notice prints once rather than per assertion. */
+const shortSecretsWarned = new Set<string>();
+
+function warnAboutShortSecrets(name: string, value: string): void {
+  if (value.length >= MIN_SECRET_LENGTH || shortSecretsWarned.has(name)) return;
+  shortSecretsWarned.add(name);
+  console.warn(
+    `dt-evals E2E: ${name} is set but shorter than ${MIN_SECRET_LENGTH} characters, so it is ` +
+      `excluded from redaction AND from leak detection. If it is a real credential, this ` +
+      `suite cannot protect it — see test/e2e/README.md.`,
+  );
+}
+
+/**
+ * Every spelling of `value` that could plausibly appear in captured output.
+ *
+ * Exact-substring matching alone is not enough. The CLI is known to place a key
+ * in a request URL (`dt-eval-cli/src/probe/provider.ts:115`), where it is
+ * percent-encoded — and AWS secret access keys are base64, so `+` and `/` become
+ * `%2B` and `%2F` and the raw value no longer matches. Provider errors are also
+ * echoed as JSON, which escapes its own set of characters.
+ *
+ * Longest first, so stripping the trailing slash cannot leave a dangling one
+ * behind after the shorter form has already matched.
+ */
+function secretSpellings(value: string): string[] {
+  return [
+    value,
+    value.replace(/\/+$/, ''),
+    encodeURIComponent(value),
+    JSON.stringify(value).slice(1, -1),
+  ]
+    .filter((s, i, all) => s.length >= MIN_SECRET_LENGTH && all.indexOf(s) === i)
+    .sort((a, b) => b.length - a.length);
+}
+
+/**
+ * Identifiers that are not credentials but still should not reach a public log.
+ *
+ * `validate.e2e.test.ts` deliberately provokes the CLI into echoing raw provider
+ * error bodies. Bedrock and STS denials embed the caller ARN — which carries the
+ * 12-digit AWS account id — and that value is in no secret list, is not a
+ * registered GitHub secret, and so prints verbatim into a world-readable Actions
+ * log. Matched by shape rather than by value, since there is nothing to compare against.
+ */
+const SENSITIVE_PATTERNS: Array<[RegExp, string]> = [
+  [/arn:aws[a-z-]*:[^\s"']+/g, '<redacted:aws-arn>'],
+  [/\b\d{12}\b/g, '<redacted:aws-account>'],
+];
+
+/**
  * Replace any configured secret value with a placeholder.
  *
  * Every failure message goes through this. The runner masks registered secrets
@@ -77,14 +138,14 @@ export function redactSecrets(text: string): string {
   let out = text;
   for (const name of [...SECRET_ENV_VARS, ...REDACT_ONLY_VARS]) {
     const value = envOrUndefined(name);
-    if (!value || value.length < 12) continue;
-    // Longest first, so stripping the trailing slash cannot leave a dangling
-    // one behind after the shorter form has already matched.
-    const spellings = [value, value.replace(/\/+$/, '')].sort((a, b) => b.length - a.length);
-    for (const spelling of spellings) {
-      if (spelling.length < 12) continue;
+    if (!value) continue;
+    warnAboutShortSecrets(name, value);
+    for (const spelling of secretSpellings(value)) {
       out = out.split(spelling).join(`<redacted:${name}>`);
     }
+  }
+  for (const [pattern, placeholder] of SENSITIVE_PATTERNS) {
+    out = out.replace(pattern, placeholder);
   }
   return out;
 }
@@ -176,8 +237,12 @@ export function assertNoSecrets(result: CliResult, extraSecrets: string[] = []):
   ];
 
   for (const { name, value } of candidates) {
-    if (!value || value.length < 12) continue;
-    if (haystacks.some((haystack) => haystack.includes(value))) {
+    if (!value) continue;
+    warnAboutShortSecrets(name, value);
+    // Same spellings redactSecrets covers: a percent-encoded or JSON-escaped key
+    // is just as leaked as a raw one, and the CLI produces both.
+    const spellings = secretSpellings(value);
+    if (spellings.some((spelling) => haystacks.some((haystack) => haystack.includes(spelling)))) {
       // Deliberately does not echo the value, only which variable leaked and
       // the command that leaked it. argv is redacted for the same reason: this
       // is the leak-reporting path, so it must not become a leak itself.
