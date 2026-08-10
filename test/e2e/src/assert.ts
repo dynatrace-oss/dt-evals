@@ -20,6 +20,10 @@ import { envOrUndefined } from './env.js';
  */
 const SECRET_ENV_VARS = [
   'DT_API_TOKEN',
+  // DT_ORIGIN_API_TOKEN / DT_DESTINATION_API_TOKEN: the runner process never
+  // sets env vars under these literal names, so detection for the
+  // destination-probe test only works today because it happens to reuse the
+  // same string value as DT_API_TOKEN. Kept for whenever that changes.
   'DT_ORIGIN_API_TOKEN',
   'DT_DESTINATION_API_TOKEN',
   'OPENAI_API_KEY',
@@ -29,6 +33,11 @@ const SECRET_ENV_VARS = [
   'GOOGLE_API_KEY',
   'AWS_ACCESS_KEY_ID',
   'AWS_SECRET_ACCESS_KEY',
+  // A real, valid tenant token (just missing storage:spans:read) — leaking it
+  // is exactly as bad as leaking DT_API_TOKEN. Without this entry it lived
+  // under a name absent from this list, so a leak would sail through
+  // undetected. See validate.e2e.test.ts's misscoped-token probe.
+  'E2E_DT_MISSCOPED_TOKEN',
 ] as const;
 
 /**
