@@ -21,7 +21,7 @@ glob enough to start billing a judge on every pull request.
 | Node | 20+ | running the suite |
 | A built CLI | — | `npm ci && npm run build` in `dt-eval-cli` |
 | Dynatrace tenant | — | all tenant-backed suites |
-| Judge credentials | — | the `validate` suite |
+| Judge credentials | — | the `validate`, `run` and `evallogic` suites |
 
 ## Setup
 
@@ -53,7 +53,8 @@ this that only guarded the tenant let a CI run with `E2E_REQUIRE_ENV=1` skip the
 | `cli.e2e.test.ts` | Harness self-checks: the CLI runs from an isolated HOME and cwd, inherits nothing from the developer's environment, and `assertNoSecrets` detects a real leak | nothing |
 | `tenant.e2e.test.ts` | Tenant reachability, both directions: a valid token connects, a bad one is rejected | tenant |
 | `contract.e2e.test.ts` | The cross-repo contract with the fixture dataset — every attribute dt-evals depends on | tenant |
-| `validate.e2e.test.ts` | `dt-evals validate`: every probe passing, and every probe failing except the spans-bucket scope | tenant + judge |
+| `harness.e2e.test.ts` | Unit tests for the suite's own logic: the skip-vs-fail gate, redaction, leak detection, JSON parsing | nothing |
+| `validate.e2e.test.ts` | `dt-evals validate`: every probe passing, and every probe failing — the spans-bucket case skips until a second, under-scoped token is provisioned | tenant + judge |
 | `run.e2e.test.ts` | `dt-evals run`: `--dry-run` writing nothing, `--ci` output and run log, the destination round-trip, and threshold behaviour per mode | tenant + judge, **writes to the tenant** |
 | `evallogic.e2e.test.ts` | Whether the evaluation is *correct*: the toxic fixture conversation is flagged and the clean one passes | tenant + judge, **writes to the tenant** |
 
@@ -61,14 +62,16 @@ Run one at a time with `npm run test:contract`, `npm run test:validate`, and so 
 `npm run typecheck` checks the workspace without running anything.
 
 `e2e-pr-checks.yml` runs the typecheck and the whole suite on every pull request, with no
-credentials — so everything tenant-backed skips and only `cli.e2e.test.ts` plus the
-conversation-id block of `contract.e2e.test.ts` actually execute. That gate exists
+credentials — so everything tenant-backed skips and only `harness.e2e.test.ts`,
+`cli.e2e.test.ts` and the conversation-id block of `contract.e2e.test.ts` actually
+execute. That gate exists
 because the credentialed suite only runs weekly: without it a type error or a stale
 assertion would sit undetected until Monday. It invokes the suite whole rather than
 naming those two files, so a credential-free test added later is covered
 automatically instead of running nowhere.
 
-`run.e2e.test.ts` is the only suite that writes. It evaluates whichever service
+`run.e2e.test.ts` and `evallogic.e2e.test.ts` are the two suites that write to the
+tenant. `run.e2e.test.ts` evaluates whichever service
 `E2E_RUN_SERVICE` names, defaulting to the fixture service. Its assertions are about
 shape and behaviour — output fields, exit codes, the run log, what lands in the tenant —
 so it works against any tenant with GenAI traffic, which is handy when the fixture tenant
@@ -103,17 +106,36 @@ way it does:
 | Attribute | Observed | What dt-evals needs |
 |---|---|---|
 | `gen_ai.operation.name` | `"chat"` on every span | Already in the CLI's default keep-list — no `scope.operationNames` override needed |
-| `gen_ai.provider.name` / `gen_ai.system` | 96 / 0 | Provider filter passes. The value reads `"langchain"`, because the fixture model is a fake and vendor detection falls back to the framework |
-| `gen_ai.input.messages` / `gen_ai.output.messages` | 96 / 96 | Match the CLI's defaults, no mapping needed |
-| `gen_ai.system_instructions` | 96, **plural** | The CLI defaults to the singular `gen_ai.system_instruction`, so this needs `scope.spanFields.systemInstruction` |
+| `gen_ai.provider.name` / `gen_ai.system` | every span / none | Provider filter passes. The value reads `"langchain"`, because the fixture model is a fake and vendor detection falls back to the framework |
+| `gen_ai.input.messages` / `gen_ai.output.messages` | every span / every span | Match the CLI's defaults, no mapping needed |
+| `gen_ai.system_instructions` | every span, **plural** | The CLI defaults to the singular `gen_ai.system_instruction`, so this needs `scope.spanFields.systemInstruction` |
 | `gen_ai.context`, `gen_ai.reference` | present on grounding cases only | Non-semconv attributes that exist purely for dt-evals; need `scope.spanFields.context` |
 | `gen_ai.conversation.id` | on every span | Present, but `buildGenAiSpanQuery` never selects it — see below |
 
 ## Provisioning CI and the two lanes
 
-Environment setup, secret scoping, the blocking-vs-verdict split, and the notify
-issue lifecycle are all documented as comments directly in `.github/workflows/live_weekly_e2e.yml`
+Secret scoping, the blocking-vs-verdict split, and the notify issue lifecycle are all
+documented as comments directly in `.github/workflows/live_weekly_e2e.yml`
 and `.github/scripts/notify-e2e.sh`, next to the code they govern — start there.
+
+The weekly workflow runs three jobs: `e2e` (blocking lane), `verdict` (evallogic,
+`continue-on-error` at *job* level so it cannot turn the run red), and `notify`. The
+verdict lane is a separate job rather than a step, because `continue-on-error` masks a
+step failure but not a job timeout — sharing a cap meant a slow blocking lane could
+cancel the job and get the verdict lane reported as a hard failure.
+
+### Not yet provisioned: an `e2e` environment
+
+The four `E2E_*` credentials are plain **repository** secrets. `workflow_dispatch`
+lets the dispatcher choose any ref, and the workflow that runs is the one on *that*
+ref — so anyone with push access can run modified workflow code with these secrets in
+scope, and runner log masking does not survive a `base64`. There is currently no
+branch protection or ruleset on `main` either.
+
+Closing this needs an admin to create an `e2e` environment with a deployment branch
+policy limited to `main`, move the `E2E_*` secrets into it, and add `environment: e2e`
+to the `e2e` and `verdict` jobs. The repo's existing `release` environment is the
+precedent. Longer term, GitHub OIDC would remove the static AWS keys entirely.
 
 ### Known gap: `sampling: latest` is only "latest" on a small service
 
@@ -133,7 +155,7 @@ never reaches the bucket check.
 
 Mint one with `storage:logs:read` (so the connection probe still passes) and
 **without** `storage:spans:read`. Anything else is optional. Store it as the
-`E2E_DT_MISSCOPED_TOKEN` environment secret.
+`E2E_DT_MISSCOPED_TOKEN` **repository** secret, alongside the other `E2E_*` ones.
 
 It is the probe most worth having a negative case for: Grail answers a query
 whose token lacks the scope with SUCCEEDED-and-zero-records rather than a 403, so
@@ -142,9 +164,14 @@ into "the tenant looks empty".
 
 This test skips on a missing token like any other credential gate, but it does
 not route through `reportMissingCredentials`/`E2E_REQUIRE_ENV` — by design, since
-the token is optional. The cost is that it can skip forever, in CI, with nothing
-that ever turns red to say so. Confirm `E2E_DT_MISSCOPED_TOKEN` is actually set
-on the `e2e` environment; otherwise this specific coverage never runs.
+the token is optional: under require-mode it would fail every CI run until someone
+mints the second token.
+
+The cost is that it can otherwise skip forever, in CI, with nothing that ever turns
+red to say so. **Set `E2E_REQUIRE_MISSCOPED_TOKEN=1` once the secret exists** and a
+later disappearance becomes a failure instead of a silent skip. Until then this
+specific coverage does not run — as of writing, `E2E_DT_MISSCOPED_TOKEN` is not
+provisioned, so it does not.
 
 ### Known gap: test records cannot be tagged
 

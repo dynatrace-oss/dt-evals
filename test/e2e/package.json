@@ -11,6 +11,7 @@
     "typecheck": "tsc -p .",
     "test:e2e": "vitest run",
     "test:cli": "vitest run suites/cli.e2e.test.ts",
+    "test:harness": "vitest run suites/harness.e2e.test.ts",
     "test:tenant": "vitest run suites/tenant.e2e.test.ts",
     "test:contract": "vitest run suites/contract.e2e.test.ts",
     "test:validate": "vitest run suites/validate.e2e.test.ts",

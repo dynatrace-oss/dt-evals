@@ -79,6 +79,27 @@ describe.skipIf(!e2eEnabled() || !judge)('run', () => {
       assertExitCode(result, 0);
       assertOutputLacks(result, 'Evaluating');
     });
+
+    it('uses a needle a real run actually prints', async () => {
+      // Positive control for the assertion above. `assertOutputLacks` guards
+      // against empty output, but not against a needle that stopped matching:
+      // if the CLI reworded "Evaluating N spans × M metrics", the dry-run
+      // assertion would pass forever while testing nothing.
+      //
+      // Cheap because it reuses the --ci run's own output rather than adding an
+      // invocation: one judge call's worth of spans, already being paid for by
+      // the case below.
+      const result = await runCli(['run', '--ci'], {
+        configYaml: toConfigFile(
+          baselineConfig(judge!, { scope: { ...baselineConfig(judge!).scope, sampling: { strategy: 'latest', count: 1 } } }),
+        ),
+        env: baselineEnv(judge!),
+        timeoutMs: 180_000,
+      });
+
+      assertExitCode(result, 0);
+      assertOutputContains(result, 'Evaluating');
+    }, 200_000);
   });
 
   describe('--ci', () => {
@@ -173,16 +194,73 @@ describe.skipIf(!e2eEnabled() || !judge)('run', () => {
       // By default the CLI leaves the evaluated prompt and response out of what
       // it writes back. Confirming that keeps a regression from quietly starting
       // to ship user content to the tenant.
+      //
+      // `summarize` without `by:` always returns exactly one record, so leaked=0
+      // also comes back for a wrong field name, a wrong run id, or an empty
+      // result — the same DQL trap contract.e2e.test.ts guards against. The
+      // count of *all* this run's records is therefore taken in the same query
+      // as a shape control: if `scanned` is zero the filter matched nothing and
+      // the privacy assertion proved nothing, whatever `leaked` says.
       const withContent = await client.execute(
         `fetch bizevents, from:now() - 30m
 | filter dt.eval.run_id == "${ci.runId}"
-| filter isNotNull(gen_ai.evaluation.input.question)
-| summarize leaked = count()`,
+| summarize scanned = count(), leaked = countIf(isNotNull(gen_ai.evaluation.input.question))`,
       );
+      expect(
+        Number(withContent[0]?.['scanned'] ?? 0),
+        'the privacy check scanned no records at all, so leaked=0 means nothing',
+      ).toBeGreaterThan(0);
       expect(Number(withContent[0]?.['leaked'] ?? 0)).toBe(0);
       // 480s rather than 320s: runCli 180s + poll 120s left only 20s of slack,
       // and pollUntilRecords can overshoot its deadline by a whole HTTP timeout
       // because it checks the clock only after a query returns.
+    }, 480_000);
+
+    it('writes the prompt only when --store-evaluated-prompt asks for it', async () => {
+      // The positive control for the privacy assertion above, and the reason it
+      // is worth a second run: without it, that assertion silently stops covering
+      // anything the moment `gen_ai.evaluation.input.question` is renamed —
+      // `countIf` on an attribute no span carries returns 0 exactly like
+      // compliance does. Here the same field must come back *populated*, so the
+      // two tests fail in opposite directions and the field name is pinned.
+      //
+      // Deliberately the one place the suite writes user content to the tenant.
+      // Kept to a single span (`count: 1`) to bound both the judge bill and how
+      // much fixture text lands there.
+      const base = baselineConfig(judge!);
+      const result = await runCli(['run', '--ci', '--store-evaluated-prompt'], {
+        configYaml: toConfigFile({
+          ...base,
+          scope: { ...base.scope, sampling: { strategy: 'latest', count: 1 } },
+        }),
+        env: baselineEnv(judge!),
+        timeoutMs: 180_000,
+      });
+
+      assertExitCode(result, 0);
+      const ci = parseJsonStdout(result) as CiResult;
+      expect(ci.resultsWritten).toBeGreaterThan(0);
+
+      const { appsEndpoint, apiToken } = tenant();
+      const client = new DynatraceClient(appsEndpoint, apiToken);
+
+      const records = await client.pollUntilRecords(
+        `fetch bizevents, from:now() - 30m
+| filter event.type == "gen_ai.evaluation.result"
+| filter dt.eval.run_id == "${ci.runId}"
+| filter isNotNull(gen_ai.evaluation.input.question)
+| fields dt.eval.run_id`,
+        { timeoutMs: 120_000, intervalMs: 10_000, minRecords: ci.resultsWritten },
+      );
+
+      expect(
+        records.length,
+        'the flag was set but no record carries gen_ai.evaluation.input.question — ' +
+          'either the flag regressed or the attribute was renamed, which would also ' +
+          'have silently disabled the default-off assertion above',
+      ).toBe(ci.resultsWritten);
+
+      assertNoSecrets(result);
     }, 480_000);
   });
 

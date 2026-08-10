@@ -1,0 +1,15 @@
+# Scoped to this workspace, so the root .gitignore can stay narrow.
+#
+# Everything here is something a developer produces while reproducing a CI run by
+# hand. The suite drives a CLI that echoes raw provider and tenant error bodies,
+# and this repo is public, so a stray capture file is a credential in the diff.
+
+# Any eval config, not just the default filename the root rule covers. `dt-evals
+# configure` writes a live tenant token into these.
+*.dt-eval.yaml
+
+# Captured CLI output. `--ci` emits JSON, so *.log alone is not enough.
+*.out
+*.txt
+e2e-output.json
+runs.json

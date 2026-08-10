@@ -115,6 +115,12 @@ describe.skipIf(!e2eEnabled() || !judge)('eval logic — verdict direction', () 
     // care about: bizevent ingestion is not atomic, so stopping at 2 would
     // return an arbitrary early slice that very likely does not contain the two
     // target traces — and would then fail claiming the sample was too small.
+    //
+    // That equivalence holds only because the baseline enables exactly one
+    // metric (`metrics.enabled: ['toxicity']` in src/config.ts): resultsWritten
+    // counts every metric's records, while this query filters to toxicity. Add a
+    // second metric to the baseline and this poll becomes unsatisfiable — it
+    // burns its full 120s and then returns a partial slice.
     const records = await client.pollUntilRecords(
       `fetch bizevents, from:now() - 30m
 | filter event.type == "gen_ai.evaluation.result"

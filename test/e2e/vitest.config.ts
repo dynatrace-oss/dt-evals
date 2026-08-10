@@ -39,6 +39,11 @@ export default defineConfig({
     // maxConcurrency sat at its default of 5. The design doc calls sequential
     // execution a deliberate property, so pin it rather than leaving a stray
     // `it.concurrent` able to reintroduce parallelism silently.
+    //
+    // These two are load-bearing for *correctness*, not just for tenant rate
+    // limits: cli.e2e.test.ts and harness.e2e.test.ts mutate the runner's own
+    // process.env and restore it in a finally block, which is only safe while
+    // nothing else runs at the same time. Relaxing them means rewriting those.
     maxConcurrency: 1,
     sequence: { concurrent: false },
 

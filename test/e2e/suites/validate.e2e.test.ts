@@ -19,9 +19,15 @@ import {
 } from '../src/assert.js';
 import { runCli } from '../src/cli.js';
 import { baselineConfig, baselineEnv, judgeFromEnv, toConfigFile } from '../src/config.js';
-import { e2eEnabled, envOrUndefined, tenant } from '../src/env.js';
+import { e2eEnabled, misscopedToken, tenant } from '../src/env.js';
 
 const judge = judgeFromEnv();
+
+/**
+ * Resolved once at module scope so `E2E_REQUIRE_MISSCOPED_TOKEN` fails collection
+ * loudly, rather than inside a case that would otherwise just skip.
+ */
+const misscoped = misscopedToken();
 
 /**
  * Stable fragments of each probe's success line
@@ -195,7 +201,11 @@ describe.skipIf(!e2eEnabled())('validate — failure paths', () => {
   // Needs a second, deliberately under-scoped token, so it skips until one is
   // provisioned. Breaking the good token is not a substitute: a wholly invalid
   // token fails the connection probe first and the run never reaches this check.
-  it.skipIf(!envOrUndefined('E2E_DT_MISSCOPED_TOKEN'))(
+  //
+  // This is the only gate that does not honour E2E_REQUIRE_ENV — see
+  // misscopedToken() for why, and for the E2E_REQUIRE_MISSCOPED_TOKEN opt-in that
+  // stops it skipping forever once the secret exists.
+  it.skipIf(!misscoped)(
     'exits 1 when the origin token cannot read the spans bucket',
     async () => {
       // The probe this covers exists because Grail answers a query whose token
@@ -214,7 +224,7 @@ describe.skipIf(!e2eEnabled())('validate — failure paths', () => {
         }),
         env: {
           DT_ENV_URL: appsEndpoint,
-          DT_API_TOKEN: envOrUndefined('E2E_DT_MISSCOPED_TOKEN')!,
+          DT_API_TOKEN: misscoped!,
         },
       });
 
