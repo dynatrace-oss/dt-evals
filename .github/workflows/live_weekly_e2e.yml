@@ -38,7 +38,7 @@ jobs:
       verdict_outcome: ${{ steps.verdict.outcome }}
     # Uses plain repository secrets rather than a GitHub environment. An
     # environment scoped to main would additionally stop these credentials from
-    # being reachable by a same-repo pull_request-triggered job (e2e-pr.yml is
+    # being reachable by a same-repo pull_request-triggered job (e2e-pr-checks.yml is
     # credential-free today, but nothing enforces that it stays that way) — a
     # deliberate tradeoff against the extra setup cost of an admin-only
     # environment. Revisit if that changes.

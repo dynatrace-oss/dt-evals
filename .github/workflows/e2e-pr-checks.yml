@@ -1,7 +1,7 @@
 ---
 name: CI — E2E suite (no credentials)
 
-# The PR-time gate for test/e2e. The credentialed suite (e2e-weekly.yml) only runs on a
+# The PR-time gate for test/e2e. The credentialed suite (live_weekly_e2e.yml) only runs on a
 # weekly schedule, so without this a type error or a stale assertion in the
 # harness stays invisible until Monday — and ci-cli.yml does not help, because it
 # is scoped to dt-eval-cli/**.
@@ -19,13 +19,13 @@ name: CI — E2E suite (no credentials)
 # and a new credentialed one skips on its own.
 #
 # E2E_REQUIRE_ENV is deliberately NOT set here. It is what turns a missing
-# credential into a red run, and it belongs in e2e-weekly.yml where credentials are
+# credential into a red run, and it belongs in live_weekly_e2e.yml where credentials are
 # actually expected — here, skipping is the whole point.
 on:
   pull_request:
     paths:
       - "test/e2e/**"
-      - ".github/workflows/e2e-pr.yml"
+      - ".github/workflows/e2e-pr-checks.yml"
       # The harness asserts on the CLI's own output strings and on its config
       # and run-log behaviour, so a change here can break it. Catching that on
       # the PR that causes it beats discovering it in the weekly run.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Called by the notify job in e2e-weekly.yml after a scheduled run.
+# Called by the notify job in live_weekly_e2e.yml after a scheduled run.
 #
 # Keeps exactly one open issue per label, following the same pattern as
 # notify-nightly.sh in dynatrace-ai-agent-instrumentation-examples: comment on

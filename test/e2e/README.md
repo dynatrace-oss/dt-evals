@@ -60,7 +60,7 @@ this that only guarded the tenant let a CI run with `E2E_REQUIRE_ENV=1` skip the
 Run one at a time with `npm run test:contract`, `npm run test:validate`, and so on.
 `npm run typecheck` checks the workspace without running anything.
 
-`e2e-pr.yml` runs the typecheck and the whole suite on every pull request, with no
+`e2e-pr-checks.yml` runs the typecheck and the whole suite on every pull request, with no
 credentials — so everything tenant-backed skips and only `cli.e2e.test.ts` plus the
 conversation-id block of `contract.e2e.test.ts` actually execute. That gate exists
 because the credentialed suite only runs weekly: without it a type error or a stale
@@ -112,7 +112,7 @@ way it does:
 ## Provisioning CI and the two lanes
 
 Environment setup, secret scoping, the blocking-vs-verdict split, and the notify
-issue lifecycle are all documented as comments directly in `.github/workflows/e2e-weekly.yml`
+issue lifecycle are all documented as comments directly in `.github/workflows/live_weekly_e2e.yml`
 and `.github/scripts/notify-e2e.sh`, next to the code they govern — start there.
 
 ### Known gap: `sampling: latest` is only "latest" on a small service
