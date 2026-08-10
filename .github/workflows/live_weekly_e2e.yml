@@ -31,11 +31,12 @@ permissions:
 jobs:
   e2e:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    outputs:
-      # Surfaced so the notify job can distinguish "the pipeline is broken" from
-      # "the judge disagreed", which the design doc treats very differently.
-      verdict_outcome: ${{ steps.verdict.outcome }}
+    # 90, not 30. Summing the per-test timeouts, the blocking lane's worst case is
+    # ~103 minutes (validate alone is 9 invocations against a real tenant and a real
+    # judge). At 30 the cap was reachable by a merely slow tenant — and a job killed
+    # by the cap produces no vitest summary at all, which is the least useful output
+    # this suite can give. --bail=1 below only helps when something actually fails.
+    timeout-minutes: 90
     # Uses plain repository secrets rather than a GitHub environment. An
     # environment scoped to main would additionally stop these credentials from
     # being reachable by a same-repo pull_request-triggered job (e2e-pr-checks.yml is
@@ -158,21 +159,67 @@ jobs:
               ;;
           esac
 
-      # The flaky lane. The design doc splits hard failures from score wobble:
-      # auth and connectivity block the run, a judge disagreeing about a verdict
-      # alerts instead. evallogic is the only suite that asserts on a judge's
-      # decision, so it is the only one that belongs here.
-      #
-      # Its failure still surfaces — the notify job reports it — it just does not
-      # turn the weekly run red on its own.
-      - name: Run verdict suite (non-blocking)
-        id: verdict
-        # `!inputs.suite` rather than `inputs.suite == ''`: on a schedule event
-        # the inputs context is empty, and relying on null-to-empty-string
-        # coercion to decide whether this lane runs at all is not worth the
-        # ambiguity. Falsy covers both spellings.
-        if: ${{ !inputs.suite }}
-        continue-on-error: true
+  # The flaky lane. The design doc splits hard failures from score wobble: auth and
+  # connectivity block the run, a judge disagreeing about a verdict alerts instead.
+  # evallogic is the only suite that asserts on a judge's decision, so it is the only
+  # one that belongs here.
+  #
+  # Its own *job*, not a continue-on-error step inside e2e. `continue-on-error` masks a
+  # step failure but not a job timeout: when the two lanes shared a job and its cap, a
+  # slow blocking lane plus evallogic's 600s test timeout could cancel the job, which
+  # notify-e2e.sh then reports as BLOCKING_CANCELLED — a hard alert for a lane that is
+  # designed never to turn the run red. Separate jobs give each lane its own budget.
+  #
+  # `needs: [e2e]` without `always()` preserves the previous ordering: the verdict lane
+  # only runs once the blocking lane is green. Judging a verdict when auth or the
+  # fixture contract is already broken tells you nothing.
+  verdict:
+    name: Verdict suite (non-blocking)
+    needs: [e2e]
+    # `!inputs.suite` rather than `inputs.suite == ''`: on a schedule event the inputs
+    # context is empty, and relying on null-to-empty-string coercion to decide whether
+    # this lane runs at all is not worth the ambiguity. Falsy covers both spellings.
+    if: ${{ !inputs.suite }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # Job-level, so a red verdict lane does not fail the workflow. The notify job
+    # still reports it via needs.verdict.result.
+    continue-on-error: true
+    defaults:
+      run:
+        shell: bash
+        working-directory: test/e2e
+    env:
+      E2E_JUDGE_PROVIDER: ${{ vars.E2E_JUDGE_PROVIDER || 'bedrock' }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      E2E_JUDGE_MODEL: ${{ vars.E2E_JUDGE_MODEL }}
+      E2E_REQUIRE_ENV: "1"
+      E2E_FIXTURE_LOOKBACK: ${{ inputs.fixture_lookback || '24h' }}
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version-file: "dt-eval-cli/.nvmrc"
+          cache: "npm"
+          cache-dependency-path: |
+            dt-eval-cli/package-lock.json
+            test/e2e/package-lock.json
+
+      - name: Build the CLI under test
+        working-directory: dt-eval-cli
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install E2E dependencies
+        run: npm ci
+
+      # Secrets attached to this step only, for the same reason as in the e2e job:
+      # neither `npm ci` above should be able to read them.
+      - name: Run verdict suite
         env:
           DT_APPS_ENDPOINT: ${{ secrets.E2E_DT_APPS_ENDPOINT }}
           DT_API_TOKEN: ${{ secrets.E2E_DT_API_TOKEN }}
@@ -181,7 +228,7 @@ jobs:
         run: npx vitest run suites/evallogic.e2e.test.ts
 
       - name: Flag a verdict-lane failure
-        if: ${{ steps.verdict.outcome == 'failure' }}
+        if: ${{ failure() }}
         run: |
           echo "::warning title=Verdict lane failed::The judge did not return the expected pass/fail direction for the toxicity fixtures. Re-run once before treating it as a regression."
 
@@ -193,7 +240,7 @@ jobs:
   # Scheduled runs only. A manual dispatch has someone watching it already.
   notify:
     name: Notify on failure or recovery
-    needs: [e2e]
+    needs: [e2e, verdict]
     if: always() && github.event_name == 'schedule'
     runs-on: ubuntu-24.04
     permissions:
@@ -208,5 +255,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           E2E_RESULT: ${{ needs.e2e.result }}
-          VERDICT_OUTCOME: ${{ needs.e2e.outputs.verdict_outcome }}
+          # needs.<job>.result, not a step outcome: the verdict lane is its own job
+          # now. It reports `skipped` when a workflow_dispatch named a single suite,
+          # which notify-e2e.sh correctly treats as "not a failure".
+          VERDICT_OUTCOME: ${{ needs.verdict.result }}
         run: bash .github/scripts/notify-e2e.sh
