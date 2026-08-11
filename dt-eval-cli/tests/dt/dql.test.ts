@@ -96,6 +96,12 @@ describe('buildGenAiSpanQuery', () => {
     expect(query).toContain('limit 1000');
   });
 
+  it('sorts by start_time desc before the limit, so "latest N" reflects the whole since window', () => {
+    const query = buildGenAiSpanQuery({ since: '1h', limit: 500 });
+    expect(query).toContain('| sort start_time desc');
+    expect(query.indexOf('| sort start_time desc')).toBeLessThan(query.indexOf('| limit 500'));
+  });
+
   it('includes required fields in the fields clause', () => {
     const query = buildGenAiSpanQuery({ since: '1h' });
     // OTel GenAI fields
