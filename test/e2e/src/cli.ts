@@ -100,7 +100,10 @@ export async function runCli(args: string[], options: RunCliOptions = {}): Promi
     }
 
     // Scanned here, at the boundary, so no earlier-throwing assertion can bypass it.
-    assertNoSecrets(result);
+    // DT_API_TOKEN's value comes from a live OAuth fetch (env.ts), handed only to this
+    // child's env — it never reaches this process's own `process.env`, so
+    // `SECRET_ENV_VARS` alone can't find it. Pass the actual value handed to the child.
+    assertNoSecrets(result, env['DT_API_TOKEN'] ? [env['DT_API_TOKEN']] : []);
 
     return result;
   } finally {

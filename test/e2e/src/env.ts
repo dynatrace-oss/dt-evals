@@ -139,26 +139,47 @@ const OAUTH_SCOPES = [
 
 interface OauthTokenResponse {
   access_token?: string;
+  expires_in?: number;
   error?: string;
   error_description?: string;
 }
 
-let cachedAccessToken: Promise<string> | undefined;
+interface CachedToken {
+  token: string;
+  expiresAt: number;
+}
+
+/** Refetch this long before the token's real expiry, so a call mid-suite doesn't race an in-flight expiry. */
+const TOKEN_REFRESH_MARGIN_MS = 60_000;
+
+/** Assumed lifetime when the response omits `expires_in` — conservative, so a missing field fails safe toward refetching. */
+const DEFAULT_TOKEN_TTL_MS = 300_000;
+
+let cachedToken: CachedToken | undefined;
+let pendingFetch: Promise<CachedToken> | undefined;
 
 /**
  * Client-credentials grant against Dynatrace SSO — replaces a pasted platform
- * token (`DT_API_TOKEN`). Cached for the process lifetime: one token per
- * suite run, not one per DQL query or CLI invocation. `authScheme` in
- * dynatrace.ts already sends non-`dt0c*` tokens as `Bearer`, so the fetched
- * token needs no special-casing on the read side; `tenantCliEnv` (cli.ts)
- * hands the same token to the CLI under test as `DT_API_TOKEN`.
+ * token (`DT_API_TOKEN`). Cached until shortly before it expires, then
+ * refetched on demand — not just once per suite run, since some suites now
+ * run long enough (`fixtures.ts`'s `runCiTimeoutMs`) to outlast a short-lived
+ * token. `authScheme` in dynatrace.ts already sends non-`dt0c*` tokens as
+ * `Bearer`, so the fetched token needs no special-casing on the read side;
+ * `tenantCliEnv` (cli.ts) hands the same token to the CLI under test as
+ * `DT_API_TOKEN`.
  */
-function oauthAccessToken(): Promise<string> {
-  if (!cachedAccessToken) cachedAccessToken = fetchOauthAccessToken();
-  return cachedAccessToken;
+async function oauthAccessToken(): Promise<string> {
+  if (cachedToken && cachedToken.expiresAt > Date.now()) return cachedToken.token;
+  if (!pendingFetch) {
+    pendingFetch = fetchOauthAccessToken().finally(() => {
+      pendingFetch = undefined;
+    });
+  }
+  cachedToken = await pendingFetch;
+  return cachedToken.token;
 }
 
-async function fetchOauthAccessToken(): Promise<string> {
+async function fetchOauthAccessToken(): Promise<CachedToken> {
   const url = oauthTokenUrl();
   const body = new URLSearchParams({
     grant_type: 'client_credentials',
@@ -167,11 +188,28 @@ async function fetchOauthAccessToken(): Promise<string> {
     scope: OAUTH_SCOPES,
   });
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: body.toString(),
-  });
+  // Same fail-fast philosophy as dynatrace.ts's fetchWithTimeout: a hung SSO host
+  // should surface as a named OAuth failure, not an opaque "Test timed out".
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), dtHttpTimeoutMs());
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    const cause = (err as { cause?: Error }).cause;
+    throw new Error(
+      `OAuth token request to ${new URL(url).host} failed: ${cause?.message ?? (err as Error).message}`,
+      { cause: err },
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+
   const payload = (await response.json().catch(() => ({}))) as OauthTokenResponse;
 
   if (!response.ok || !payload.access_token) {
@@ -181,7 +219,9 @@ async function fetchOauthAccessToken(): Promise<string> {
         `${payload.error_description ? ` — ${payload.error_description}` : ''}`,
     );
   }
-  return payload.access_token;
+
+  const ttlMs = payload.expires_in ? payload.expires_in * 1000 : DEFAULT_TOKEN_TTL_MS;
+  return { token: payload.access_token, expiresAt: Date.now() + ttlMs - TOKEN_REFRESH_MARGIN_MS };
 }
 
 /** Tenant + token the suite reads spans from and hands to the CLI under test. */

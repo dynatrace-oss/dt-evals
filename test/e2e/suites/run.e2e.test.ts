@@ -21,11 +21,20 @@ import { e2eEnabled, tenant } from '../src/env.js';
 import { runCiTimeoutMs, runService } from '../src/fixtures.js';
 
 const judge = judgeFromEnv();
+const enabled = e2eEnabled() && !!judge;
 
 const RUNS_LOG = '.dt-eval/runs.json';
 
 /** Margin above the CLI's own {@link runCiTimeoutMs} budget for vitest's outer test timeout: assertions plus a little slack. */
 const TEST_TIMEOUT_MARGIN_MS = 20_000;
+
+/**
+ * Computed once, only when the suite will actually run. `describe.skipIf`'s factory still
+ * executes during collection even when skipped, so calling `runCiTimeoutMs()` unconditionally
+ * would make a malformed `E2E_FIXTURE_LOOKBACK` crash collection for contributors who have no
+ * tenant credentials and expect a clean skip. Unused (0) when `enabled` is false.
+ */
+const CI_TIMEOUT_MS = enabled ? runCiTimeoutMs() : 0;
 
 /** Shape of the JSON `run --ci` prints. */
 interface CiResult {
@@ -39,7 +48,7 @@ interface CiResult {
   evaluatorResults: Array<{ metric: string; successes: number; total: number; errors: number }>;
 }
 
-describe.skipIf(!e2eEnabled() || !judge)('run', () => {
+describe.skipIf(!enabled)('run', () => {
   describe('--dry-run', () => {
     it('fetches and prepares, then writes nothing at all', async () => {
       const result = await runCli(['run', '--dry-run', '--ci'], {
@@ -96,7 +105,7 @@ describe.skipIf(!e2eEnabled() || !judge)('run', () => {
         configYaml: toConfigFile(await baselineConfig(judge!)),
         env: await baselineEnv(judge!),
         captureHomeFiles: [RUNS_LOG],
-        timeoutMs: runCiTimeoutMs(),
+        timeoutMs: CI_TIMEOUT_MS,
       });
 
       assertExitCode(result, 0);
@@ -124,14 +133,14 @@ describe.skipIf(!e2eEnabled() || !judge)('run', () => {
       expect(entry!['spansEvaluated']).toBe(ci.spansEvaluated);
 
       assertNoSecrets(result);
-    }, runCiTimeoutMs() + TEST_TIMEOUT_MARGIN_MS);
+    }, CI_TIMEOUT_MS + TEST_TIMEOUT_MARGIN_MS);
 
     it('lands the results in the destination tenant, queryable and correctly shaped', async () => {
       // The round trip: not "the CLI said it wrote results" but "the tenant returns them".
       const result = await runCli(['run', '--ci'], {
         configYaml: toConfigFile(await baselineConfig(judge!)),
         env: await baselineEnv(judge!),
-        timeoutMs: runCiTimeoutMs(),
+        timeoutMs: CI_TIMEOUT_MS,
       });
       assertExitCode(result, 0);
       const ci = parseJsonStdout(result) as CiResult;
@@ -176,7 +185,7 @@ describe.skipIf(!e2eEnabled() || !judge)('run', () => {
         'the privacy check scanned no records at all, so leaked=0 means nothing',
       ).toBeGreaterThan(0);
       expect(Number(withContent[0]?.['leaked'] ?? 0)).toBe(0);
-    }, runCiTimeoutMs() + 300_000);
+    }, CI_TIMEOUT_MS + 300_000);
 
     it('writes the prompt only when --store-evaluated-prompt asks for it', async () => {
       // Positive control for the privacy assertion above.
@@ -223,7 +232,7 @@ describe.skipIf(!e2eEnabled() || !judge)('run', () => {
       const result = await runCli(['run', '--ci'], {
         configYaml: toConfigFile(await baselineConfig(judge!, alwaysBreaches)),
         env: await baselineEnv(judge!),
-        timeoutMs: runCiTimeoutMs(),
+        timeoutMs: CI_TIMEOUT_MS,
       });
 
       assertExitCode(result, 1);
@@ -231,19 +240,19 @@ describe.skipIf(!e2eEnabled() || !judge)('run', () => {
       expect(ci.thresholdBreaches.length).toBeGreaterThan(0);
       expect(ci.errors, `judge errors: ${JSON.stringify(ci.errorSamples)}`).toBe(0);
       assertNoSecrets(result);
-    }, runCiTimeoutMs() + TEST_TIMEOUT_MARGIN_MS);
+    }, CI_TIMEOUT_MS + TEST_TIMEOUT_MARGIN_MS);
 
     it('warns but exits 0 in the default mode', async () => {
       const result = await runCli(['run'], {
         configYaml: toConfigFile(await baselineConfig(judge!, alwaysBreaches)),
         env: await baselineEnv(judge!),
-        timeoutMs: runCiTimeoutMs(),
+        timeoutMs: CI_TIMEOUT_MS,
       });
 
       assertExitCode(result, 0);
       assertOutputContains(result, 'Threshold breaches:');
       assertOutputContains(result, 'Evaluation results:');
       assertNoSecrets(result);
-    }, runCiTimeoutMs() + TEST_TIMEOUT_MARGIN_MS);
+    }, CI_TIMEOUT_MS + TEST_TIMEOUT_MARGIN_MS);
   });
 });

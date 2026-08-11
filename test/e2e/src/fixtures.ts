@@ -134,8 +134,13 @@ const SPANS_PER_NIGHT = 32;
 /** `judge.concurrency`'s default (`dt-eval-cli/src/config/defaults.ts`); the suite doesn't override it. */
 const JUDGE_CONCURRENCY = 5;
 
-/** Generous per-call ceiling covering judge latency and retries, for budgeting only — not a real SLA. */
-const JUDGE_CALL_CEILING_MS = 10_000;
+/**
+ * Worst case for one judge call: `judge.timeout` (30s) × one original attempt plus
+ * `judge.maxRetries` (2) retries — both defaults, `dt-eval-cli/src/config/defaults.ts`,
+ * which the suite doesn't override. A batch's wall time is bounded by its slowest call,
+ * not their sum, so this is also the per-batch ceiling. For budgeting only — not a real SLA.
+ */
+const JUDGE_CALL_CEILING_MS = 90_000;
 
 /** Fixed cost of a `run --ci` invocation outside judge calls: CLI startup, span fetch, tenant write. */
 const RUN_OVERHEAD_MS = 60_000;
