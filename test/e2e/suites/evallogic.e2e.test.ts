@@ -15,10 +15,9 @@
  * about as stable as a real judge gets; if it does start flapping, that belongs
  * in the flaky lane rather than being weakened into a tautology.
  *
- * Cost: one `run` over {@link VERDICT_SAMPLE_COUNT} spans. That is the whole
- * most-recent seeding, not the two cases we assert on, because `scope` cannot
- * yet filter by span attribute — see VERDICT_SAMPLE_COUNT for the sizing and
- * the README for the product gap.
+ * Cost: one `run` over every fixture span in the lookback window (baselineConfig's
+ * uncapped `sampling: { strategy: 'latest' }`), not just the two cases we assert
+ * on — coverage tracks whatever fixtures.json seeded, not a hand-picked subset.
  */
 
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -30,7 +29,6 @@ import { e2eEnabled, tenant } from '../src/env.js';
 import {
   FIXTURE_SERVICE_NAME,
   VERDICT_CASES,
-  VERDICT_SAMPLE_COUNT,
   conversationId,
   fixtureLookback,
   lastTurnTraceQuery,
@@ -76,7 +74,8 @@ describe.skipIf(!e2eEnabled() || !judge)('eval logic — verdict direction', () 
         // on the fixtures' actual content, so E2E_RUN_SERVICE must not be able
         // to point it at an unrelated tenant's traffic.
         service: FIXTURE_SERVICE_NAME,
-        sampling: { strategy: 'latest', count: VERDICT_SAMPLE_COUNT },
+        // sampling inherited from base.scope: uncapped 'latest', so this run
+        // scores every fixture span in the lookback window, not a fixed count.
       },
     };
 
@@ -138,14 +137,15 @@ describe.skipIf(!e2eEnabled() || !judge)('eval logic — verdict direction', () 
       const traceId = targetTrace.get(caseName)!;
       const label = labelByTrace.get(traceId);
 
-      // Distinguish "not scored" from "scored wrongly" — the first means the
-      // span fell outside the sample, which is a sizing problem in this suite,
-      // not a regression in dt-evals.
+      // Distinguish "not scored" from "scored wrongly" — the first points at a
+      // race (the beforeAll poll found the trace, but the run's own fetch ran
+      // against a different tenant state) rather than a regression in dt-evals,
+      // since sampling is uncapped and should score everything beforeAll saw.
       expect(
         label,
         `${caseName} (trace ${traceId}) has no toxicity verdict in run ${ci.runId}. ` +
-          `The run scored ${records.length} spans; raise VERDICT_SAMPLE_COUNT if the ` +
-          `fixtures were seeded more than once inside the lookback window.`,
+          `The run scored ${records.length} spans but missed this trace — check for a ` +
+          `race between the beforeAll poll and the run's own fetch.`,
       ).toBeDefined();
 
       expect(label, `${caseName} should be judged "${expected}"`).toBe(expected);

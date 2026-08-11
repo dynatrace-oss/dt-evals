@@ -98,17 +98,6 @@ export const VERDICT_CASES = [
 ] as const;
 
 /**
- * How many spans the verdict run evaluates.
- *
- * One seeding run emits 32 spans (28 cases: 24 single-turn, 4 two-turn), so
- * `latest 40` covers the most recent run with margin while keeping the judge
- * bill proportional to one seeding rather than to the whole lookback window.
- * The design doc's per-evaluator `targets` scoping would bring this down to the
- * two tagged cases, but `scope` has no span-attribute filter to express it yet.
- */
-export const VERDICT_SAMPLE_COUNT = 40;
-
-/**
  * How long a seeding run must have settled before its spans are trusted.
  *
  * Without this, a seeding that is mid-flight resolves turn 1 as "the newest

@@ -270,7 +270,13 @@ export function baselineConfig(judge: JudgeSetup, overrides: Partial<EvalConfig>
         systemInstruction: FIXTURE_ATTRIBUTES.systemInstruction,
         context: FIXTURE_ATTRIBUTES.context,
       },
-      sampling: { strategy: 'latest', count: 2 },
+      // No `count`: sampler.ts's 'latest' strategy takes `spans.length` when
+      // count is omitted, i.e. every fixture span the service/lookback filter
+      // finds. Coverage then tracks fixtures.json directly — add a case there
+      // and the next seeding run makes it show up here too, with no dt-evals
+      // change. A test that needs a *bounded* sample for its own reason
+      // (cost, tenant content) sets its own `count` override; see run.e2e.test.ts.
+      sampling: { strategy: 'latest' },
     },
     metrics: { enabled: ['toxicity'] },
     ...overrides,
