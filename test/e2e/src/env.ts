@@ -1,44 +1,19 @@
 /**
- * Environment resolution and suite gating.
- *
- * Ported from `fixture_suite_test.go` in the instrumentation-examples Go suite,
- * with one deliberate difference: that suite panics on a missing variable, which
- * is right for a repo where E2E is the only thing the module does. Here the
- * suite lives alongside unit tests a contributor may run locally without tenant
- * credentials, so a missing variable *skips* by default.
- *
- * Skipping is also how E2E suites rot: a suite that skips every case still
- * reports green. `E2E_REQUIRE_ENV=1` inverts the behaviour so CI treats a
- * missing secret as a red run. CI must always set it.
+ * Environment resolution and suite gating. A missing variable *skips* by
+ * default, since contributors may run unit tests locally without tenant
+ * credentials; `E2E_REQUIRE_ENV=1` inverts that so CI treats it as a red run.
  */
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { repoRoot } from './paths.js';
 
-/**
- * The tenant host, under either accepted name.
- *
- * `DT_APPS_ENDPOINT` is the instrumentation-examples convention (the
- * platform/apps host that serves the DQL API) and is preferred, because that is
- * the repo whose CI seeds the fixtures this suite reads.
- *
- * `DT_ENV_URL` is accepted as a fallback because it is the name dt-evals itself
- * reads (`dt-eval-cli/src/config/index.ts:84`) and the name this repo's existing
- * tenant workflow already uses as a secret
- * (`.github/workflows/evals-pydantic-ai-music-agent.yml`). Both name the same
- * host, so requiring the other one would mean maintaining a duplicate secret.
- */
+/** The tenant host, under either accepted name — `DT_APPS_ENDPOINT` preferred, `DT_ENV_URL` (dt-evals' own) as fallback. */
 const TENANT_HOST_VARS = ['DT_APPS_ENDPOINT', 'DT_ENV_URL'] as const;
 
 let dotenvLoaded = false;
 
-/**
- * Load `test/e2e/.env` into `process.env` if present, without overwriting
- * variables that are already set. Mirrors what the CLI does at
- * `dt-eval-cli/src/index.ts:12` so a developer's local workflow matches CI's,
- * where the same values arrive as real environment variables and must win.
- */
+/** Load `test/e2e/.env` into `process.env` if present, without overwriting variables already set. */
 export function loadDotEnv(): void {
   if (dotenvLoaded) return;
   dotenvLoaded = true;
@@ -89,14 +64,7 @@ function tenantHost(): string | undefined {
   return undefined;
 }
 
-/**
- * Which variables the suite cannot run without are missing. Empty array means
- * it can run.
- *
- * The list is computed here rather than declared as a constant alongside it:
- * two spellings of "what is required" drift apart, and the one nobody reads
- * wins the argument at the worst moment.
- */
+/** Which variables the suite cannot run without are missing. Empty array means it can run. */
 export function missingRequiredVars(): string[] {
   loadDotEnv();
   const missing: string[] = [];
@@ -105,31 +73,13 @@ export function missingRequiredVars(): string[] {
   return missing;
 }
 
-/**
- * Whether an absent credential must fail the run rather than skip it.
- *
- * CI sets `E2E_REQUIRE_ENV=1`. Explicitly off for `0`/`false`/`no` — treating
- * those as "on" merely because the variable is non-empty is the kind of sharp
- * edge that gets a pipeline stuck for an afternoon.
- */
+/** Whether an absent credential must fail the run rather than skip it. Explicitly off for `0`/`false`/`no`. */
 export function requireEnv(): boolean {
   const value = envOr('E2E_REQUIRE_ENV', '').toLowerCase();
   return value !== '' && value !== '0' && value !== 'false' && value !== 'no';
 }
 
-/**
- * Names already warned about by {@link reportMissingCredentials} in this run.
- *
- * Stored on `process.env` rather than a module-level `Set`: vitest gives each
- * suite file its own fresh module registry even within one forked process
- * (`e2eEnabled()`/`judgeFromEnv()` are called at module scope in five separate
- * files), so a `let` here would reset per file and warn every time regardless.
- * `process.env` is the one thing that actually survives that reset, because it
- * mirrors the OS process's real environment table rather than JS module state.
- * The variable is internal bookkeeping, not a credential, and never reaches the
- * CLI subprocess — the child's env is built explicitly from scratch, not copied
- * from this process's.
- */
+/** Names already warned about. Stored on `process.env`, not a module `Set`, since vitest gives each suite file a fresh module registry. */
 const WARNED_VAR = '__DT_EVALS_E2E_CREDENTIALS_WARNED__';
 
 function alreadyWarned(what: string): boolean {
@@ -140,15 +90,7 @@ function alreadyWarned(what: string): boolean {
   return false;
 }
 
-/**
- * Report a credential set the suite needs but does not have.
- *
- * Skips by default, throws under {@link requireEnv}. Every gate goes through
- * here so the skip-vs-fail decision is made in exactly one place: the first
- * version of this file applied it to the tenant variables only, which let a CI
- * run with `E2E_REQUIRE_ENV=1` but no judge credentials skip the `validate` and
- * `run` suites — 14 of 28 tests — and still report green.
- */
+/** Report a missing credential set. Skips by default, throws under {@link requireEnv} — one place decides skip-vs-fail. */
 export function reportMissingCredentials(what: string, missing: string[]): void {
   const detail =
     `dt-evals E2E: ${what} not configured (missing ${missing.join(', ')}) — see test/e2e/README.md`;
@@ -161,13 +103,7 @@ export function reportMissingCredentials(what: string, missing: string[]): void 
   console.warn(`${detail}. Skipping the suites that need it.`);
 }
 
-/**
- * Whether the tenant-backed suites can run.
- *
- * Call this at module scope in a `describe.skipIf(...)`. When credentials are
- * missing it logs which ones — a skip with no explanation is indistinguishable
- * from a suite that silently stopped testing anything.
- */
+/** Whether the tenant-backed suites can run. Call at module scope in a `describe.skipIf(...)`. */
 export function e2eEnabled(): boolean {
   const missing = missingRequiredVars();
   if (missing.length === 0) return true;
@@ -175,11 +111,7 @@ export function e2eEnabled(): boolean {
   return false;
 }
 
-/**
- * Per-request HTTP timeout for Dynatrace platform API calls. Must exceed the
- * server-side `requestTimeoutMilliseconds` (25s) with headroom for gateway
- * latency. Override with `E2E_DT_HTTP_TIMEOUT` in milliseconds.
- */
+/** Per-request HTTP timeout, exceeding the server-side 25s with headroom. Override with `E2E_DT_HTTP_TIMEOUT`. */
 export function dtHttpTimeoutMs(): number {
   const parsed = Number(envOr('E2E_DT_HTTP_TIMEOUT', '60000'));
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 60_000;

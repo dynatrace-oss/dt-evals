@@ -1,15 +1,7 @@
 /**
- * Thin Dynatrace DQL client for the E2E suite.
- *
- * Ported from `test/e2e/internal/dynatrace/client.go` in the
- * instrumentation-examples repo, and deliberately independent of
- * `dt-eval-cli/src/dt/client.ts`: the suite must be able to observe the tenant
- * without trusting the code under test. If the CLI's own client regresses, this
- * one still reports the truth.
- *
- * Hits the same endpoints the CLI does (`dt-eval-cli/src/dt/client.ts:119`):
- * `POST /platform/storage/query/v1/query:execute`, then
- * `GET /platform/storage/query/v1/query:poll` while the query is RUNNING.
+ * Thin Dynatrace DQL client for the E2E suite, deliberately independent of
+ * `dt-eval-cli/src/dt/client.ts` — the suite must observe the tenant without
+ * trusting the code under test. Hits the same endpoints the CLI does.
  */
 
 import { redactSecrets } from './assert.js';
@@ -17,35 +9,13 @@ import { dtHttpTimeoutMs } from './env.js';
 
 export type DqlRecord = Record<string, unknown>;
 
-/**
- * How much longer than a single request a RUNNING query may take overall.
- *
- * A query that goes async is expected to outlast one HTTP timeout — that is why
- * it went async — so the ceiling is a multiple of it rather than the same value.
- */
+/** How much longer than a single request a RUNNING query may take overall. */
 const POLL_DEADLINE_FACTOR = 3;
 
-/**
- * A query failure that repeating cannot fix — a rejected token, a missing
- * scope, malformed DQL. Distinguished from a transient one so
- * {@link DynatraceClient.pollUntilRecords} can fail fast instead of retrying
- * until its deadline and then blaming the timeout.
- */
+/** A non-retryable query failure (bad token, missing scope, malformed DQL) — fails fast instead of stalling until the deadline. */
 export class PermanentQueryError extends Error {}
 
-/**
- * Pick the Authorization scheme for a token, mirroring `authScheme()` in
- * `dt-eval-cli/src/dt/client.ts:9`.
- *
- * Deliberately identical to the CLI's rule rather than hardcoding one scheme:
- *   - `dt0c*` classic API tokens use `Api-Token`;
- *   - platform tokens (`dt0s*`) and OAuth bearer tokens use `Bearer`.
- *
- * The instrumentation-examples Go client hardcodes `Api-Token`, which works
- * there because that suite is only ever given a classic token. Copying that
- * would have quietly locked this suite out of platform tokens and OAuth
- * credentials — the two things a Dynatrace tenant hands out today.
- */
+/** Pick the Authorization scheme: `dt0c*` classic tokens use `Api-Token`; platform/OAuth tokens use `Bearer`. */
 function authScheme(token: string): 'Bearer' | 'Api-Token' {
   return token.startsWith('dt0c') ? 'Api-Token' : 'Bearer';
 }
@@ -74,7 +44,6 @@ export class DynatraceClient {
     const response = await this.post(dql);
 
     if (response.error) {
-      // Tenant-authored text, same reasoning as decode().
       throw new Error(
         redactSecrets(
           `DT API error ${response.error.code ?? '?'}: ${response.error.message ?? ''}`,
@@ -91,22 +60,10 @@ export class DynatraceClient {
   }
 
   /**
-   * Re-run `dql` until it returns at least `minRecords` records, or `timeoutMs`
-   * elapses.
-   *
-   * `minRecords` exists because ingestion is not atomic: a caller waiting for
-   * the two bizevents a run wrote can see the first one surface a poll interval
-   * before the second. Returning on the first non-empty result and then
-   * asserting an exact count outside made a correct run fail intermittently, so
-   * the expected count belongs in the wait condition rather than after it.
-   *
-   * The last observed result is returned on timeout rather than thrown away, so
-   * the caller's own assertion reports "got 1 of 2" instead of a bare timeout.
-   *
-   * Transient query failures — slow gateway, HTTP timeout, 5xx — do not abort
-   * the poll; they are remembered and only surfaced if the deadline is hit. A
-   * single flaky query should not fail a test that would have passed one
-   * interval later.
+   * Re-run `dql` until it returns at least `minRecords` records, or
+   * `timeoutMs` elapses — ingestion isn't atomic, so a bare non-empty check
+   * made a correct run fail intermittently. Returns the last observed result
+   * on timeout so the caller can report "got 1 of 2" instead of a bare timeout.
    */
   async pollUntilRecords(
     dql: string,
@@ -126,10 +83,7 @@ export class DynatraceClient {
         if (records.length > best.length) best = records;
         if (records.length >= minRecords) return records;
       } catch (err) {
-        // A 4xx will not fix itself: a bad token, a missing scope or a DQL
-        // syntax error returns the same answer on every retry, so retrying only
-        // delays the report by the full timeout and buries the cause behind
-        // "timed out waiting for records".
+        // A 4xx won't fix itself; retrying just delays the report.
         if (err instanceof PermanentQueryError) throw err;
         lastError = err;
       }
@@ -161,14 +115,7 @@ export class DynatraceClient {
     return this.decode(response);
   }
 
-  /**
-   * Follow a RUNNING query to completion.
-   *
-   * Bounded by its own deadline. Each request has a timeout, but the loop
-   * around them did not, so a query that stayed RUNNING would spin until
-   * vitest's test timeout killed it — reported as "the test took too long"
-   * rather than "the tenant never finished this query".
-   */
+  /** Follow a RUNNING query to completion, bounded by its own deadline (not just per-request timeouts). */
   private async poll(requestToken: string): Promise<DqlRecord[]> {
     const deadline = Date.now() + this.timeoutMs * POLL_DEADLINE_FACTOR;
 
@@ -204,16 +151,8 @@ export class DynatraceClient {
     try {
       return await fetch(url, { ...init, signal: controller.signal });
     } catch (err) {
-      // Node's bare "fetch failed" names neither the host nor the reason, and
-      // pointing at the wrong tenant — a DNS failure — is the single most
-      // common way this suite goes red. Say which host and why.
+      // Node's bare "fetch failed" names neither host nor reason; say which host and why.
       const cause = (err as { cause?: Error }).cause;
-      // Redacted: the origin *is* the tenant host, and this message goes
-      // straight into vitest output — i.e. the Actions log of a public repo.
-      // The runner's own masking cannot be relied on here: it matches the
-      // registered secret exactly, while `tenant()` strips a trailing slash, so
-      // a secret stored as `https://host/` would print unmasked in its stripped
-      // form. That is precisely the spelling this line produces.
       throw new Error(
         redactSecrets(
           `request to ${new URL(url).origin} failed: ${cause?.message ?? (err as Error).message}`,
@@ -225,22 +164,12 @@ export class DynatraceClient {
     }
   }
 
-  /**
-   * Decode a platform-storage response, surfacing HTTP errors with their body.
-   *
-   * The body is included because a 403 here is almost always a missing token
-   * scope, and the tenant names the scope in the response. It is also raw tenant
-   * output on a path that ends in a public Actions log, so it is redacted here
-   * rather than at the call sites: an earlier version documented that obligation
-   * in this docstring and no caller honoured it, which is how the raw body kept
-   * reaching vitest unredacted.
-   */
+  /** Decode a platform-storage response, surfacing HTTP errors with their body (usually names a missing scope). */
   private async decode(response: Response): Promise<QueryResponse> {
     if (!response.ok) {
       const body = await response.text().catch(() => '');
       const message = redactSecrets(`DT API returned HTTP ${response.status}: ${body}`);
-      // 4xx is a verdict, not a hiccup — retrying it just wastes the deadline.
-      // 408 and 429 are the exceptions: both explicitly invite a retry.
+      // 4xx is a verdict, not a hiccup — except 408/429, which invite a retry.
       const permanent =
         response.status >= 400 &&
         response.status < 500 &&

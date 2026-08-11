@@ -1,13 +1,8 @@
 /**
- * Builds the `.dt-eval.yaml` and child-process environment a CLI invocation needs.
- *
- * Two rules the CLI itself establishes and this module follows:
- *   - configuration goes in the YAML file, credentials go in the environment.
- *     `saveConfig` strips secrets before writing
- *     (`dt-eval-cli/src/config/index.ts:186`), so putting a token in the YAML
- *     would be testing a shape the product deliberately never produces.
- *   - env vars beat the file (`applyEnvVars`, same file), which is what lets a
- *     test override one field without rewriting the whole config.
+ * Builds the `.dt-eval.yaml` and child-process environment a CLI invocation
+ * needs. Configuration goes in the YAML file, credentials go in the
+ * environment; env vars beat the file, so a test can override one field
+ * without rewriting the whole config.
  */
 
 import { existsSync } from 'node:fs';
@@ -38,26 +33,12 @@ export interface EvalConfig {
   alerts?: { thresholds: Record<string, number> };
 }
 
-/**
- * Serialize a config to the file the CLI reads.
- *
- * Emitted as JSON on purpose: YAML 1.2 is a superset of JSON, and the CLI parses
- * the file with `yaml`, so a JSON document is valid input. This avoids either a
- * YAML dependency in the suite or a hand-rolled emitter whose quoting bugs would
- * look like CLI bugs. Not a shortcut — do not "fix" it into hand-written YAML.
- */
+/** Serialize a config to the file the CLI reads. JSON is valid YAML 1.2, so no YAML dependency is needed. */
 export function toConfigFile(config: EvalConfig): string {
   return JSON.stringify(config, null, 2);
 }
 
-/**
- * A judge provider the suite can actually reach, assembled from the environment.
- *
- * Returns `undefined` when the credentials for the selected provider are absent,
- * so a test can skip itself rather than fail on a missing key. Defaults to
- * Bedrock, which matches the credentials the instrumentation-examples suite
- * already provisions (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`).
- */
+/** A judge provider the suite can reach, assembled from the environment. `undefined` if credentials are absent. */
 export interface JudgeSetup {
   provider: string;
   model?: string;
@@ -68,16 +49,7 @@ export interface JudgeSetup {
   location?: string;
   /** Credentials to hand the child process. */
   env: Record<string, string>;
-  /**
-   * Which of {@link env}'s keys are actually secrets, as opposed to
-   * configuration that merely travels the same way.
-   *
-   * The negative test that invalidates judge credentials needs this: deriving
-   * the set from `Object.keys(env)` also blanked `AWS_REGION` (and, on Azure,
-   * the endpoint and API version), so the probe failed on endpoint resolution
-   * before it ever presented a credential. The test passed while proving
-   * nothing about credential rejection.
-   */
+  /** Which of {@link env}'s keys are actual secrets, vs. config that merely travels alongside them. */
   secretEnvKeys: string[];
 }
 
@@ -87,9 +59,6 @@ export function judgeFromEnv(): JudgeSetup | undefined {
 
   switch (provider) {
     case 'bedrock': {
-      // The Bedrock probe falls through to the AWS SDK's default credential
-      // chain when judge.apiKey/secretKey are unset
-      // (dt-eval-cli/src/probe/provider.ts:137), so the keys travel as env vars.
       const keyId = envOrUndefined('AWS_ACCESS_KEY_ID');
       const secret = envOrUndefined('AWS_SECRET_ACCESS_KEY');
       const region = envOr('AWS_REGION', 'us-east-1');
@@ -102,8 +71,7 @@ export function judgeFromEnv(): JudgeSetup | undefined {
         model,
         region,
         env: { AWS_ACCESS_KEY_ID: keyId, AWS_SECRET_ACCESS_KEY: secret, AWS_REGION: region },
-        // AWS_REGION is configuration, not a credential: blanking it makes the
-        // SDK fail on endpoint resolution instead of on authentication.
+        // AWS_REGION is configuration, not a credential.
         secretEnvKeys: ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'],
       };
     }
@@ -134,11 +102,7 @@ export function judgeFromEnv(): JudgeSetup | undefined {
       };
     }
     case 'gemini': {
-      // The CLI accepts either name and copies whichever is set into
-      // judge.apiKey (config/index.ts:123-125). The library's own fallback,
-      // used on the `run` path, only knows GOOGLE_API_KEY
-      // (dt-eval-lib/src/engine/providers/index.ts:18) — so both are exported to
-      // keep `validate` and `run` on the same credential.
+      // Both names exported: the library's `run`-path fallback only knows GOOGLE_API_KEY.
       const key = envOrUndefined('GEMINI_API_KEY') ?? envOrUndefined('GOOGLE_API_KEY');
       if (!key) {
         reportMissingCredentials('gemini judge', ['GEMINI_API_KEY or GOOGLE_API_KEY']);
@@ -152,12 +116,7 @@ export function judgeFromEnv(): JudgeSetup | undefined {
       };
     }
     case 'vertex': {
-      // Vertex authenticates through Application Default Credentials, not an
-      // API key: the CLI deliberately does not map GOOGLE_API_KEY for it
-      // (config/index.ts:127-128). So the project is the only thing we can
-      // require, and ADC has to be present in the environment already —
-      // a service-account key file via GOOGLE_APPLICATION_CREDENTIALS, or
-      // Workload Identity on the runner.
+      // Vertex authenticates via ADC, not an API key — must already be present.
       const project =
         envOrUndefined('GOOGLE_CLOUD_PROJECT') ??
         envOrUndefined('GCLOUD_PROJECT') ??
@@ -168,13 +127,7 @@ export function judgeFromEnv(): JudgeSetup | undefined {
       }
       const location = envOr('GOOGLE_CLOUD_LOCATION', 'global');
 
-      // The child runs with a fresh cwd and a redirected HOME, so a relative or
-      // `~`-prefixed path resolves somewhere meaningless and ADC fails with an
-      // error that says nothing about the real cause. Fail here instead, naming
-      // it. (The same HOME redirect also cuts off
-      // ~/.config/gcloud/application_default_credentials.json, so `gcloud auth
-      // application-default login` alone does not carry into the child — the
-      // key file has to be explicit.)
+      // The redirected child HOME breaks a relative/`~` path; fail here, naming it.
       const adc = envOrUndefined('GOOGLE_APPLICATION_CREDENTIALS');
       if (adc && (!isAbsolute(adc) || !existsSync(adc))) {
         throw new Error(
@@ -192,9 +145,7 @@ export function judgeFromEnv(): JudgeSetup | undefined {
           GOOGLE_CLOUD_LOCATION: location,
           ...(adc ? { GOOGLE_APPLICATION_CREDENTIALS: adc } : {}),
         },
-        // Empty on purpose: there is no key to invalidate, so the
-        // rejected-credentials test skips itself rather than blanking the
-        // project and calling a config error an authentication failure.
+        // Empty on purpose: there is no key to invalidate here.
         secretEnvKeys: [],
       };
     }
@@ -235,18 +186,10 @@ export function judgeFromEnv(): JudgeSetup | undefined {
 }
 
 /**
- * The config the suite treats as correct: real tenant, real judge, scoped to the
- * fixture service, with the two `spanFields` mappings the fixtures require.
- *
- * The mappings are not incidental — the contract suite proves the fixtures emit
- * `gen_ai.system_instructions` (plural) and the non-semconv `gen_ai.context`,
- * neither of which the CLI reads by default.
- *
- * `overrides` is a *shallow* merge: passing `scope` replaces the whole block and
- * silently drops those `spanFields` mappings, which would show up as a judge
- * scoring against a missing system prompt rather than as an error. Override a
- * sibling key (`alerts`, `metrics`) freely; to change one `scope` field, spread
- * the baseline's own scope into the replacement.
+ * The config the suite treats as correct, with the `spanFields` mappings the
+ * fixtures require. `overrides` is a *shallow* merge — passing `scope`
+ * replaces the whole block and drops those mappings; spread the baseline's own
+ * scope in to change just one field.
  */
 export function baselineConfig(judge: JudgeSetup, overrides: Partial<EvalConfig> = {}): EvalConfig {
   const { appsEndpoint } = tenant();
@@ -270,12 +213,7 @@ export function baselineConfig(judge: JudgeSetup, overrides: Partial<EvalConfig>
         systemInstruction: FIXTURE_ATTRIBUTES.systemInstruction,
         context: FIXTURE_ATTRIBUTES.context,
       },
-      // No `count`: sampler.ts's 'latest' strategy takes `spans.length` when
-      // count is omitted, i.e. every fixture span the service/lookback filter
-      // finds. Coverage then tracks fixtures.json directly — add a case there
-      // and the next seeding run makes it show up here too, with no dt-evals
-      // change. A test that needs a *bounded* sample for its own reason
-      // (cost, tenant content) sets its own `count` override; see run.e2e.test.ts.
+      // No `count`: 'latest' takes every span found, so coverage tracks fixtures.json directly.
       sampling: { strategy: 'latest' },
     },
     metrics: { enabled: ['toxicity'] },

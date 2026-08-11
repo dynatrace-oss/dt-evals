@@ -1,29 +1,13 @@
-/**
- * Named assertions for CLI results.
- *
- * Ported from `fixture_assert_test.go`, whose value is less in the code than in
- * each helper documenting *why* its bound or scope is what it is. Failure
- * messages include the captured output, because an E2E failure with no output is
- * a re-run rather than a diagnosis — the design doc asks for enough detail to
- * debug without one.
- */
+/** Named assertions for CLI results. Ported from `fixture_assert_test.go`. */
 
 import { expect } from 'vitest';
 import type { CliResult } from './cli.js';
 import { envOrUndefined } from './env.js';
 
-/**
- * Every environment variable the suite treats as a secret.
- *
- * Used by {@link assertNoSecrets}. Kept as a list of *names* so the values are
- * only read at assertion time and never stored anywhere the test could print.
- */
+/** Every environment variable the suite treats as a secret, for {@link assertNoSecrets}. */
 const SECRET_ENV_VARS = [
   'DT_API_TOKEN',
-  // DT_ORIGIN_API_TOKEN / DT_DESTINATION_API_TOKEN: the runner process never
-  // sets env vars under these literal names, so detection for the
-  // destination-probe test only works today because it happens to reuse the
-  // same string value as DT_API_TOKEN. Kept for whenever that changes.
+  // Detection for these two only works because they happen to reuse DT_API_TOKEN's value.
   'DT_ORIGIN_API_TOKEN',
   'DT_DESTINATION_API_TOKEN',
   'OPENAI_API_KEY',
@@ -35,34 +19,13 @@ const SECRET_ENV_VARS = [
   'AWS_SECRET_ACCESS_KEY',
 ] as const;
 
-/**
- * Values redacted from messages but *not* treated as leaks.
- *
- * The tenant hostname is not a credential — the CLI prints it on every
- * connection probe, so failing a run over it would be absurd. But this repo is
- * public and the hostname names internal infrastructure, which is why
- * `.env.sample` ships it blank and CI takes it from a secret. Redacting it in
- * anything the suite writes keeps that consistent.
- *
- * The runner's own masking is not enough here: it matches the registered secret
- * string exactly, and `tenant()` strips a trailing slash before use — so a
- * secret stored as `https://host/` would sail through unmasked in its stripped
- * form. {@link redactSecrets} therefore matches both spellings.
- */
+/** Redacted but not treated as a leak — the tenant hostname isn't a credential, but this repo is public. */
 const REDACT_ONLY_VARS = ['DT_APPS_ENDPOINT', 'DT_ENV_URL'] as const;
 
 /** Cap on how much captured output is inlined into a failure message. */
 const OUTPUT_EXCERPT = 4_000;
 
-/**
- * Below this length a value is ignored by both {@link redactSecrets} and
- * {@link assertNoSecrets}: a short token matches by coincidence and turns the
- * leak scanner into a source of false failures.
- *
- * The cost is that a genuinely short credential silently disables *both*
- * mechanisms, which is the worst possible failure mode for a safety net — so
- * {@link warnAboutShortSecrets} makes it audible instead.
- */
+/** Below this length a value is skipped, to avoid false leak-detection matches. */
 const MIN_SECRET_LENGTH = 12;
 
 /** Names already warned about, so the notice prints once rather than per assertion. */
@@ -78,18 +41,7 @@ function warnAboutShortSecrets(name: string, value: string): void {
   );
 }
 
-/**
- * Every spelling of `value` that could plausibly appear in captured output.
- *
- * Exact-substring matching alone is not enough. The CLI is known to place a key
- * in a request URL (`dt-eval-cli/src/probe/provider.ts:115`), where it is
- * percent-encoded — and AWS secret access keys are base64, so `+` and `/` become
- * `%2B` and `%2F` and the raw value no longer matches. Provider errors are also
- * echoed as JSON, which escapes its own set of characters.
- *
- * Longest first, so stripping the trailing slash cannot leave a dangling one
- * behind after the shorter form has already matched.
- */
+/** Every spelling of `value` that could appear in output: raw, slash-stripped, percent- and JSON-encoded. */
 function secretSpellings(value: string): string[] {
   return [
     value,
@@ -101,34 +53,13 @@ function secretSpellings(value: string): string[] {
     .sort((a, b) => b.length - a.length);
 }
 
-/**
- * Identifiers that are not credentials but still should not reach a public log.
- *
- * `validate.e2e.test.ts` deliberately provokes the CLI into echoing raw provider
- * error bodies. Bedrock and STS denials embed the caller ARN — which carries the
- * 12-digit AWS account id — and that value is in no secret list, is not a
- * registered GitHub secret, and so prints verbatim into a world-readable Actions
- * log. Matched by shape rather than by value, since there is nothing to compare against.
- */
+/** Not credentials, but shouldn't reach a public log — e.g. an AWS ARN/account id in a denial error. */
 const SENSITIVE_PATTERNS: Array<[RegExp, string]> = [
   [/arn:aws[a-z-]*:[^\s"']+/g, '<redacted:aws-arn>'],
   [/\b\d{12}\b/g, '<redacted:aws-account>'],
 ];
 
-/**
- * Replace any configured secret value with a placeholder.
- *
- * Every failure message goes through this. The runner masks registered secrets
- * in the Actions log, but only exact matches, and this repo is public — so the
- * cost of a miss is a world-readable credential. Without redaction the leak
- * case is exactly the case that publishes the secret: `assertNoSecrets` refuses
- * to echo a value, but an unrelated assertion failing on the *same* result
- * would inline the raw output, secret and all, into its message — which vitest
- * then prints in full.
- *
- * Redaction is not a substitute for {@link assertNoSecrets}; that still fails
- * the test. This only ensures the report of a leak is not itself a leak.
- */
+/** Replace any configured secret value with a placeholder in a failure message. */
 export function redactSecrets(text: string): string {
   let out = text;
   for (const name of [...SECRET_ENV_VARS, ...REDACT_ONLY_VARS]) {
@@ -146,9 +77,7 @@ export function redactSecrets(text: string): string {
 }
 
 function describeResult(result: CliResult): string {
-  // Redact first, then truncate. The other order lets a secret that straddles
-  // the cut survive as a fragment: the tail is sliced off, so the full value no
-  // longer matches and the leading half is printed verbatim.
+  // Redact before truncating, or a sliced secret can print half unredacted.
   return [
     `command: dt-evals ${redactSecrets(result.args.join(' '))}`,
     `exit code: ${result.exitCode}`,
@@ -166,27 +95,14 @@ export function assertExitCode(result: CliResult, expected: number): void {
   }
 }
 
-/**
- * Assert the output contains `needle`.
- *
- * Prefer a short, stable fragment of a message over its full text: these
- * assertions should survive copy edits to the CLI's human-readable output and
- * only break when the *behaviour* changes.
- */
+/** Assert the output contains `needle`. Prefer a short, stable fragment over full text. */
 export function assertOutputContains(result: CliResult, needle: string): void {
   if (!result.output.includes(needle)) {
     throw new Error(`expected output to contain ${JSON.stringify(needle)}\n${describeResult(result)}`);
   }
 }
 
-/**
- * Assert the output does *not* contain `needle`.
- *
- * Refuses to pass on empty output. "The CLI printed nothing" satisfies every
- * absence check trivially, so without this guard a command that died before
- * producing a single line would look like it behaved correctly — and in tests
- * where this is the only assertion, that is the whole test passing on silence.
- */
+/** Assert the output lacks `needle`; refuses to pass on empty output, which proves nothing. */
 export function assertOutputLacks(result: CliResult, needle: string): void {
   if (result.output.trim().length === 0) {
     throw new Error(
@@ -201,31 +117,14 @@ export function assertOutputLacks(result: CliResult, needle: string): void {
   }
 }
 
-
-/**
- * Assert no configured secret appears in the CLI's captured output.
- *
- * The design doc names two known leak paths in the CLI today: the Gemini key is
- * placed in the request URL on the probe path
- * (`dt-eval-cli/src/probe/provider.ts:115`), and raw provider/tenant error
- * bodies are printed verbatim. `runCli` calls this on every invocation rather
- * than leaving it to the cases that look risky — and calls it at the boundary,
- * because a test that ends with it has already had every earlier assertion's
- * chance to print the output first.
- *
- * Short values are skipped: a 4-character token would match by coincidence and
- * turn this into a source of false failures.
- */
+/** Assert no configured secret appears in the CLI's captured output. Called at the boundary in `runCli`. */
 export function assertNoSecrets(result: CliResult, extraSecrets: string[] = []): void {
   const candidates = [
     ...SECRET_ENV_VARS.map((name) => ({ name, value: envOrUndefined(name) })),
     ...extraSecrets.map((value, i) => ({ name: `extraSecrets[${i}]`, value })),
   ];
 
-  // Captured HOME files are scanned too. They are populated before this runs and
-  // do get read back into assertions (run.e2e.test.ts parses the run log), so
-  // "checked at the boundary" has to mean everything the result carries, not
-  // just the streams.
+  // Captured HOME files are scanned too, not just the streams.
   const haystacks = [
     result.output,
     ...Object.values(result.homeFiles).filter((v): v is string => v !== undefined),
@@ -234,13 +133,9 @@ export function assertNoSecrets(result: CliResult, extraSecrets: string[] = []):
   for (const { name, value } of candidates) {
     if (!value) continue;
     warnAboutShortSecrets(name, value);
-    // Same spellings redactSecrets covers: a percent-encoded or JSON-escaped key
-    // is just as leaked as a raw one, and the CLI produces both.
     const spellings = secretSpellings(value);
     if (spellings.some((spelling) => haystacks.some((haystack) => haystack.includes(spelling)))) {
-      // Deliberately does not echo the value, only which variable leaked and
-      // the command that leaked it. argv is redacted for the same reason: this
-      // is the leak-reporting path, so it must not become a leak itself.
+      // Never echoes the value itself — this is the leak-reporting path.
       throw new Error(
         `secret from ${name} leaked into the output of: dt-evals ${redactSecrets(result.args.join(' '))}`,
       );
@@ -248,21 +143,7 @@ export function assertNoSecrets(result: CliResult, extraSecrets: string[] = []):
   }
 }
 
-/**
- * Parse the CLI's structured output as the *last* complete JSON object on stdout.
- *
- * `run --ci` prints one object (`dt-eval-cli/src/runner/index.ts:414`);
- * `--dry-run` prints a pretty-printed, multi-line one (`:221`); and on the error
- * path `run` prints `{"error": …}` — which can follow the result object, since a
- * throw from `appendRunRecord` is caught after the result has already been
- * printed (`cli/commands/run.ts:210-214`).
- *
- * Both shapes rule out the obvious approaches. Slicing the first `{` to the last
- * `}` spans two objects and yields invalid JSON whenever both are printed;
- * parsing the last line fails on the pretty-printed payload. So candidate start
- * positions are tried right-to-left and the first that parses wins, which is by
- * construction the last complete object regardless of formatting.
- */
+/** Parse the CLI's structured output as the *last* complete JSON object on stdout. */
 export function parseJsonStdout(result: CliResult): unknown {
   const { stdout } = result;
   const end = stdout.lastIndexOf('}');
@@ -281,14 +162,7 @@ export function parseJsonStdout(result: CliResult): unknown {
   throw new Error(`expected a JSON object on stdout\n${describeResult(result)}`);
 }
 
-/**
- * Assert a DQL result set is non-empty, with a message that says what to check.
- *
- * Grail answers a query whose token lacks the bucket scope with
- * SUCCEEDED-and-zero-records rather than an error, so "no records" is ambiguous
- * between "no data" and "no permission". The hint keeps that ambiguity from
- * being rediscovered every time.
- */
+/** Assert a DQL result set is non-empty (Grail returns zero records, not an error, on a scope-missing token). */
 export function assertRecords<T>(records: T[], what: string): void {
   expect(
     records.length,

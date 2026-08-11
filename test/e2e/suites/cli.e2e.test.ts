@@ -1,11 +1,7 @@
 /**
  * Harness self-checks: the properties every other CLI-driven test relies on.
- *
- * These assert the *test rig*, not dt-evals behaviour. If the rig leaks the
- * developer's credentials or state into a run, then a green suite means nothing —
- * a negative test would pass because a real token happened to be in scope. So
- * the isolation the design doc's "state is shared and global" constraint demands
- * is verified here explicitly, and cheaply: no tenant, no judge.
+ * These assert the *test rig*, not dt-evals behaviour — if the rig leaks
+ * credentials or state, a green suite means nothing.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -23,25 +19,14 @@ describe('CLI harness', () => {
     const result = await runCli(['--version']);
 
     assertExitCode(result, 0);
-    // Confirms the artifact under test is the built bundle, with the version
-    // tsup injected at build time — not a stale dist from an older checkout.
+    // Confirms this is the built bundle, not a stale dist from an older checkout.
     expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+/);
     assertNoSecrets(result);
   });
 
   it('builds the child environment from scratch, without the parent', () => {
-    // The load-bearing property of the whole suite, and the design doc's
-    // Isolation requirement ("its environment is built explicitly, never
-    // inherited, so a developer's real DT_API_TOKEN can't leak in"). Without it,
-    // every "missing credentials" test in validate.e2e.test.ts could pass for
-    // the wrong reason.
-    //
-    // Asserted on the constructed key set rather than on the CLI's output. Two
-    // earlier versions checked a canary against stdout — first passing it *to*
-    // the child, then setting it on the parent — and neither could fail: the CLI
-    // never echoes its environment, so a variable it ignores is invisible in
-    // stdout whether it was inherited or not. A mutation that spread
-    // process.env into the child left both versions green.
+    // Asserted on the constructed key set, not the CLI's output — the CLI
+    // never echoes its env, so a stdout-based canary check can't fail.
     const canary = 'canary-value-must-not-appear';
     const previous = process.env['E2E_CANARY'];
     process.env['E2E_CANARY'] = canary;
@@ -53,18 +38,13 @@ describe('CLI harness', () => {
       expect(env).not.toHaveProperty('E2E_CANARY');
       expect(Object.values(env)).not.toContain(canary);
     } finally {
-      // The suite runs in a single fork, so a stray variable would outlive this
-      // test and reach every later one.
       if (previous === undefined) delete process.env['E2E_CANARY'];
       else process.env['E2E_CANARY'] = previous;
     }
   });
 
   it('does not let a parent-set credential reach the CLI', async () => {
-    // The behavioural half, using a variable the CLI actually acts on. A leaked
-    // DT_API_TOKEN would take `validate` past its token check and into a
-    // connection attempt, so the "not set" message is the observable proof that
-    // nothing crossed over.
+    // A leaked DT_API_TOKEN would take `validate` past its token check.
     const saved = {
       token: process.env['DT_API_TOKEN'],
       url: process.env['DT_ENV_URL'],
@@ -104,11 +84,7 @@ describe('CLI harness', () => {
   });
 
   it('runs in a private working directory, so no repo config leaks in', async () => {
-    // dt-eval-cli/src/index.ts:12 auto-loads `.env` from the working directory
-    // and loadConfig() reads ./.dt-eval.yaml. Running in the repo would pick up
-    // the developer's real tenant and token. An empty temp cwd means the CLI
-    // reports finding no config at all — which is the observable proof that
-    // nothing leaked.
+    // The CLI auto-loads ./.env and ./.dt-eval.yaml.
     const result = await runCli(['validate']);
 
     assertExitCode(result, 1);
@@ -117,8 +93,6 @@ describe('CLI harness', () => {
   });
 
   it('picks up a config written into its private working directory', async () => {
-    // The positive half: tests can still control the CLI's configuration, they
-    // just do it through the isolated cwd rather than the repo.
     const result = await runCli(['validate'], {
       configYaml: [
         'schemaVersion: 2',
@@ -135,22 +109,14 @@ describe('CLI harness', () => {
     });
 
     assertExitCode(result, 1);
-    // The config was read: this is a schema complaint about the value we wrote,
-    // not the "no config found" warning from the previous case.
+    // A schema complaint, not the "no config" warning — confirms the config was read.
     assertOutputContains(result, 'Config schema invalid');
     assertOutputLacks(result, 'No .dt-eval.yaml in');
     assertNoSecrets(result);
   });
 
   it('redacts secrets from failure messages, so reporting a leak is not a leak', () => {
-    // assertNoSecrets refuses to echo a value, but any *other* assertion failing
-    // on the same result inlines the raw output into its message, and vitest
-    // prints that to the run log untruncated.
-    //
-    // Uses a synthetic token rather than the configured one. Reading
-    // DT_API_TOKEN and returning early when unset made this pass vacuously
-    // whenever no tenant was configured — a green test that asserted nothing,
-    // guarding the very mechanism that keeps secrets out of the log.
+    // Synthetic token, not the configured one, so this can't pass vacuously when unset.
     const token = 'dt0c01.E2ESYNTHETIC.TOKENVALUEFORREDACTIONTEST';
     const previous = process.env['DT_API_TOKEN'];
     process.env['DT_API_TOKEN'] = token;
@@ -167,11 +133,7 @@ describe('CLI harness', () => {
   });
 
   it('detects a secret that leaks into captured output', async () => {
-    // A negative control for assertNoSecrets itself. The CLI echoes an unknown
-    // command back in its error message, so passing a secret-shaped argument is
-    // a reliable way to get one into the output — proving the scanner would
-    // catch a real leak such as the Gemini key in the probe URL
-    // (dt-eval-cli/src/probe/provider.ts:115).
+    // Negative control: the CLI echoes an unknown command back verbatim.
     const fakeSecret = 'sk-e2e-canary-0123456789abcdef';
     const result = await runCli([`definitely-not-a-command-${fakeSecret}`]);
 
