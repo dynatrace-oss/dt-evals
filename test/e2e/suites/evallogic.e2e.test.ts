@@ -100,12 +100,16 @@ describe.skipIf(!e2eEnabled() || !judge)('eval logic — verdict direction', () 
       const traceId = targetTrace.get(caseName)!;
       const label = labelByTrace.get(traceId);
 
-      // "Not scored" points at a race between beforeAll and the run's own fetch, not a regression.
+      // "Not scored" usually means a race between beforeAll and the run's own fetch. If it
+      // persists with a growing fixture set, check dql.ts's undocumented `limit 1000` with no
+      // `sort` instead (README: "sampling: latest is only latest on a small service") —
+      // fixtureLookback()'s cap keeps this suite under that limit today, not forever.
       expect(
         label,
         `${caseName} (trace ${traceId}) has no toxicity verdict in run ${ci.runId}. ` +
-          `The run scored ${records.length} spans but missed this trace — check for a ` +
-          `race between the beforeAll poll and the run's own fetch.`,
+          `The run scored ${records.length} spans but missed this trace — check for a race ` +
+          `between the beforeAll poll and the run's own fetch, or (if the fixture set has grown) ` +
+          `dql.ts's 1000-span cap.`,
       ).toBeDefined();
 
       expect(label, `${caseName} should be judged "${expected}"`).toBe(expected);

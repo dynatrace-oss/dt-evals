@@ -90,13 +90,34 @@ export const FIXTURE_ATTRIBUTES = {
 /** The single `gen_ai.operation.name` value the fixtures emit. */
 export const FIXTURE_OPERATION_NAME = 'chat';
 
-/** How far back to look for fixture spans. The suite doesn't seed, so this must cover the gap since the last seeding run. */
+/** Hours per DQL duration unit, for {@link fixtureLookback}'s size check. */
+const DURATION_UNIT_HOURS: Record<string, number> = { s: 1 / 3600, m: 1 / 60, h: 1, d: 24 };
+
+/** Upper bound on {@link fixtureLookback}: one week, ~7x a nightly seeding (32 spans/night). */
+const MAX_LOOKBACK_HOURS = 24 * 7;
+
+/**
+ * How far back to look for fixture spans. The suite doesn't seed, so this must
+ * cover the gap since the last seeding run. Capped at {@link MAX_LOOKBACK_HOURS}
+ * because sampling is uncapped (`baselineConfig`'s `sampling: { strategy: 'latest' }`,
+ * see config.ts): a much wider window risks approaching dql.ts's undocumented
+ * 1000-span cap (README's "sampling: latest is only latest on a small service"),
+ * and inflates run/evallogic test duration and judge cost.
+ */
 export function fixtureLookback(): string {
   const value = envOr('E2E_FIXTURE_LOOKBACK', '24h');
   // Validated since it's concatenated into DQL and operator-supplied.
-  if (!/^\d+[smhd]$/.test(value)) {
+  const match = /^(\d+)([smhd])$/.exec(value);
+  if (!match) {
     throw new Error(
       `E2E_FIXTURE_LOOKBACK must be a DQL duration like 24h or 7d, got ${JSON.stringify(value)}`,
+    );
+  }
+  const hours = Number(match[1]) * DURATION_UNIT_HOURS[match[2]!]!;
+  if (hours > MAX_LOOKBACK_HOURS) {
+    throw new Error(
+      `E2E_FIXTURE_LOOKBACK must be at most ${MAX_LOOKBACK_HOURS}h (got ${JSON.stringify(value)}) — ` +
+        `sampling is uncapped, so a wider window risks the tenant's span cap and runaway judge cost`,
     );
   }
   return value;
