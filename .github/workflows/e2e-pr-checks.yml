@@ -1,46 +1,20 @@
 ---
 name: CI — E2E suite (no credentials)
 
-# The PR-time gate for test/e2e. The credentialed suite (live_weekly_e2e.yml) only runs on a
-# weekly schedule, so without this a type error or a stale assertion in the
-# harness stays invisible until Monday — and ci-cli.yml does not help, because it
-# is scoped to dt-eval-cli/**.
-#
-# Deliberately runs no secret and spends nothing. Today that means the whole
-# workspace typechecks, the harness self-checks in cli.e2e.test.ts run
-# (isolation, redaction), and the conversation-id derivation in
-# contract.e2e.test.ts runs — everything else gates itself on credentials and
-# skips.
-#
-# The suite is invoked whole rather than as a list of files, and the skipping is
-# what makes that safe. Naming the two credential-free files would freeze this
-# job at today's coverage: a suite added later would run nowhere, silently.
-# Running everything means a new credential-free test is gated automatically,
-# and a new credentialed one skips on its own.
-#
-# E2E_REQUIRE_ENV is deliberately NOT set here. It is what turns a missing
-# credential into a red run, and it belongs in live_weekly_e2e.yml where credentials are
-# actually expected — here, skipping is the whole point.
+# PR-time gate for test/e2e — the credentialed suite only runs weekly.
+# Spends nothing: typechecks the workspace and runs whatever needs no
+# credentials, invoked whole so new tests are covered automatically.
 on:
   pull_request:
     paths:
       - "test/e2e/**"
       - ".github/workflows/e2e-pr-checks.yml"
-      # The harness asserts on the CLI's own output strings and on its config
-      # and run-log behaviour, so a change here can break it. Catching that on
-      # the PR that causes it beats discovering it in the weekly run.
       - "dt-eval-cli/**"
-      # dt-eval-cli only ever consumes dt-eval-lib through the published npm
-      # version pinned in dt-eval-cli/package.json, so a lib-only PR wouldn't
-      # otherwise touch this job at all — the break would surface later, in
-      # the unrelated-looking PR that bumps the pin. The "Build dt-eval-lib
-      # from source" step below overrides that pin with the local checkout for
-      # this job only, so a lib change gets end-to-end feedback in its own PR.
+      # dt-eval-cli only consumes dt-eval-lib via its pinned npm version, so a
+      # lib-only PR needs the source-build override below to get feedback here.
       - "dt-eval-lib/**"
   workflow_dispatch:
 
-# No token needed at all: checkout works unauthenticated on a public repo and
-# persist-credentials is off, so nothing here reads or writes via the API.
 permissions: {}
 
 jobs:
@@ -66,20 +40,14 @@ jobs:
             dt-eval-lib/package-lock.json
             test/e2e/package-lock.json
 
-      # Built from the local checkout, not installed from npm, so a change
-      # here is what the override below picks up instead of the pinned
-      # registry version.
       - name: Build dt-eval-lib from source
         working-directory: dt-eval-lib
         run: |
           npm ci
           npm run build
 
-      # cli.e2e.test.ts drives dist/index.js, so the artifact has to exist even
-      # though no tenant is involved. The npm install after npm ci overrides
-      # the registry-pinned dt-eval-lib with the just-built local one, for
-      # this job only — package.json/package-lock.json changes here are
-      # never committed, so the real pin dt-eval-cli ships with is untouched.
+      # npm install after npm ci overrides the registry-pinned dt-eval-lib
+      # with the just-built local one, for this job only (never committed).
       - name: Build the CLI under test
         working-directory: dt-eval-cli
         run: |

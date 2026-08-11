@@ -1,21 +1,11 @@
 #!/usr/bin/env bash
 # Called by the notify job in live_weekly_e2e.yml after a scheduled run.
+# Keeps exactly one open issue per label: comments while the failure
+# persists, creates it if there is none, closes it once clean again.
 #
-# Keeps exactly one open issue per label, following the same pattern as
-# notify-nightly.sh in dynatrace-ai-agent-instrumentation-examples: comment on
-# the open issue while the failure persists, create it if there is none, and
-# close it once the run is clean again. A weekly workflow that nobody watches
-# needs this — a red run with no notification is the same as no run at all.
-#
-# Three conditions are reported, because the design doc treats them differently:
-#   1. The blocking lane failed — auth, connectivity, contract, pipeline. Hard.
-#   2. The verdict lane failed — the judge disagreed about a fixture's expected
-#      pass/fail direction. Alerts, but does not turn the run red by itself.
-#   3. The job was cancelled. Almost always the 30-minute job timeout, since
-#      nobody is at a keyboard at 06:00 on a Monday to press the button. That
-#      has to alert: a run that hangs and says nothing is exactly the failure
-#      this script exists to prevent. It must never *close* an issue, though —
-#      a cancelled run proves nothing about recovery.
+# Three conditions, reported differently: (1) blocking lane failed — hard
+# alert; (2) verdict lane failed — alerts but doesn't redden the run; (3) job
+# cancelled — almost always the 30-min timeout, must alert but never close.
 #
 # Required env: GH_TOKEN, GITHUB_REPOSITORY, GITHUB_RUN_ID, E2E_RESULT,
 #               VERDICT_OUTCOME
@@ -25,9 +15,7 @@ REPO="${GITHUB_REPOSITORY}"
 RUN_URL="https://github.com/${REPO}/actions/runs/${GITHUB_RUN_ID}"
 LABEL="e2e-alert"
 
-# `needs.<job>.result` is success | failure | cancelled | skipped. Only skipped
-# is genuinely nothing to say: the job never ran, so there is no evidence either
-# way — most likely the environment's branch policy rejected it.
+# Only "skipped" is genuinely nothing to say: the job never ran, no evidence either way.
 case "${E2E_RESULT:-}" in
   success | failure | cancelled) ;;
   *)
@@ -51,18 +39,9 @@ fi
 
 echo "blocking lane: ${E2E_RESULT:-unknown} | verdict lane: ${VERDICT_OUTCOME:-not run} | alert: ${SHOULD_ALERT}"
 
-# --repo is passed explicitly everywhere: the checkout runs with
-# persist-credentials: false, so gh cannot infer it from the git remote.
-#
-# A failed lookup must not be read as "no issue is open" — that is how a
-# transient gh error opens a duplicate and orphans the original, which nothing
-# afterwards would ever comment on or close again.
-#
-# stdout and stderr are captured separately, not merged with 2>&1: OPEN_ISSUES
-# is later word-split into issue numbers to close or comment on, and gh is
-# known to write things like update-available notices to stderr even on a
-# successful call. Merging them would feed that noise in as if it were a real
-# issue number.
+# --repo passed explicitly: persist-credentials: false means gh can't infer it from the remote.
+# stderr captured separately: OPEN_ISSUES is word-split into issue numbers,
+# and gh writes noise like update notices to stderr even on success.
 GH_STDERR="$(mktemp)"
 trap 'rm -f "$GH_STDERR"' EXIT
 
@@ -86,12 +65,9 @@ if [ "$SHOULD_ALERT" = "false" ]; then
     echo "All clear. No open issue to close."
     exit 0
   fi
-  # Every matching issue, not just the newest: if a duplicate ever appeared,
-  # acting only on the first would leave the other open forever.
+  # Every matching issue, not just the newest, in case a duplicate appeared.
   for issue in $OPEN_ISSUES; do
-    # RUN_URL goes in as a %s argument, not baked into the format string: it is
-    # built only from GITHUB_REPOSITORY/GITHUB_RUN_ID today, but a value with a
-    # literal % in it would otherwise be interpreted as a printf directive.
+    # RUN_URL as a %s argument, not baked into the format string, in case it ever contains a literal %.
     gh issue close "$issue" \
       --comment "$(printf '## E2E recovered\n\nBoth lanes are green again.\n\n**Run:** %s' "$RUN_URL")" \
       --repo "$REPO" || echo "Warning: failed to close issue #${issue}"
@@ -110,10 +86,7 @@ if [ "$VERDICT_FAILED" = "true" ]; then
   BODY_PARTS="${BODY_PARTS}$(printf '%b' "\n## Verdict lane failed\n\nThe judge did not return the expected pass/fail direction for the toxicity fixtures. Judges wobble, so re-run once before treating this as a regression. If it repeats, the evaluator or the fixture has genuinely changed.\n")"
 fi
 
-# Same reasoning as the close-comment above: RUN_URL and BODY_PARTS travel as
-# %s arguments rather than interpolated into the format string. The format
-# string's own \n is interpreted by printf regardless of which specifier
-# handles the arguments.
+# Same reasoning as above: RUN_URL and BODY_PARTS as %s arguments, not interpolated.
 BODY="$(printf '**Run:** %s\n%s' "$RUN_URL" "$BODY_PARTS")"
 
 if [ -n "${OPEN_ISSUES:-}" ]; then
@@ -125,8 +98,7 @@ if [ -n "${OPEN_ISSUES:-}" ]; then
   exit 0
 fi
 
-# `gh issue create --label` fails outright if the label does not exist yet, so
-# make sure it does. Harmless when it already does.
+# `gh issue create --label` fails if the label doesn't exist yet; harmless if it already does.
 gh label create "$LABEL" \
   --description "Automated alerts from the weekly E2E run" \
   --color B60205 \
