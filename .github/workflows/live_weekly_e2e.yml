@@ -82,6 +82,10 @@ jobs:
           # OAuth client-credentials, not a pasted platform token — the suite fetches its own access token (env.ts).
           E2E_DT_OAUTH_CLIENT_ID: ${{ secrets.E2E_DT_OAUTH_CLIENT_ID }}
           E2E_DT_OAUTH_SECRET: ${{ secrets.E2E_DT_OAUTH_SECRET }}
+          # The tenant above is sprint/labs, not production — its OAuth client only exists on
+          # that tier's own SSO, not sso.dynatrace.com (env.ts's default). Override via repo
+          # variable, not a secret: this is a hostname, not a credential.
+          E2E_DT_OAUTH_URL: ${{ vars.E2E_DT_OAUTH_URL || 'https://sso-sprint.dynatracelabs.com/sso/oauth2/token' }}
           AWS_ACCESS_KEY_ID: ${{ secrets.E2E_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.E2E_AWS_SECRET_ACCESS_KEY }}
           SUITE: ${{ inputs.suite }}
@@ -157,6 +161,10 @@ jobs:
           # OAuth client-credentials, not a pasted platform token — the suite fetches its own access token (env.ts).
           E2E_DT_OAUTH_CLIENT_ID: ${{ secrets.E2E_DT_OAUTH_CLIENT_ID }}
           E2E_DT_OAUTH_SECRET: ${{ secrets.E2E_DT_OAUTH_SECRET }}
+          # The tenant above is sprint/labs, not production — its OAuth client only exists on
+          # that tier's own SSO, not sso.dynatrace.com (env.ts's default). Override via repo
+          # variable, not a secret: this is a hostname, not a credential.
+          E2E_DT_OAUTH_URL: ${{ vars.E2E_DT_OAUTH_URL || 'https://sso-sprint.dynatracelabs.com/sso/oauth2/token' }}
           AWS_ACCESS_KEY_ID: ${{ secrets.E2E_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.E2E_AWS_SECRET_ACCESS_KEY }}
         run: npx vitest run suites/evallogic.e2e.test.ts
