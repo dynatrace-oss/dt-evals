@@ -26,9 +26,11 @@ permissions:
 jobs:
   e2e:
     runs-on: ubuntu-24.04
-    # 90, not 30: summing per-test timeouts, the blocking lane's worst case is
-    # ~103 minutes, and a job killed by the cap gives no vitest summary at all.
-    timeout-minutes: 90
+    # 120, not 90: summing per-test timeouts, the blocking lane's worst case is
+    # already ~103 minutes of test time alone; checkout, two npm ci calls and
+    # the build add several more minutes on top. A job killed by the cap gives
+    # no vitest summary at all.
+    timeout-minutes: 120
     # Plain repository secrets, not a GitHub environment — a deliberate
     # tradeoff against the setup cost of an admin-only environment.
     defaults:
@@ -105,8 +107,14 @@ jobs:
     if: ${{ !inputs.suite }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    # Job-level, so a red verdict lane doesn't fail the workflow; notify still reports it.
+    # Job-level, so a red verdict lane doesn't fail the workflow.
     continue-on-error: true
+    outputs:
+      # steps.*.outcome is the step's own result *before* continue-on-error is
+      # applied. needs.verdict.result is the job's conclusion *after* it — which
+      # this job's own continue-on-error normalizes to "success" regardless of
+      # whether run_verdict failed, making it useless to the notify job below.
+      outcome: ${{ steps.run_verdict.outcome }}
     defaults:
       run:
         shell: bash
@@ -141,6 +149,7 @@ jobs:
 
       # Secrets attached to this step only, same reason as the e2e job.
       - name: Run verdict suite
+        id: run_verdict
         env:
           DT_APPS_ENDPOINT: ${{ secrets.E2E_DT_APPS_ENDPOINT }}
           DT_API_TOKEN: ${{ secrets.E2E_DT_API_TOKEN }}
@@ -172,6 +181,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           E2E_RESULT: ${{ needs.e2e.result }}
-          # `skipped` when a dispatch named a single suite; notify-e2e.sh treats that as "not a failure".
-          VERDICT_OUTCOME: ${{ needs.verdict.result }}
+          # The verdict job's own output (steps.run_verdict.outcome), not needs.verdict.result —
+          # that job's continue-on-error normalizes its result to "success" either way. `skipped`
+          # when a dispatch named a single suite; notify-e2e.sh treats that as "not a failure".
+          VERDICT_OUTCOME: ${{ needs.verdict.outputs.outcome }}
         run: bash .github/scripts/notify-e2e.sh

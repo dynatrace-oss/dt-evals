@@ -3,9 +3,10 @@
 # Keeps exactly one open issue per label: comments while the failure
 # persists, creates it if there is none, closes it once clean again.
 #
-# Three conditions, reported differently: (1) blocking lane failed — hard
-# alert; (2) verdict lane failed — alerts but doesn't redden the run; (3) job
-# cancelled — almost always the 30-min timeout, must alert but never close.
+# Four conditions, reported differently: (1) blocking lane failed — hard
+# alert; (2) verdict lane failed — alerts but doesn't redden the run; (3)
+# blocking lane cancelled — almost always its 120-min timeout, must alert but
+# never close; (4) verdict lane cancelled — same idea, its own 30-min timeout.
 #
 # Required env: GH_TOKEN, GITHUB_REPOSITORY, GITHUB_RUN_ID, E2E_RESULT,
 #               VERDICT_OUTCOME
@@ -32,8 +33,11 @@ BLOCKING_CANCELLED=false
 VERDICT_FAILED=false
 [ "${VERDICT_OUTCOME:-}" = "failure" ] && VERDICT_FAILED=true
 
+VERDICT_CANCELLED=false
+[ "${VERDICT_OUTCOME:-}" = "cancelled" ] && VERDICT_CANCELLED=true
+
 SHOULD_ALERT=false
-if [ "$BLOCKING_FAILED" = "true" ] || [ "$BLOCKING_CANCELLED" = "true" ] || [ "$VERDICT_FAILED" = "true" ]; then
+if [ "$BLOCKING_FAILED" = "true" ] || [ "$BLOCKING_CANCELLED" = "true" ] || [ "$VERDICT_FAILED" = "true" ] || [ "$VERDICT_CANCELLED" = "true" ]; then
   SHOULD_ALERT=true
 fi
 
@@ -85,6 +89,9 @@ fi
 if [ "$VERDICT_FAILED" = "true" ]; then
   BODY_PARTS="${BODY_PARTS}$(printf '%b' "\n## Verdict lane failed\n\nThe judge did not return the expected pass/fail direction for the toxicity fixtures. Judges wobble, so re-run once before treating this as a regression. If it repeats, the evaluator or the fixture has genuinely changed.\n")"
 fi
+if [ "$VERDICT_CANCELLED" = "true" ]; then
+  BODY_PARTS="${BODY_PARTS}$(printf '%b' "\n## Verdict lane was cancelled\n\nIt hit its own 30-minute timeout before finishing, so the toxicity fixtures were never actually checked this run. A slow or rate-limited judge is the usual cause.\n")"
+fi
 
 # Same reasoning as above: RUN_URL and BODY_PARTS as %s arguments, not interpolated.
 BODY="$(printf '**Run:** %s\n%s' "$RUN_URL" "$BODY_PARTS")"
@@ -108,9 +115,13 @@ TITLE="Weekly E2E alert"
 [ "$BLOCKING_CANCELLED" = "true" ] && TITLE="Weekly E2E did not finish (cancelled or timed out)"
 [ "$BLOCKING_FAILED" = "true" ] && [ "$VERDICT_FAILED" = "false" ] && TITLE="Weekly E2E failure: blocking lane"
 [ "$BLOCKING_FAILED" = "false" ] && [ "$BLOCKING_CANCELLED" = "false" ] && [ "$VERDICT_FAILED" = "true" ] && TITLE="Weekly E2E: judge verdicts did not match the fixtures"
+[ "$BLOCKING_FAILED" = "false" ] && [ "$BLOCKING_CANCELLED" = "false" ] && [ "$VERDICT_FAILED" = "false" ] && [ "$VERDICT_CANCELLED" = "true" ] && TITLE="Weekly E2E: verdict lane timed out"
 
+# Unlike the close/comment calls above, a failure here must redden this job: creating
+# the alert is this script's one required job, and swallowing it with `|| echo` would
+# leave a run that needs an alert silently unreported.
 gh issue create \
   --title "$TITLE" \
   --body "$BODY" \
   --label "$LABEL" \
-  --repo "$REPO" || echo "Warning: failed to create issue"
+  --repo "$REPO"
