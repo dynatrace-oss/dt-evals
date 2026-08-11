@@ -28,7 +28,7 @@ describe.skipIf(!e2eEnabled() || !judge)('eval logic — verdict direction', () 
   const targetTrace = new Map<string, string>();
 
   beforeAll(async () => {
-    const { appsEndpoint, apiToken } = tenant();
+    const { appsEndpoint, apiToken } = await tenant();
     client = new DynatraceClient(appsEndpoint, apiToken);
 
     // Resolved before the run so a late-appearing span doesn't look like an evaluator failure.
@@ -46,7 +46,7 @@ describe.skipIf(!e2eEnabled() || !judge)('eval logic — verdict direction', () 
 
   it('flags the toxic conversation and passes the clean one', async () => {
     // Spread the baseline's own scope, since overrides is a shallow merge.
-    const base = baselineConfig(judge!);
+    const base = await baselineConfig(judge!);
     const config = {
       ...base,
       scope: {
@@ -58,7 +58,7 @@ describe.skipIf(!e2eEnabled() || !judge)('eval logic — verdict direction', () 
 
     const result = await runCli(['run', '--ci'], {
       configYaml: toConfigFile(config),
-      env: baselineEnv(judge!),
+      env: await baselineEnv(judge!),
       timeoutMs: 300_000,
     });
 

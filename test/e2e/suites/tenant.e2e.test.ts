@@ -6,7 +6,7 @@ import { e2eEnabled, tenant } from '../src/env.js';
 
 describe.skipIf(!e2eEnabled())('tenant reachability', () => {
   it('executes a DQL query against the configured tenant', async () => {
-    const { appsEndpoint, apiToken } = tenant();
+    const { appsEndpoint, apiToken } = await tenant();
     const client = new DynatraceClient(appsEndpoint, apiToken);
 
     // Not asserting on the records — an idle tenant legitimately returns
@@ -18,7 +18,7 @@ describe.skipIf(!e2eEnabled())('tenant reachability', () => {
   });
 
   it('rejects a bad token rather than silently returning nothing', async () => {
-    const { appsEndpoint } = tenant();
+    const { appsEndpoint } = await tenant();
     const client = new DynatraceClient(appsEndpoint, 'dt0c01.INVALID.INVALID');
 
     // PermanentQueryError specifically — a bare toThrow() would also pass on a DNS failure or 500.

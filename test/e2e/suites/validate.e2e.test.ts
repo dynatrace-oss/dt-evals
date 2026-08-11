@@ -41,8 +41,8 @@ const PROBE_FAILURE: Record<keyof typeof PROBE_SUCCESS, string> = {
 describe.skipIf(!e2eEnabled() || !judge)('validate — happy path', () => {
   it('passes every probe against a real tenant and a real provider', async () => {
     const result = await runCli(['validate'], {
-      configYaml: toConfigFile(baselineConfig(judge!)),
-      env: baselineEnv(judge!),
+      configYaml: toConfigFile(await baselineConfig(judge!)),
+      env: await baselineEnv(judge!),
     });
 
     // Before the exit code: a named failure says which probe regressed.
@@ -87,7 +87,7 @@ describe.skipIf(!e2eEnabled())('validate — failure paths', () => {
     const result = await runCli(['validate'], {
       configYaml: toConfigFile({
         schemaVersion: 2,
-        dynatrace: { environmentUrl: tenant().appsEndpoint },
+        dynatrace: { environmentUrl: (await tenant()).appsEndpoint },
         judge: { provider: 'openai' },
         scope: { since: '1h' },
         metrics: { enabled: ['toxicity'] },
@@ -100,15 +100,17 @@ describe.skipIf(!e2eEnabled())('validate — failure paths', () => {
   });
 
   it('exits 1 and reports a connection failure on a rejected tenant token', async () => {
+    const { appsEndpoint } = await tenant();
+
     const result = await runCli(['validate'], {
       configYaml: toConfigFile({
         schemaVersion: 2,
-        dynatrace: { environmentUrl: tenant().appsEndpoint },
+        dynatrace: { environmentUrl: appsEndpoint },
         judge: { provider: 'openai' },
         scope: { since: '1h' },
         metrics: { enabled: ['toxicity'] },
       }),
-      env: { DT_ENV_URL: tenant().appsEndpoint, DT_API_TOKEN: 'dt0c01.INVALID.INVALID' },
+      env: { DT_ENV_URL: appsEndpoint, DT_API_TOKEN: 'dt0c01.INVALID.INVALID' },
     });
 
     assertExitCode(result, 1);
@@ -118,7 +120,7 @@ describe.skipIf(!e2eEnabled())('validate — failure paths', () => {
 
   it('exits 1 on a destination the origin credentials cannot cover', async () => {
     // DT_ORIGIN_* set explicitly: resolveEndpoints falls back to a shared top-level token otherwise.
-    const { appsEndpoint, apiToken } = tenant();
+    const { appsEndpoint, apiToken } = await tenant();
 
     const result = await runCli(['validate'], {
       configYaml: toConfigFile({
@@ -149,7 +151,7 @@ describe.skipIf(!e2eEnabled())('validate — failure paths', () => {
     const result = await runCli(['validate'], {
       configYaml: toConfigFile({
         schemaVersion: 2,
-        dynatrace: { environmentUrl: tenant().appsEndpoint },
+        dynatrace: { environmentUrl: (await tenant()).appsEndpoint },
         judge: { provider: 'openai' },
         scope: { since: '1h' },
         metrics: { enabled: ['toxicity'] },
@@ -167,9 +169,9 @@ describe.skipIf(!e2eEnabled())('validate — failure paths', () => {
     // A real 1-token inference, so a wrong model id surfaces here rather than mid-run.
     const result = await runCli(['validate'], {
       configYaml: toConfigFile(
-        baselineConfig({ ...judge!, model: 'definitely-not-a-real-model-id' }),
+        await baselineConfig({ ...judge!, model: 'definitely-not-a-real-model-id' }),
       ),
-      env: baselineEnv(judge!),
+      env: await baselineEnv(judge!),
     });
 
     assertExitCode(result, 1);
@@ -187,8 +189,8 @@ describe.skipIf(!e2eEnabled())('validate — failure paths', () => {
       );
 
       const result = await runCli(['validate'], {
-        configYaml: toConfigFile(baselineConfig(judge!)),
-        env: { ...baselineEnv(judge!), ...badCredentials },
+        configYaml: toConfigFile(await baselineConfig(judge!)),
+        env: { ...(await baselineEnv(judge!)), ...badCredentials },
       });
 
       assertExitCode(result, 1);

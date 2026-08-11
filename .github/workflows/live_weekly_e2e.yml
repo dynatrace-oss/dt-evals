@@ -79,7 +79,9 @@ jobs:
           # E2E_-prefixed to avoid falling back to an org-wide secret, and to
           # avoid colliding with the music-agent workflow's own DT_* secrets.
           DT_APPS_ENDPOINT: ${{ secrets.E2E_DT_APPS_ENDPOINT }}
-          DT_API_TOKEN: ${{ secrets.E2E_DT_API_TOKEN }}
+          # OAuth client-credentials, not a pasted platform token — the suite fetches its own access token (env.ts).
+          E2E_DT_OAUTH_CLIENT_ID: ${{ secrets.E2E_DT_OAUTH_CLIENT_ID }}
+          E2E_DT_OAUTH_SECRET: ${{ secrets.E2E_DT_OAUTH_SECRET }}
           AWS_ACCESS_KEY_ID: ${{ secrets.E2E_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.E2E_AWS_SECRET_ACCESS_KEY }}
           SUITE: ${{ inputs.suite }}
@@ -152,7 +154,9 @@ jobs:
         id: run_verdict
         env:
           DT_APPS_ENDPOINT: ${{ secrets.E2E_DT_APPS_ENDPOINT }}
-          DT_API_TOKEN: ${{ secrets.E2E_DT_API_TOKEN }}
+          # OAuth client-credentials, not a pasted platform token — the suite fetches its own access token (env.ts).
+          E2E_DT_OAUTH_CLIENT_ID: ${{ secrets.E2E_DT_OAUTH_CLIENT_ID }}
+          E2E_DT_OAUTH_SECRET: ${{ secrets.E2E_DT_OAUTH_SECRET }}
           AWS_ACCESS_KEY_ID: ${{ secrets.E2E_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.E2E_AWS_SECRET_ACCESS_KEY }}
         run: npx vitest run suites/evallogic.e2e.test.ts

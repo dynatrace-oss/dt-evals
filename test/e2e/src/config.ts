@@ -191,8 +191,8 @@ export function judgeFromEnv(): JudgeSetup | undefined {
  * replaces the whole block and drops those mappings; spread the baseline's own
  * scope in to change just one field.
  */
-export function baselineConfig(judge: JudgeSetup, overrides: Partial<EvalConfig> = {}): EvalConfig {
-  const { appsEndpoint } = tenant();
+export async function baselineConfig(judge: JudgeSetup, overrides: Partial<EvalConfig> = {}): Promise<EvalConfig> {
+  const { appsEndpoint } = await tenant();
 
   return {
     schemaVersion: 2,
@@ -222,7 +222,7 @@ export function baselineConfig(judge: JudgeSetup, overrides: Partial<EvalConfig>
 }
 
 /** Tenant + judge credentials for a CLI invocation. */
-export function baselineEnv(judge: JudgeSetup): Record<string, string> {
-  const { appsEndpoint, apiToken } = tenant();
+export async function baselineEnv(judge: JudgeSetup): Promise<Record<string, string>> {
+  const { appsEndpoint, apiToken } = await tenant();
   return { ...tenantCliEnv(appsEndpoint, apiToken), ...judge.env };
 }

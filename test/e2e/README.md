@@ -103,7 +103,7 @@ failure.
 
 ### Accepted risk: no GitHub environment around the secrets
 
-The four `E2E_*` credentials are plain **repository** secrets, not scoped to a GitHub
+The five `E2E_*` credentials are plain **repository** secrets, not scoped to a GitHub
 environment. `workflow_dispatch` lets the dispatcher choose any ref, and the workflow that
 runs is the one on *that* ref — so anyone with push access can in principle run modified
 workflow code with these secrets in scope, and runner log masking does not survive a

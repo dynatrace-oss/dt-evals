@@ -19,10 +19,10 @@ import {
 } from '../src/fixtures.js';
 
 /** Why a missing fixture span is usually not a dt-evals problem — most likely the wrong tenant, checked first. */
-function seedingHint(): string {
+async function seedingHint(): Promise<string> {
   // Redacted: names the tenant host, and reaches a public Actions log.
   return redactSecrets([
-    `no "${FIXTURE_SERVICE_NAME}" spans in the last ${fixtureLookback()} on ${tenant().appsEndpoint}.`,
+    `no "${FIXTURE_SERVICE_NAME}" spans in the last ${fixtureLookback()} on ${(await tenant()).appsEndpoint}.`,
     `This suite does not seed — the fixtures app in dynatrace-ai-agent-instrumentation-examples does.`,
     `Check, in order:`,
     `  1. DT_APPS_ENDPOINT points at the tenant that repo's CI seeds (not your usual dt-evals tenant);`,
@@ -46,7 +46,7 @@ describe.skipIf(!e2eEnabled())('fixture span contract', () => {
   let attributeCounts: DqlRecord;
 
   beforeAll(async () => {
-    const { appsEndpoint, apiToken } = tenant();
+    const { appsEndpoint, apiToken } = await tenant();
     client = new DynatraceClient(appsEndpoint, apiToken);
 
     // One aggregate query for every attribute; countIf means a partially-correct dataset can't pass by luck.
@@ -65,11 +65,11 @@ fetch spans, from:now() - ${fixtureLookback()}
     reference = countIf(isNotNull(${FIXTURE_ATTRIBUTES.reference})),
     conversation = countIf(isNotNull(${FIXTURE_ATTRIBUTES.conversationId}))`);
 
-    assertRecords(records, `fixture spans — ${seedingHint()}`);
+    assertRecords(records, `fixture spans — ${await seedingHint()}`);
     attributeCounts = records[0]!;
 
     // Fail here, not per-test: an empty dataset makes every count below zero too — one cause, not four symptoms.
-    if (Number(attributeCounts['total'] ?? 0) === 0) throw new Error(seedingHint());
+    if (Number(attributeCounts['total'] ?? 0) === 0) throw new Error(await seedingHint());
   });
 
   /** Read an aggregate count. DQL returns longs as strings. */

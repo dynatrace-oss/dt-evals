@@ -10,6 +10,10 @@ const SECRET_ENV_VARS = [
   // Detection for these two only works because they happen to reuse DT_API_TOKEN's value.
   'DT_ORIGIN_API_TOKEN',
   'DT_DESTINATION_API_TOKEN',
+  // Never handed to the CLI under test directly (only the token fetched with them is), but
+  // still a credential in this process's own env.
+  'E2E_DT_OAUTH_CLIENT_ID',
+  'E2E_DT_OAUTH_SECRET',
   'OPENAI_API_KEY',
   'ANTHROPIC_API_KEY',
   'AZURE_OPENAI_API_KEY',

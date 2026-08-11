@@ -43,8 +43,8 @@ describe.skipIf(!e2eEnabled() || !judge)('run', () => {
   describe('--dry-run', () => {
     it('fetches and prepares, then writes nothing at all', async () => {
       const result = await runCli(['run', '--dry-run', '--ci'], {
-        configYaml: toConfigFile(baselineConfig(judge!)),
-        env: baselineEnv(judge!),
+        configYaml: toConfigFile(await baselineConfig(judge!)),
+        env: await baselineEnv(judge!),
         captureHomeFiles: [RUNS_LOG],
       });
 
@@ -65,8 +65,8 @@ describe.skipIf(!e2eEnabled() || !judge)('run', () => {
     it('does not call the judge', async () => {
       // Pins the better-than-documented behaviour: a dry run that bills a judge would be a surprise.
       const result = await runCli(['run', '--dry-run', '--ci'], {
-        configYaml: toConfigFile(baselineConfig(judge!)),
-        env: baselineEnv(judge!),
+        configYaml: toConfigFile(await baselineConfig(judge!)),
+        env: await baselineEnv(judge!),
       });
 
       assertExitCode(result, 0);
@@ -75,11 +75,13 @@ describe.skipIf(!e2eEnabled() || !judge)('run', () => {
 
     it('uses a needle a real run actually prints', async () => {
       // Positive control for the assertOutputLacks case above.
+      const base = await baselineConfig(judge!);
       const result = await runCli(['run', '--ci'], {
-        configYaml: toConfigFile(
-          baselineConfig(judge!, { scope: { ...baselineConfig(judge!).scope, sampling: { strategy: 'latest', count: 1 } } }),
-        ),
-        env: baselineEnv(judge!),
+        configYaml: toConfigFile({
+          ...base,
+          scope: { ...base.scope, sampling: { strategy: 'latest', count: 1 } },
+        }),
+        env: await baselineEnv(judge!),
         timeoutMs: 180_000,
       });
 
@@ -91,8 +93,8 @@ describe.skipIf(!e2eEnabled() || !judge)('run', () => {
   describe('--ci', () => {
     it('prints a machine-readable result, writes to the tenant, and logs the run', async () => {
       const result = await runCli(['run', '--ci'], {
-        configYaml: toConfigFile(baselineConfig(judge!)),
-        env: baselineEnv(judge!),
+        configYaml: toConfigFile(await baselineConfig(judge!)),
+        env: await baselineEnv(judge!),
         captureHomeFiles: [RUNS_LOG],
         timeoutMs: runCiTimeoutMs(),
       });
@@ -127,8 +129,8 @@ describe.skipIf(!e2eEnabled() || !judge)('run', () => {
     it('lands the results in the destination tenant, queryable and correctly shaped', async () => {
       // The round trip: not "the CLI said it wrote results" but "the tenant returns them".
       const result = await runCli(['run', '--ci'], {
-        configYaml: toConfigFile(baselineConfig(judge!)),
-        env: baselineEnv(judge!),
+        configYaml: toConfigFile(await baselineConfig(judge!)),
+        env: await baselineEnv(judge!),
         timeoutMs: runCiTimeoutMs(),
       });
       assertExitCode(result, 0);
@@ -140,7 +142,7 @@ describe.skipIf(!e2eEnabled() || !judge)('run', () => {
         'the run wrote no results, so there is no round trip to verify — check the fixtures were seeded',
       ).toBeGreaterThan(0);
 
-      const { appsEndpoint, apiToken } = tenant();
+      const { appsEndpoint, apiToken } = await tenant();
       const client = new DynatraceClient(appsEndpoint, apiToken);
 
       const records = await client.pollUntilRecords(
@@ -178,13 +180,13 @@ describe.skipIf(!e2eEnabled() || !judge)('run', () => {
 
     it('writes the prompt only when --store-evaluated-prompt asks for it', async () => {
       // Positive control for the privacy assertion above.
-      const base = baselineConfig(judge!);
+      const base = await baselineConfig(judge!);
       const result = await runCli(['run', '--ci', '--store-evaluated-prompt'], {
         configYaml: toConfigFile({
           ...base,
           scope: { ...base.scope, sampling: { strategy: 'latest', count: 1 } },
         }),
-        env: baselineEnv(judge!),
+        env: await baselineEnv(judge!),
         timeoutMs: 180_000,
       });
 
@@ -192,7 +194,7 @@ describe.skipIf(!e2eEnabled() || !judge)('run', () => {
       const ci = parseJsonStdout(result) as CiResult;
       expect(ci.resultsWritten).toBeGreaterThan(0);
 
-      const { appsEndpoint, apiToken } = tenant();
+      const { appsEndpoint, apiToken } = await tenant();
       const client = new DynatraceClient(appsEndpoint, apiToken);
 
       const records = await client.pollUntilRecords(
@@ -219,8 +221,8 @@ describe.skipIf(!e2eEnabled() || !judge)('run', () => {
 
     it('exits 1 in --ci', async () => {
       const result = await runCli(['run', '--ci'], {
-        configYaml: toConfigFile(baselineConfig(judge!, alwaysBreaches)),
-        env: baselineEnv(judge!),
+        configYaml: toConfigFile(await baselineConfig(judge!, alwaysBreaches)),
+        env: await baselineEnv(judge!),
         timeoutMs: runCiTimeoutMs(),
       });
 
@@ -233,8 +235,8 @@ describe.skipIf(!e2eEnabled() || !judge)('run', () => {
 
     it('warns but exits 0 in the default mode', async () => {
       const result = await runCli(['run'], {
-        configYaml: toConfigFile(baselineConfig(judge!, alwaysBreaches)),
-        env: baselineEnv(judge!),
+        configYaml: toConfigFile(await baselineConfig(judge!, alwaysBreaches)),
+        env: await baselineEnv(judge!),
         timeoutMs: runCiTimeoutMs(),
       });
 

@@ -69,7 +69,8 @@ export function missingRequiredVars(): string[] {
   loadDotEnv();
   const missing: string[] = [];
   if (!tenantHost()) missing.push(TENANT_HOST_VARS.join(' or '));
-  if (!process.env['DT_API_TOKEN']) missing.push('DT_API_TOKEN');
+  if (!process.env['E2E_DT_OAUTH_CLIENT_ID']) missing.push('E2E_DT_OAUTH_CLIENT_ID');
+  if (!process.env['E2E_DT_OAUTH_SECRET']) missing.push('E2E_DT_OAUTH_SECRET');
   return missing;
 }
 
@@ -117,12 +118,78 @@ export function dtHttpTimeoutMs(): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 60_000;
 }
 
-/** Tenant + token the suite reads spans from. */
-export function tenant(): { appsEndpoint: string; apiToken: string } {
+/** SSO token endpoint for the client-credentials grant. Overridable for a non-production SSO; defaults to the real one. */
+function oauthTokenUrl(): string {
+  return envOr('E2E_DT_OAUTH_URL', 'https://sso.dynatrace.com/sso/oauth2/token');
+}
+
+/** Everything the suite's own DQL reads need, plus what `run --ci` writes for the CLI under test. */
+const OAUTH_SCOPES = [
+  'storage:spans:read',
+  'storage:buckets:read',
+  'storage:events:read',
+  'storage:bizevents:read',
+  'storage:events:write',
+  'storage:metrics:write',
+  'storage:logs:read',
+  'storage:bucket-definitions:read',
+  'storage:entities:read',
+  'storage:metrics:read',
+].join(' ');
+
+interface OauthTokenResponse {
+  access_token?: string;
+  error?: string;
+  error_description?: string;
+}
+
+let cachedAccessToken: Promise<string> | undefined;
+
+/**
+ * Client-credentials grant against Dynatrace SSO — replaces a pasted platform
+ * token (`DT_API_TOKEN`). Cached for the process lifetime: one token per
+ * suite run, not one per DQL query or CLI invocation. `authScheme` in
+ * dynatrace.ts already sends non-`dt0c*` tokens as `Bearer`, so the fetched
+ * token needs no special-casing on the read side; `tenantCliEnv` (cli.ts)
+ * hands the same token to the CLI under test as `DT_API_TOKEN`.
+ */
+function oauthAccessToken(): Promise<string> {
+  if (!cachedAccessToken) cachedAccessToken = fetchOauthAccessToken();
+  return cachedAccessToken;
+}
+
+async function fetchOauthAccessToken(): Promise<string> {
+  const url = oauthTokenUrl();
+  const body = new URLSearchParams({
+    grant_type: 'client_credentials',
+    client_id: mustEnv('E2E_DT_OAUTH_CLIENT_ID'),
+    client_secret: mustEnv('E2E_DT_OAUTH_SECRET'),
+    scope: OAUTH_SCOPES,
+  });
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  });
+  const payload = (await response.json().catch(() => ({}))) as OauthTokenResponse;
+
+  if (!response.ok || !payload.access_token) {
+    throw new Error(
+      `OAuth token request to ${new URL(url).host} failed (${response.status}): ` +
+        `${payload.error ?? response.statusText}` +
+        `${payload.error_description ? ` — ${payload.error_description}` : ''}`,
+    );
+  }
+  return payload.access_token;
+}
+
+/** Tenant + token the suite reads spans from and hands to the CLI under test. */
+export async function tenant(): Promise<{ appsEndpoint: string; apiToken: string }> {
   const host = tenantHost();
   if (!host) throw new Error(`required env var not set: ${TENANT_HOST_VARS.join(' or ')}`);
   return {
     appsEndpoint: host.replace(/\/+$/, ''),
-    apiToken: mustEnv('DT_API_TOKEN'),
+    apiToken: await oauthAccessToken(),
   };
 }
