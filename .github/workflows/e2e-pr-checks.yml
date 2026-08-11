@@ -5,6 +5,9 @@ name: CI — E2E suite (no credentials)
 # Spends nothing: typechecks the workspace and runs whatever needs no
 # credentials, invoked whole so new tests are covered automatically.
 on:
+  push:
+    branches:
+      - 'main'
   pull_request:
     paths:
       - "test/e2e/**"
