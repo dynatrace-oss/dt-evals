@@ -30,6 +30,13 @@ on:
       # and run-log behaviour, so a change here can break it. Catching that on
       # the PR that causes it beats discovering it in the weekly run.
       - "dt-eval-cli/**"
+      # dt-eval-cli only ever consumes dt-eval-lib through the published npm
+      # version pinned in dt-eval-cli/package.json, so a lib-only PR wouldn't
+      # otherwise touch this job at all — the break would surface later, in
+      # the unrelated-looking PR that bumps the pin. The "Build dt-eval-lib
+      # from source" step below overrides that pin with the local checkout for
+      # this job only, so a lib change gets end-to-end feedback in its own PR.
+      - "dt-eval-lib/**"
   workflow_dispatch:
 
 # No token needed at all: checkout works unauthenticated on a public repo and
@@ -56,14 +63,28 @@ jobs:
           cache: "npm"
           cache-dependency-path: |
             dt-eval-cli/package-lock.json
+            dt-eval-lib/package-lock.json
             test/e2e/package-lock.json
 
+      # Built from the local checkout, not installed from npm, so a change
+      # here is what the override below picks up instead of the pinned
+      # registry version.
+      - name: Build dt-eval-lib from source
+        working-directory: dt-eval-lib
+        run: |
+          npm ci
+          npm run build
+
       # cli.e2e.test.ts drives dist/index.js, so the artifact has to exist even
-      # though no tenant is involved.
+      # though no tenant is involved. The npm install after npm ci overrides
+      # the registry-pinned dt-eval-lib with the just-built local one, for
+      # this job only — package.json/package-lock.json changes here are
+      # never committed, so the real pin dt-eval-cli ships with is untouched.
       - name: Build the CLI under test
         working-directory: dt-eval-cli
         run: |
           npm ci
+          npm install ../dt-eval-lib
           npm run build
 
       - name: Install E2E dependencies
