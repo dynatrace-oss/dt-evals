@@ -1,6 +1,6 @@
 {
   "name": "@dynatrace-oss/dt-evals",
-  "version": "0.2.15-alpha",
+  "version": "0.2.16-alpha",
   "description": "Evaluation CLI for AI Observability on Dynatrace",
   "type": "module",
   "bin": {
