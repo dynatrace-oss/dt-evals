@@ -18,11 +18,14 @@ import { runCli } from '../src/cli.js';
 import { baselineConfig, baselineEnv, judgeFromEnv, toConfigFile } from '../src/config.js';
 import { DynatraceClient } from '../src/dynatrace.js';
 import { e2eEnabled, tenant } from '../src/env.js';
-import { runService } from '../src/fixtures.js';
+import { runCiTimeoutMs, runService } from '../src/fixtures.js';
 
 const judge = judgeFromEnv();
 
 const RUNS_LOG = '.dt-eval/runs.json';
+
+/** Margin above the CLI's own {@link runCiTimeoutMs} budget for vitest's outer test timeout: assertions plus a little slack. */
+const TEST_TIMEOUT_MARGIN_MS = 20_000;
 
 /** Shape of the JSON `run --ci` prints. */
 interface CiResult {
@@ -91,7 +94,7 @@ describe.skipIf(!e2eEnabled() || !judge)('run', () => {
         configYaml: toConfigFile(baselineConfig(judge!)),
         env: baselineEnv(judge!),
         captureHomeFiles: [RUNS_LOG],
-        timeoutMs: 180_000,
+        timeoutMs: runCiTimeoutMs(),
       });
 
       assertExitCode(result, 0);
@@ -119,14 +122,14 @@ describe.skipIf(!e2eEnabled() || !judge)('run', () => {
       expect(entry!['spansEvaluated']).toBe(ci.spansEvaluated);
 
       assertNoSecrets(result);
-    }, 200_000);
+    }, runCiTimeoutMs() + TEST_TIMEOUT_MARGIN_MS);
 
     it('lands the results in the destination tenant, queryable and correctly shaped', async () => {
       // The round trip: not "the CLI said it wrote results" but "the tenant returns them".
       const result = await runCli(['run', '--ci'], {
         configYaml: toConfigFile(baselineConfig(judge!)),
         env: baselineEnv(judge!),
-        timeoutMs: 180_000,
+        timeoutMs: runCiTimeoutMs(),
       });
       assertExitCode(result, 0);
       const ci = parseJsonStdout(result) as CiResult;
@@ -171,7 +174,7 @@ describe.skipIf(!e2eEnabled() || !judge)('run', () => {
         'the privacy check scanned no records at all, so leaked=0 means nothing',
       ).toBeGreaterThan(0);
       expect(Number(withContent[0]?.['leaked'] ?? 0)).toBe(0);
-    }, 480_000);
+    }, runCiTimeoutMs() + 300_000);
 
     it('writes the prompt only when --store-evaluated-prompt asks for it', async () => {
       // Positive control for the privacy assertion above.
@@ -218,7 +221,7 @@ describe.skipIf(!e2eEnabled() || !judge)('run', () => {
       const result = await runCli(['run', '--ci'], {
         configYaml: toConfigFile(baselineConfig(judge!, alwaysBreaches)),
         env: baselineEnv(judge!),
-        timeoutMs: 180_000,
+        timeoutMs: runCiTimeoutMs(),
       });
 
       assertExitCode(result, 1);
@@ -226,19 +229,19 @@ describe.skipIf(!e2eEnabled() || !judge)('run', () => {
       expect(ci.thresholdBreaches.length).toBeGreaterThan(0);
       expect(ci.errors, `judge errors: ${JSON.stringify(ci.errorSamples)}`).toBe(0);
       assertNoSecrets(result);
-    }, 200_000);
+    }, runCiTimeoutMs() + TEST_TIMEOUT_MARGIN_MS);
 
     it('warns but exits 0 in the default mode', async () => {
       const result = await runCli(['run'], {
         configYaml: toConfigFile(baselineConfig(judge!, alwaysBreaches)),
         env: baselineEnv(judge!),
-        timeoutMs: 180_000,
+        timeoutMs: runCiTimeoutMs(),
       });
 
       assertExitCode(result, 0);
       assertOutputContains(result, 'Threshold breaches:');
       assertOutputContains(result, 'Evaluation results:');
       assertNoSecrets(result);
-    }, 200_000);
+    }, runCiTimeoutMs() + TEST_TIMEOUT_MARGIN_MS);
   });
 });

@@ -96,6 +96,18 @@ const DURATION_UNIT_HOURS: Record<string, number> = { s: 1 / 3600, m: 1 / 60, h:
 /** Upper bound on {@link fixtureLookback}: one week, ~7x a nightly seeding (32 spans/night). */
 const MAX_LOOKBACK_HOURS = 24 * 7;
 
+/** DQL duration string ("24h") → hours, shared by {@link fixtureLookback} and {@link runCiTimeoutMs}. */
+function parseDurationHours(value: string, envVarName: string): number {
+  // Validated since it's concatenated into DQL and operator-supplied.
+  const match = /^(\d+)([smhd])$/.exec(value);
+  if (!match) {
+    throw new Error(
+      `${envVarName} must be a DQL duration like 24h or 7d, got ${JSON.stringify(value)}`,
+    );
+  }
+  return Number(match[1]) * DURATION_UNIT_HOURS[match[2]!]!;
+}
+
 /**
  * How far back to look for fixture spans. The suite doesn't seed, so this must
  * cover the gap since the last seeding run. Capped at {@link MAX_LOOKBACK_HOURS}
@@ -106,14 +118,7 @@ const MAX_LOOKBACK_HOURS = 24 * 7;
  */
 export function fixtureLookback(): string {
   const value = envOr('E2E_FIXTURE_LOOKBACK', '24h');
-  // Validated since it's concatenated into DQL and operator-supplied.
-  const match = /^(\d+)([smhd])$/.exec(value);
-  if (!match) {
-    throw new Error(
-      `E2E_FIXTURE_LOOKBACK must be a DQL duration like 24h or 7d, got ${JSON.stringify(value)}`,
-    );
-  }
-  const hours = Number(match[1]) * DURATION_UNIT_HOURS[match[2]!]!;
+  const hours = parseDurationHours(value, 'E2E_FIXTURE_LOOKBACK');
   if (hours > MAX_LOOKBACK_HOURS) {
     throw new Error(
       `E2E_FIXTURE_LOOKBACK must be at most ${MAX_LOOKBACK_HOURS}h (got ${JSON.stringify(value)}) — ` +
@@ -121,6 +126,33 @@ export function fixtureLookback(): string {
     );
   }
   return value;
+}
+
+/** Same 32-spans/night rate {@link MAX_LOOKBACK_HOURS} is sized against. */
+const SPANS_PER_NIGHT = 32;
+
+/** `judge.concurrency`'s default (`dt-eval-cli/src/config/defaults.ts`); the suite doesn't override it. */
+const JUDGE_CONCURRENCY = 5;
+
+/** Generous per-call ceiling covering judge latency and retries, for budgeting only — not a real SLA. */
+const JUDGE_CALL_CEILING_MS = 10_000;
+
+/** Fixed cost of a `run --ci` invocation outside judge calls: CLI startup, span fetch, tenant write. */
+const RUN_OVERHEAD_MS = 60_000;
+
+/**
+ * Budget for a `run --ci` invocation covering every span in the *current*
+ * {@link fixtureLookback} window (i.e. `baselineConfig`'s uncapped `sampling:
+ * latest`). A hardcoded timeout sized for the 24h default falls over the
+ * moment a `workflow_dispatch` widens `E2E_FIXTURE_LOOKBACK` toward
+ * {@link MAX_LOOKBACK_HOURS} — more spans means more sequential judge-call
+ * batches at `JUDGE_CONCURRENCY`, not just more wall-clock variance.
+ */
+export function runCiTimeoutMs(): number {
+  const hours = parseDurationHours(fixtureLookback(), 'E2E_FIXTURE_LOOKBACK');
+  const expectedSpans = (hours / 24) * SPANS_PER_NIGHT;
+  const batches = Math.ceil(expectedSpans / JUDGE_CONCURRENCY);
+  return RUN_OVERHEAD_MS + batches * JUDGE_CALL_CEILING_MS;
 }
 
 /**
