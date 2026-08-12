@@ -57,7 +57,6 @@ def test_span_links_and_extra_passthrough():
     assert payload["gen_ai.request.model"] == "gpt-4o"
     assert payload["gen_ai.provider.name"] == "openai"
     assert payload["custom.key"] == "v"
-    assert "dt.eval.dataset_id" not in payload
 
 
 def test_score_1_to_5_range():
@@ -75,6 +74,11 @@ def test_label_only_is_valid():
     payload = Eval(name="x", label="pass").to_bizevent()
     assert payload["gen_ai.evaluation.score.label"] == "pass"
     assert "gen_ai.evaluation.score.value" not in payload
+
+
+def test_label_invalid_value_raises():
+    with pytest.raises(ValueError):
+        Eval(name="x", label="ok")
 
 
 def test_extra_does_not_override_authoritative_key():

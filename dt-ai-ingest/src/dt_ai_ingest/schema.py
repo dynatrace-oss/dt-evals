@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
@@ -69,7 +69,7 @@ class Eval(BaseModel):
 
     name: str
     score: float | None = None
-    label: str | None = None
+    label: Literal["pass", "fail"] | None = None
     scoring_format: str = "score_0_to_1"
     explanation: str | None = None
     method: str | None = None
