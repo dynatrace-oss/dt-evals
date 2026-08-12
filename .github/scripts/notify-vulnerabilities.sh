@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Called by the "Notify Slack of dependency vulnerabilities" step in
-# e2e-pr.yml. Aggregates `npm audit --json` output across the workspaces that
-# job builds (dt-eval-lib, dt-eval-cli, test/e2e) and posts one Slack message
-# if any of them found something. A missing or unparsable audit file counts
+# Called by the "Notify Slack of dependency vulnerabilities" step in the
+# weekly dependency-audit.yml workflow. Aggregates `npm audit --json` output
+# across the four workspaces with their own lockfile (dt-eval-lib,
+# dt-eval-cli, dt-eval-deploy, test/e2e) and posts one Slack message if any
+# of them found something. A missing or unparsable audit file counts
 # as zero vulnerabilities for that workspace, not an error — `npm audit`
 # itself already ran with `|| true`, so a missing file just means that step's
 # own failure mode, not a vulnerability finding.
