@@ -35,21 +35,6 @@ dependencies = [
 parquet = [
     "pyarrow>=14",
 ]
-mlflow = [
-    "mlflow>=2.14",
-]
-ragas = [
-    "ragas>=0.2",
-]
-deepeval = [
-    "deepeval>=0.20",
-]
-all = [
-    "pyarrow>=14",
-    "mlflow>=2.14",
-    "ragas>=0.2",
-    "deepeval>=0.20",
-]
 
 [project.urls]
 Homepage = "https://github.com/dynatrace-oss/dt-ai-ingest"
@@ -84,18 +69,6 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "pyarrow.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "mlflow.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "ragas.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "deepeval.*"
 ignore_missing_imports = true
 
 [dependency-groups]
