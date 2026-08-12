@@ -15,7 +15,6 @@ class ConvertAdapter(Protocol):
         result: Any,
         *,
         run_id: str | None = None,
-        dataset_id: str | None = None,
         mapping: dict[str, str] | None = None,
         defaults: dict[str, Any] | None = None,
     ) -> list[Eval]: ...
