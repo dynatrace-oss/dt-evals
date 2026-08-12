@@ -37,7 +37,7 @@ def _produce_batches(
     path: str,
     mapping: Mapping[str, str] | None,
     defaults: Mapping[str, Any] | None,
-    dataset_id: str,
+    run_id: str,
     batch_size: int,
     out: queue.Queue[Any],
     stop: threading.Event,
@@ -51,11 +51,10 @@ def _produce_batches(
     ``ingest()`` raised) can abandon this thread instead of deadlocking it
     forever on a full queue nobody is draining.
 
-    *dataset_id* is forced onto every row after conversion rather than being
+    *run_id* is forced onto every row after conversion rather than being
     folded into *defaults*: it's a property of this ingest_file() call, not
-    per-row data, so a file that happens to carry its own ``dataset_id``
-    column must not be able to override it (see ``rows_to_evals``'s
-    ``{**fill, **known}`` merge, where file columns normally win).
+    per-row data, so a file that carries its own ``run_id`` column cannot
+    override it (see ``rows_to_evals``'s ``{**fill, **known}`` merge).
     """
 
     def _emit(item: Any) -> bool:
@@ -70,7 +69,7 @@ def _produce_batches(
     try:
         batch: list[Eval] = []
         for eval_ in rows_to_evals(path, mapping, defaults):
-            eval_.dataset_id = dataset_id
+            eval_.run_id = run_id
             batch.append(eval_)
             if len(batch) >= batch_size:
                 if not _emit(batch):
@@ -127,7 +126,12 @@ class DynatraceClient:
 
     async def ingest(self, evals: Iterable[Eval | dict[str, Any]]) -> int:
         """Send a batch of evals; return the number of BizEvents sent."""
-        rows = [self._as_eval(item).to_bizevent() for item in evals]
+        _fallback_run_id = str(uuid.uuid4())
+        rows = []
+        for item in evals:
+            bz = self._as_eval(item).to_bizevent()
+            bz.setdefault("dt.eval.run_id", _fallback_run_id)
+            rows.append(bz)
         if self.dry_run:
             logger.info("[dry-run] %d BizEvent(s):\n%s", len(rows), json.dumps(rows, indent=2))
             return len(rows)
@@ -141,25 +145,25 @@ class DynatraceClient:
         *,
         mapping: Mapping[str, str] | None = None,
         defaults: Mapping[str, Any] | None = None,
-        dataset_id: str | None = None,
+        run_id: str | None = None,
     ) -> int:
         """Read a ``.csv`` / ``.jsonl`` / ``.json`` / ``.parquet`` of eval results and ingest them.
 
         Rows are streamed from disk and sent in bounded batches, so memory use
         stays flat regardless of file size.
 
-        All rows in a single call share the same ``dataset_id`` (``dt.eval.dataset_id``),
-        so you can later ``group by dt.eval.dataset_id`` in DQL to isolate this batch.
-        Pass ``dataset_id=`` explicitly for a stable, human-readable label; omit it to
+        All rows in a single call share the same ``run_id`` (``dt.eval.run_id``),
+        so you can later ``group by dt.eval.run_id`` in DQL to isolate this batch.
+        Pass ``run_id=`` explicitly for a stable, human-readable label; omit it to
         get an auto-generated UUID.
         """
-        _dataset_id = dataset_id if dataset_id is not None else str(uuid.uuid4())
+        _run_id = run_id if run_id is not None else str(uuid.uuid4())
         batch_size = self._transport.chunk_size
         out: queue.Queue[Any] = queue.Queue(maxsize=_MAX_QUEUED_BATCHES)
         stop = threading.Event()
         producer = threading.Thread(
             target=_produce_batches,
-            args=(path, mapping, defaults, _dataset_id, batch_size, out, stop),
+            args=(path, mapping, defaults, _run_id, batch_size, out, stop),
             daemon=True,
             name="dt-ai-ingest-file-reader",
         )

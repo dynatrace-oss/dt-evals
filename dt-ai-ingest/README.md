@@ -45,6 +45,7 @@ await dt_ai_ingest.submit(
     "faithfulness",
     score=0.92,
     label="pass",
+    run_id="golden-set-v1",
     question="What is the capital of France?",
     answer="Paris.",
     model="gpt-4o",
@@ -55,8 +56,8 @@ await dt_ai_ingest.submit(
 ## Ingesting from files
 
 `ingest_file()` reads `.csv`, `.jsonl`, `.json`, or `.parquet` and ships each row as a BizEvent.
-Every call stamps a shared `dataset_id` on all rows so you can `group by dt.eval.dataset_id` in DQL.
-Pass `dataset_id=` explicitly for a stable label; omit it to get an auto-generated UUID.
+Every call stamps a shared `run_id` on all rows so you can `group by dt.eval.run_id` in DQL.
+Pass `run_id=` explicitly for a stable label; omit it to get an auto-generated UUID.
 
 **CSV** — column names that match `Eval` fields need no `mapping=`:
 
@@ -68,13 +69,13 @@ helpfulness,4,pass,score_1_to_5,thorough and on-topic,How do I reset my password
 ```
 
 ```python
-await dt_ai_ingest.ingest_file("scores.csv", dataset_id="golden-set-v1")
+await dt_ai_ingest.ingest_file("scores.csv", run_id="golden-set-v1")
 
 # Non-standard column names? Use mapping= to rename them onto Eval fields.
 await dt_ai_ingest.ingest_file(
     "scores.csv",
     mapping={"metric": "name", "rating": "score"},
-    dataset_id="golden-set-v1",
+    run_id="golden-set-v1",
 )
 ```
 
@@ -86,24 +87,24 @@ await dt_ai_ingest.ingest_file(
 ```
 
 ```python
-await dt_ai_ingest.ingest_file("scores.jsonl", dataset_id="golden-set-v1")
+await dt_ai_ingest.ingest_file("scores.jsonl", run_id="golden-set-v1")
 ```
 
 **Parquet** — requires `pip install dt-ai-ingest[parquet]`. Column names follow the same conventions; nulls are dropped naturally:
 
 ```python
-await dt_ai_ingest.ingest_file("scores.parquet", dataset_id="golden-set-v1")
+await dt_ai_ingest.ingest_file("scores.parquet", run_id="golden-set-v1")
 ```
 
 Parquet preserves native types (`float64`, `int64`) so there is no string coercion step.
 Row groups are streamed — large files are handled without loading everything into memory.
 
-**Query by dataset in DQL:**
+**Query by run in DQL:**
 
 ```dql
 fetch bizevents
 | filter event.type == "gen_ai.evaluation.result"
-| filter dt.eval.dataset_id == "golden-set-v1"
+| filter dt.eval.run_id == "golden-set-v1"
 | fields timestamp, gen_ai.evaluation.name, gen_ai.evaluation.score.value, gen_ai.evaluation.score.label
 ```
 
@@ -114,8 +115,8 @@ from dt_ai_ingest import DynatraceClient, Eval
 
 # A batch (Eval objects or plain dicts).
 await dt_ai_ingest.ingest([
-    Eval(name="faithfulness", score=0.92, label="pass", explanation="grounded"),
-    {"name": "toxicity", "score": 0.0, "label": "pass"},
+    Eval(name="faithfulness", score=0.92, label="pass", run_id="run-1"),
+    Eval(name="toxicity", score=0.0, label="pass", run_id="run-1"),
 ])
 
 # Inline — collect scores in a block; each links to the active OTel span, flushed on exit.
@@ -125,19 +126,20 @@ async with dt_ai_ingest.evaluation(run_id="run-1") as record:
 
 # Reuse a connection instead of the zero-config helpers, and link to a span explicitly.
 async with DynatraceClient() as dt:
-    await dt.submit("relevance", score=0.8, span=my_span)
+    await dt.submit("relevance", score=0.8, span=my_span, run_id="run-1")
 ```
 
 ## Evaluation fields
 
-`name` is the only required field. `score` is validated against `scoring_format`.
+`name` is required. At least one of `score` or `label` must be set — an eval with neither is rejected.
+`run_id` is auto-generated per call if not provided, so every event in Grail is always groupable.
 Unknown kwargs passed directly to `Eval()` are rejected — use `extra={"custom.key": "value"}` to attach arbitrary keys. When ingesting from files or framework integrations, unrecognised columns are automatically routed to `extra`.
 
 | Field | BizEvent key | Meaning |
 | ----- | ------------ | ------- |
 | `name` | `gen_ai.evaluation.name` | Metric name, e.g. `faithfulness`. **Required.** |
-| `score` | `gen_ai.evaluation.score.value` | Numeric score. |
-| `label` | `gen_ai.evaluation.score.label` | Categorical outcome, e.g. `pass` / `fail`. |
+| `score` | `gen_ai.evaluation.score.value` | Numeric score. At least one of `score` or `label` must be set. |
+| `label` | `gen_ai.evaluation.score.label` | Categorical outcome, e.g. `pass` / `fail`. At least one of `score` or `label` must be set. |
 | `scoring_format` | `gen_ai.evaluation.scoring_format` | `score_0_to_1` (default) or `score_1_to_5`. |
 | `explanation` | `gen_ai.evaluation.explanation` | Why the score was given. |
 | `method` | `gen_ai.evaluation.method` | How the score was produced, e.g. `llm_as_judge`, `regex`. |
@@ -145,8 +147,7 @@ Unknown kwargs passed directly to `Eval()` are rejected — use `extra={"custom.
 | `model`, `model_provider` | `gen_ai.request.model`, `gen_ai.provider.name` | The evaluator (judge) model and provider, e.g. `gpt-4o` / `openai`. Omit for non-LLM scorers. |
 | `service_name` | `dt.service.name` | Service the span belongs to. |
 | `trace_id`, `span_id` | `trace_id`, `span_id` + `gen_ai.response.id` | Span linkage. `span_id` is also emitted as `gen_ai.response.id` for trace correlation. |
-| `run_id` | `dt.eval.run_id` | Eval run / experiment identifier. |
-| `dataset_id` | `dt.eval.dataset_id` | Batch identifier. Auto-generated by `ingest_file()` if not supplied — use to `group by dt.eval.dataset_id` in DQL. |
+| `run_id` | `dt.eval.run_id` | Eval run / experiment identifier. Auto-generated UUID per call if not supplied. |
 | `span_start`, `span_end` | `span.start_time`, `span.end_time` | Span timing. |
 
 ### Custom field mapping
