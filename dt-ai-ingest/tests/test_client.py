@@ -41,7 +41,7 @@ async def test_missing_credentials_raises(monkeypatch):
         monkeypatch.delenv(var, raising=False)
     client = DynatraceClient(dry_run=False)
     with pytest.raises(ValueError, match="endpoint"):
-        await client.ingest([Eval(name="a")])
+        await client.ingest([Eval(name="a", score=0.5)])
 
 
 async def test_ingest_posts_bizevents(httpx_mock):
@@ -88,7 +88,7 @@ async def test_ingest_file_dry_run_counts_without_network(tmp_path):
     assert await client.ingest_file(str(path)) == 2
 
 
-async def test_ingest_file_shares_dataset_id(tmp_path, httpx_mock):
+async def test_ingest_file_shares_run_id(tmp_path, httpx_mock):
     path = tmp_path / "scores.csv"
     path.write_text("name,score\na,0.1\nb,0.2\n")
     httpx_mock.add_response()
@@ -96,38 +96,36 @@ async def test_ingest_file_shares_dataset_id(tmp_path, httpx_mock):
         endpoint="https://t.live.dynatrace.com", token="dt0c01.x", dry_run=False
     )
 
-    await client.ingest_file(str(path), dataset_id="golden-set-v1")
+    await client.ingest_file(str(path), run_id="golden-set-v1")
 
     body = json.loads(httpx_mock.get_requests()[0].content)
-    assert {row["dt.eval.dataset_id"] for row in body} == {"golden-set-v1"}
+    assert {row["dt.eval.run_id"] for row in body} == {"golden-set-v1"}
 
 
-async def test_ingest_file_dataset_id_overrides_file_column(tmp_path, httpx_mock):
-    """A file that happens to carry its own `dataset_id` column (e.g. a
-    re-exported dataset) must not silently override the batch-wide id passed
-    to ingest_file() — the documented guarantee is that every row in one
-    call shares the same dataset_id, regardless of file content.
+async def test_ingest_file_run_id_overrides_file_column(tmp_path, httpx_mock):
+    """A file that carries its own `run_id` column must not override the
+    batch-wide run_id passed to ingest_file() — every row in one call shares
+    the same run_id regardless of file content.
     """
     path = tmp_path / "scores.csv"
-    path.write_text("name,score,dataset_id\na,0.1,old-export-run-3\nb,0.2,old-export-run-3\n")
+    path.write_text("name,score,run_id\na,0.1,old-run\nb,0.2,old-run\n")
     httpx_mock.add_response()
     client = DynatraceClient(
         endpoint="https://t.live.dynatrace.com", token="dt0c01.x", dry_run=False
     )
 
-    await client.ingest_file(str(path), dataset_id="golden-set-v1")
+    await client.ingest_file(str(path), run_id="golden-set-v1")
 
     body = json.loads(httpx_mock.get_requests()[0].content)
-    assert {row["dt.eval.dataset_id"] for row in body} == {"golden-set-v1"}
+    assert {row["dt.eval.run_id"] for row in body} == {"golden-set-v1"}
 
 
-async def test_ingest_file_auto_dataset_id_overrides_file_column(tmp_path, httpx_mock):
-    """Same override guarantee when dataset_id isn't passed explicitly: the
-    auto-generated UUID must win over the file's own column too, not just an
-    explicit caller-supplied id.
+async def test_ingest_file_auto_run_id_is_consistent(tmp_path, httpx_mock):
+    """When run_id isn't supplied, an auto-generated UUID is stamped on every
+    row — all rows in the same call share the same UUID.
     """
     path = tmp_path / "scores.csv"
-    path.write_text("name,score,dataset_id\na,0.1,old-export-run-3\n")
+    path.write_text("name,score\na,0.1\nb,0.2\n")
     httpx_mock.add_response()
     client = DynatraceClient(
         endpoint="https://t.live.dynatrace.com", token="dt0c01.x", dry_run=False
@@ -136,7 +134,8 @@ async def test_ingest_file_auto_dataset_id_overrides_file_column(tmp_path, httpx
     await client.ingest_file(str(path))
 
     body = json.loads(httpx_mock.get_requests()[0].content)
-    assert body[0]["dt.eval.dataset_id"] != "old-export-run-3"
+    run_ids = {row["dt.eval.run_id"] for row in body}
+    assert len(run_ids) == 1
 
 
 async def test_ingest_file_missing_file_raises(tmp_path):
