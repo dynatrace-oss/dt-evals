@@ -65,7 +65,7 @@ TEXT="$(printf ':rotating_light: *npm audit found %d vulnerabilit%s* in \`%s\`\n
 # Slack-app incoming webhooks are bound to one fixed channel and ignore it.
 # Harmless to send either way — jq -n keeps TEXT from ever breaking out of
 # the JSON string the way hand-escaped shell interpolation could.
-PAYLOAD="$(jq -n --arg text "$TEXT" --arg channel "#int-team-ai-observability-evals" '{text: $text, channel: $channel}')"
+PAYLOAD="$(jq -n --arg text "$TEXT" --arg channel "#dt-evals-notifications" '{text: $text, channel: $channel}')"
 
 curl --fail --silent --show-error -X POST \
   -H 'Content-Type: application/json' \
