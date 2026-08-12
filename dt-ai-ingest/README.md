@@ -65,7 +65,7 @@ Pass `run_id=` explicitly for a stable label; omit it to get an auto-generated U
 name,score,label,scoring_format,explanation,question,answer,model,model_provider,trace_id,span_id,run_id
 faithfulness,0.92,pass,score_0_to_1,grounded in context,What is the capital of France?,Paris.,gpt-4o,openai,4bf92f3577b34da6a,00f067aa0ba902b7,run-42
 toxicity,0.0,pass,score_0_to_1,no harmful content,What is the capital of France?,Paris.,gpt-4o,openai,4bf92f3577b34da6a,00f067aa0ba902b7,run-42
-helpfulness,4,pass,score_1_to_5,thorough and on-topic,How do I reset my password?,Open Settings > Security > Reset.,gpt-4o,openai,7c8d9e0f1a2b3c4d,a1b2c3d4e5f60718,run-42
+helpfulness,4,pass,rubric,thorough and on-topic,How do I reset my password?,Open Settings > Security > Reset.,gpt-4o,openai,7c8d9e0f1a2b3c4d,a1b2c3d4e5f60718,run-42
 ```
 
 ```python
@@ -83,7 +83,7 @@ await dt_ai_ingest.ingest_file(
 
 ```jsonl
 {"name": "faithfulness", "score": 0.87, "label": "pass", "scoring_format": "score_0_to_1", "explanation": "grounded", "question": "What are the main benefits of observability?", "answer": "Observability helps you understand system behaviour from its outputs.", "model": "claude-sonnet-5", "model_provider": "anthropic", "trace_id": "a1b2c3d4e5f67890", "span_id": "b2c3d4e5f6789001", "run_id": "run-01"}
-{"name": "helpfulness", "score": 4, "label": "pass", "scoring_format": "score_1_to_5", "explanation": "clear, could use examples", "question": "What are the main benefits of observability?", "answer": "Observability helps you understand system behaviour from its outputs.", "model": "claude-sonnet-5", "model_provider": "anthropic", "trace_id": "a1b2c3d4e5f67890", "span_id": "b2c3d4e5f6789001", "run_id": "run-01"}
+{"name": "helpfulness", "score": 4, "label": "pass", "scoring_format": "rubric", "explanation": "clear, could use examples", "question": "What are the main benefits of observability?", "answer": "Observability helps you understand system behaviour from its outputs.", "model": "claude-sonnet-5", "model_provider": "anthropic", "trace_id": "a1b2c3d4e5f67890", "span_id": "b2c3d4e5f6789001", "run_id": "run-01"}
 ```
 
 ```python
@@ -140,7 +140,7 @@ Unknown kwargs passed directly to `Eval()` are rejected — use `extra={"custom.
 | `name` | `gen_ai.evaluation.name` | Metric name, e.g. `faithfulness`. **Required.** |
 | `score` | `gen_ai.evaluation.score.value` | Numeric score. **Required.** |
 | `label` | `gen_ai.evaluation.score.label` | Categorical outcome, e.g. `pass` / `fail`. Optional. |
-| `scoring_format` | `gen_ai.evaluation.scoring_format` | `score_0_to_1` (default) or `score_1_to_5`. |
+| `scoring_format` | `gen_ai.evaluation.scoring_format` | `score_0_to_1` (default) or `rubric` (0–5). |
 | `explanation` | `gen_ai.evaluation.explanation` | Why the score was given. |
 | `method` | `gen_ai.evaluation.method` | How the score was produced, e.g. `llm_as_judge`, `regex`. |
 | `question`, `answer`, `system_prompt` | `gen_ai.evaluation.input.*` | The turn being scored. |

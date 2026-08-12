@@ -25,11 +25,10 @@ try:
 except PackageNotFoundError:
     CLIENT_VERSION = "dev"
 
-# scoring_format -> (inclusive lower bound, inclusive upper bound). Only the two
-# formats dt-eval-cli emits are accepted, so both clients render identically.
+# scoring_format -> (inclusive lower bound, inclusive upper bound).
 SCORING_RANGES: dict[str, tuple[float, float]] = {
     "score_0_to_1": (0.0, 1.0),
-    "score_1_to_5": (1.0, 5.0),
+    "rubric": (0.0, 5.0),
 }
 
 # Eval field -> BizEvent dot-key. Drives to_bizevent(); the field set is aligned

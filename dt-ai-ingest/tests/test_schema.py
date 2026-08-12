@@ -59,10 +59,11 @@ def test_span_links_and_extra_passthrough():
     assert payload["custom.key"] == "v"
 
 
-def test_score_1_to_5_range():
-    assert Eval(name="x", score=4.0, scoring_format="score_1_to_5").score == 4.0
+def test_rubric_range():
+    assert Eval(name="x", score=5.0, scoring_format="rubric").score == 5.0
+    assert Eval(name="x", score=0.0, scoring_format="rubric").score == 0.0
     with pytest.raises(ValueError, match="out of range"):
-        Eval(name="x", score=0.5, scoring_format="score_1_to_5")
+        Eval(name="x", score=6.0, scoring_format="rubric")
 
 
 def test_run_id_in_bizevent():

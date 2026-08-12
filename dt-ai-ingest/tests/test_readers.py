@@ -71,7 +71,7 @@ def test_parquet(tmp_path):
         "name": ["faithfulness", "toxicity", "helpfulness"],
         "score": [0.92, 0.0, 4.0],
         "label": ["pass", "pass", "pass"],
-        "scoring_format": ["score_0_to_1", "score_0_to_1", "score_1_to_5"],
+        "scoring_format": ["score_0_to_1", "score_0_to_1", "rubric"],
         "model_provider": ["openai", "openai", "openai"],
         "run_id": ["run-1", "run-1", "run-1"],
     })
@@ -83,7 +83,7 @@ def test_parquet(tmp_path):
     assert evals[0].name == "faithfulness"
     assert evals[0].score == 0.92
     assert evals[0].model_provider == "openai"
-    assert evals[2].scoring_format == "score_1_to_5"
+    assert evals[2].scoring_format == "rubric"
     assert evals[2].score == 4.0
 
 
