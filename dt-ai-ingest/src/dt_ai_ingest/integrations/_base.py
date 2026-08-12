@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Protocol
 
 from dt_ai_ingest.schema import Eval
 
 _EVAL_FIELDS = set(Eval.model_fields) - {"extra"}
 
 
-@runtime_checkable
 class ConvertAdapter(Protocol):
+    """Static contract for convert-style adapters; enforced by mypy + tests."""
+
     def __call__(
         self,
         result: Any,
