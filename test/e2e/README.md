@@ -49,7 +49,7 @@ too, since the deployment name is the model. Vertex uses ADC, and
 Run one with `npm run test:contract`, `npm run test:validate`, and so on. `npm run typecheck`
 checks the workspace without running anything.
 
-`e2e-pr-checks.yml` runs the typecheck and the whole suite on every PR with no credentials, so
+`e2e-pr.yml` runs the typecheck and the whole suite on every PR with no credentials, so
 only `harness`, `cli` and the conversation-id block of `contract` execute. It invokes the suite
 whole rather than naming those files, so a credential-free test added later is covered
 automatically instead of running nowhere.
@@ -92,7 +92,7 @@ the baseline config looks the way it does:
 ## CI
 
 Secret scoping, the blocking-vs-verdict split and the notify issue lifecycle are documented as
-comments in `.github/workflows/live_weekly_e2e.yml` and `.github/scripts/notify-e2e.sh`, next
+comments in `.github/workflows/e2e-live-weekly.yml` and `.github/scripts/notify-e2e.sh`, next
 to the code they govern.
 
 Three jobs: `e2e` (blocking lane), `verdict` (evallogic, `continue-on-error` at *job* level so
