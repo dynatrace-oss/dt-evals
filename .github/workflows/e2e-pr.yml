@@ -1,5 +1,5 @@
 ---
-name: CI — E2E suite (no credentials)
+name: E2E — PR checks (no credentials)
 
 # PR-time gate for test/e2e — the credentialed suite only runs weekly.
 # Spends nothing: typechecks the workspace and runs whatever needs no
@@ -11,7 +11,7 @@ on:
   pull_request:
     paths:
       - "test/e2e/**"
-      - ".github/workflows/e2e-pr-checks.yml"
+      - ".github/workflows/e2e-pr.yml"
       - "dt-eval-cli/**"
       # dt-eval-cli only consumes dt-eval-lib via its pinned npm version, so a
       # lib-only PR needs the source-build override below to get feedback here.

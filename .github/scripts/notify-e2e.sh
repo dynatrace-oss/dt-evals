@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Called by the notify job in live_weekly_e2e.yml after a scheduled run.
+# Called by the notify job in e2e-live-weekly.yml after a scheduled run.
 # Keeps exactly one open issue per label: comments while the failure
 # persists, creates it if there is none, closes it once clean again.
 #
