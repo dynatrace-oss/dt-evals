@@ -139,9 +139,6 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
   const baseFields = [...fieldSet].join(', ');
 
   lines.push(`| fields ${baseFields}, ${promptFields}`);
-  // Without this, `sampling: latest` only sorts within whatever arbitrary
-  // subset of ≤limit rows Grail happened to return — not the true newest
-  // rows in the since window when it contains more than `limit` spans.
   lines.push('| sort start_time desc');
   lines.push(`| limit ${limit}`);
 
