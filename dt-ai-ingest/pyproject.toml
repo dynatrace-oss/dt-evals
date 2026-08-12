@@ -35,6 +35,9 @@ dependencies = [
 parquet = [
     "pyarrow>=14",
 ]
+ragas = [
+    "ragas>=0.2",
+]
 
 [project.urls]
 Homepage = "https://github.com/dynatrace-oss/dt-ai-ingest"

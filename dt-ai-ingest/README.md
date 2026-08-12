@@ -14,8 +14,9 @@ evaluations and does not export traces.
 ```bash
 pip install dt-ai-ingest
 
-# Optional extra:
+# Optional extras:
 pip install dt-ai-ingest[parquet]   # Parquet file support (pyarrow)
+pip install dt-ai-ingest[ragas]     # Ragas EvaluationResult adapter
 ```
 
 ## Configure
@@ -129,7 +130,7 @@ async with DynatraceClient() as dt:
 
 `name` and `score` are required; `label` is optional.
 `run_id` is auto-generated per call if not provided, so every event in Grail is always groupable.
-Unknown kwargs passed directly to `Eval()` are rejected — use `extra={"custom.key": "value"}` to attach arbitrary keys. When ingesting from files, unrecognised columns are automatically routed to `extra`.
+Unknown kwargs passed directly to `Eval()` are rejected — use `extra={"custom.key": "value"}` to attach arbitrary keys. When ingesting from files or framework integrations, unrecognised columns are automatically routed to `extra`.
 
 | Field | BizEvent key | Meaning |
 | ----- | ------------ | ------- |
@@ -154,6 +155,39 @@ When your source data uses different column names, pass `mapping=` to rename the
 # File ingestion
 await ingest_file("scores.csv", mapping={"metric": "name", "rating": "score"})
 ```
+
+### Framework integrations
+
+Adapters convert a third-party eval result into `Eval` rows you can `ingest()`.
+Each ships behind its own extra and never imports its source library until you
+call it.
+
+**Ragas** — `pip install dt-ai-ingest[ragas]`. `from_ragas` fans a Ragas
+`EvaluationResult` out into one `Eval` per `(sample, metric)` pair, mapping
+`user_input → question` and `response → answer` by default:
+
+```python
+from ragas import evaluate
+from dt_ai_ingest import ingest
+from dt_ai_ingest.integrations.ragas import from_ragas
+
+result = evaluate(dataset, metrics=[faithfulness, answer_relevancy])
+
+evals = from_ragas(
+    result,
+    run_id="rag-eval-2025-08",                        # groups this run in Grail
+    defaults={"model": "gpt-4o", "model_provider": "openai"},
+)
+await ingest(evals)
+```
+
+Scores map by metric type: continuous metrics use `score_0_to_1`; binary metrics
+(`AspectCritic`) also get a `pass`/`fail` label; metrics scored above 1
+(`RubricsScore`, `SimpleCriteriaScore`) use the `rubric` format (0–5).
+
+Extra columns (e.g. `retrieved_contexts`) are dropped unless you map them
+through — `mapping={"retrieved_contexts": "rag.contexts"}` routes them into
+`extra`.
 
 ## Development
 
