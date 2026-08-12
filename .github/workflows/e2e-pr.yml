@@ -49,13 +49,6 @@ jobs:
           npm ci
           npm run build
 
-      # Non-blocking: `npm audit` exits non-zero when it finds anything, but a
-      # transitive dep vuln shouldn't fail unrelated PRs. The notify step below
-      # reports findings to Slack instead of gating the merge.
-      - name: Audit dt-eval-lib dependencies
-        working-directory: dt-eval-lib
-        run: npm audit --json > "${{ runner.temp }}/dt-eval-lib-audit.json" || true
-
       # npm install after npm ci overrides the registry-pinned dt-eval-lib
       # with the just-built local one, for this job only (never committed).
       - name: Build the CLI under test
@@ -65,35 +58,11 @@ jobs:
           npm install ../dt-eval-lib
           npm run build
 
-      - name: Audit dt-eval-cli dependencies
-        working-directory: dt-eval-cli
-        run: npm audit --json > "${{ runner.temp }}/dt-eval-cli-audit.json" || true
-
       - name: Install E2E dependencies
         run: npm ci
-
-      - name: Audit test/e2e dependencies
-        run: npm audit --json > "${{ runner.temp }}/test-e2e-audit.json" || true
 
       - name: Typecheck
         run: npm run typecheck
 
       - name: Run everything that needs no credentials
         run: npx vitest run
-
-      # Runs even if typecheck/tests above failed, so a vulnerability is still
-      # reported on a red run. Skips quietly if the SLACK_HOOK secret isn't set
-      # (e.g. on forks) instead of failing the job.
-      - name: Notify Slack of dependency vulnerabilities
-        if: always()
-        # Slack delivery failing (bad webhook, transient network error) must not
-        # fail the PR job — vulnerabilities are meant to alert, not to block merges.
-        continue-on-error: true
-        working-directory: ${{ github.workspace }}
-        env:
-          SLACK_HOOK: ${{ secrets.SLACK_HOOK }}
-          AUDIT_FILES: >-
-            ${{ runner.temp }}/dt-eval-lib-audit.json
-            ${{ runner.temp }}/dt-eval-cli-audit.json
-            ${{ runner.temp }}/test-e2e-audit.json
-        run: "${{ github.workspace }}/.github/scripts/notify-vulnerabilities.sh"

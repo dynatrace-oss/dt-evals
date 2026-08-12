@@ -1,0 +1,76 @@
+---
+name: Dependency vulnerability audit (weekly)
+
+# Decoupled from PR/push activity on purpose: an audit gated on every commit
+# would re-alert Slack on every push to an open PR for the same still-open
+# vulnerability. Weekly keeps the signal-to-noise ratio sane while still
+# catching new findings within days.
+on:
+  schedule:
+    - cron: "0 7 * * 1" # Mondays 07:00 UTC — after the live E2E suite's 06:00 UTC run, same day
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    name: npm audit across all workspaces
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version-file: "dt-eval-cli/.nvmrc"
+          cache: "npm"
+          cache-dependency-path: |
+            dt-eval-lib/package-lock.json
+            dt-eval-cli/package-lock.json
+            dt-eval-deploy/package-lock.json
+            test/e2e/package-lock.json
+
+      # Non-blocking throughout: `npm audit` exits non-zero when it finds
+      # anything, but this workflow's only job is to report findings to
+      # Slack, not to gate anything — `npm ci` alone is enough to audit,
+      # no build/typecheck/test needed here.
+      - name: Audit dt-eval-lib dependencies
+        working-directory: dt-eval-lib
+        run: |
+          npm ci
+          npm audit --json > "${{ runner.temp }}/dt-eval-lib-audit.json" || true
+
+      - name: Audit dt-eval-cli dependencies
+        working-directory: dt-eval-cli
+        run: |
+          npm ci
+          npm audit --json > "${{ runner.temp }}/dt-eval-cli-audit.json" || true
+
+      - name: Audit dt-eval-deploy dependencies
+        working-directory: dt-eval-deploy
+        run: |
+          npm ci
+          npm audit --json > "${{ runner.temp }}/dt-eval-deploy-audit.json" || true
+
+      - name: Audit test/e2e dependencies
+        working-directory: test/e2e
+        run: |
+          npm ci
+          npm audit --json > "${{ runner.temp }}/test-e2e-audit.json" || true
+
+      # Slack delivery failing (bad webhook, transient network error) must not
+      # fail this job — vulnerabilities are meant to alert, not to block anything.
+      - name: Notify Slack of dependency vulnerabilities
+        if: always()
+        continue-on-error: true
+        env:
+          SLACK_HOOK: ${{ secrets.SLACK_HOOK }}
+          AUDIT_FILES: >-
+            ${{ runner.temp }}/dt-eval-lib-audit.json
+            ${{ runner.temp }}/dt-eval-cli-audit.json
+            ${{ runner.temp }}/dt-eval-deploy-audit.json
+            ${{ runner.temp }}/test-e2e-audit.json
+        run: "${{ github.workspace }}/.github/scripts/notify-vulnerabilities.sh"
