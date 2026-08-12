@@ -68,7 +68,7 @@ class Eval(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str
-    score: float | None = None
+    score: float
     label: Literal["pass", "fail"] | None = None
     scoring_format: str = "score_0_to_1"
     explanation: str | None = None
@@ -91,19 +91,16 @@ class Eval(BaseModel):
 
     @model_validator(mode="after")
     def _validate_score(self) -> Eval:
-        if self.score is None and self.label is None:
-            raise ValueError("at least one of 'score' or 'label' must be set")
         if self.scoring_format not in SCORING_RANGES:
             raise ValueError(
                 f"unknown scoring_format {self.scoring_format!r}; "
                 f"expected one of {sorted(SCORING_RANGES)}"
             )
-        if self.score is not None:
-            lower, upper = SCORING_RANGES[self.scoring_format]
-            if not lower <= self.score <= upper:
-                raise ValueError(
-                    f"score {self.score} out of range {lower}..{upper} for {self.scoring_format}"
-                )
+        lower, upper = SCORING_RANGES[self.scoring_format]
+        if not lower <= self.score <= upper:
+            raise ValueError(
+                f"score {self.score} out of range {lower}..{upper} for {self.scoring_format}"
+            )
         return self
 
     def to_bizevent(self) -> dict[str, Any]:

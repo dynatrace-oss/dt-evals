@@ -19,8 +19,8 @@ def test_minimal_eval_to_bizevent():
     assert payload["gen_ai.evaluation.scoring_format"] == "score_0_to_1"
 
 
-def test_no_score_or_label_raises():
-    with pytest.raises(ValueError, match="score.*label"):
+def test_missing_score_raises():
+    with pytest.raises(ValueError, match="Field required"):
         Eval(name="x")
 
 
@@ -70,15 +70,20 @@ def test_run_id_in_bizevent():
     assert payload["dt.eval.run_id"] == "run-42"
 
 
-def test_label_only_is_valid():
-    payload = Eval(name="x", label="pass").to_bizevent()
+def test_label_only_without_score_raises():
+    with pytest.raises(ValueError, match="Field required"):
+        Eval(name="x", label="pass")
+
+
+def test_score_with_label_is_valid():
+    payload = Eval(name="x", score=0.9, label="pass").to_bizevent()
+    assert payload["gen_ai.evaluation.score.value"] == 0.9
     assert payload["gen_ai.evaluation.score.label"] == "pass"
-    assert "gen_ai.evaluation.score.value" not in payload
 
 
 def test_label_invalid_value_raises():
     with pytest.raises(ValueError):
-        Eval(name="x", label="ok")
+        Eval(name="x", score=0.5, label="ok")
 
 
 def test_extra_does_not_override_authoritative_key():

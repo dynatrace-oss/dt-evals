@@ -57,10 +57,10 @@ def test_csv_native_column_names(tmp_path):
 
 def test_blank_csv_cell_is_absent(tmp_path):
     path = tmp_path / "e.csv"
-    path.write_text("name,score,label\nfoo,,pass\n")
+    path.write_text("name,score,label\nfoo,0.5,\n")
     ev = list(rows_to_evals(path))[0]
-    assert ev.score is None
-    assert ev.label == "pass"
+    assert ev.score == 0.5
+    assert ev.label is None  # blank cell dropped, not sent as empty string
 
 
 def test_parquet(tmp_path):
@@ -93,13 +93,13 @@ def test_parquet_nulls_are_absent(tmp_path):
 
     table = pa.table({
         "name": ["x"],
-        "score": pa.array([None], type=pa.float64()),
-        "label": ["pass"],
+        "score": [0.5],
+        "label": pa.array([None], type=pa.string()),
     })
     pq.write_table(table, tmp_path / "e.parquet")
     ev = list(rows_to_evals(tmp_path / "e.parquet"))[0]
-    assert ev.score is None
-    assert ev.label == "pass"
+    assert ev.score == 0.5
+    assert ev.label is None  # null cell dropped
 
 
 def test_unsupported_file_type(tmp_path):

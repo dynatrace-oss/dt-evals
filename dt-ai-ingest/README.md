@@ -131,15 +131,15 @@ async with DynatraceClient() as dt:
 
 ## Evaluation fields
 
-`name` is required. At least one of `score` or `label` must be set — an eval with neither is rejected.
+`name` and `score` are required; `label` is optional.
 `run_id` is auto-generated per call if not provided, so every event in Grail is always groupable.
 Unknown kwargs passed directly to `Eval()` are rejected — use `extra={"custom.key": "value"}` to attach arbitrary keys. When ingesting from files or framework integrations, unrecognised columns are automatically routed to `extra`.
 
 | Field | BizEvent key | Meaning |
 | ----- | ------------ | ------- |
 | `name` | `gen_ai.evaluation.name` | Metric name, e.g. `faithfulness`. **Required.** |
-| `score` | `gen_ai.evaluation.score.value` | Numeric score. At least one of `score` or `label` must be set. |
-| `label` | `gen_ai.evaluation.score.label` | Categorical outcome, e.g. `pass` / `fail`. At least one of `score` or `label` must be set. |
+| `score` | `gen_ai.evaluation.score.value` | Numeric score. **Required.** |
+| `label` | `gen_ai.evaluation.score.label` | Categorical outcome, e.g. `pass` / `fail`. Optional. |
 | `scoring_format` | `gen_ai.evaluation.scoring_format` | `score_0_to_1` (default) or `score_1_to_5`. |
 | `explanation` | `gen_ai.evaluation.explanation` | Why the score was given. |
 | `method` | `gen_ai.evaluation.method` | How the score was produced, e.g. `llm_as_judge`, `regex`. |
