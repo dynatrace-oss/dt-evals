@@ -8,6 +8,10 @@ on:
       - ".github/workflows/ci-ai-ingest.yml"
   workflow_dispatch:
 
+# Least-privilege: this workflow only reads the repo (checkout + tooling).
+permissions:
+  contents: read
+
 jobs:
   ci:
     runs-on: ubuntu-24.04
