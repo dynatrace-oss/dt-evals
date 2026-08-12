@@ -247,6 +247,29 @@ dt-evals configure --show
 | `evaluators` | List, inspect, test, and manage evaluators |
 | `runs` | View and export historical run records |
 | `schedule` | Create and trigger recurring runs |
+| `ingest ragas <file>` | Ingest Ragas evaluation results exported as JSON |
+
+### Ingest Ragas results
+
+Export the row-oriented result from Python, retaining `user_input` and
+`response` only when you intend to store them:
+
+```python
+result.to_pandas().to_json("ragas-results.json", orient="records")
+```
+
+Ingest each numeric metric as a `gen_ai.evaluation.result` bizevent:
+
+```bash
+dt-evals ingest ragas ragas-results.json --run-id ragas-release-42
+```
+
+The JSON may be the direct array produced by `orient="records"` or an object
+with that array in `scores`. `trace_id` is optional; the CLI generates a stable
+per-row ID when it is absent. Use `--store-evaluated-input` only when storing
+the Ragas `user_input` and `response` is appropriate for the target tenant.
+Numeric scores at or above `0.5` are labeled `pass`; lower scores are labeled
+`fail`.
 
 Global flags:
 

@@ -8,6 +8,7 @@ import { createEvaluatorsCommand } from './commands/evaluators.js';
 import { createRunsCommand } from './commands/runs.js';
 import { createValidateCommand } from './commands/validate.js';
 import { createDoctorCommand } from './commands/doctor.js';
+import { createIngestCommand } from './commands/ingest.js';
 import { configureLogger } from '../logger/index.js';
 import { printBanner } from '../ui/banner.js';
 
@@ -55,6 +56,7 @@ export function createCli(): Command {
   program.addCommand(createEvaluatorsCommand());
   program.addCommand(createRunsCommand());
   program.addCommand(createScheduleCommand());
+  program.addCommand(createIngestCommand());
 
   return program;
 }
