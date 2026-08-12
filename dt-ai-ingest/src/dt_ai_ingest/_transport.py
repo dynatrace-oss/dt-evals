@@ -91,11 +91,13 @@ class Transport:
             async with sem:
                 await self._send_chunk(chunk)
 
-        results = await asyncio.gather(*[_guarded(chunk) for chunk in chunks], return_exceptions=True)
+        results = await asyncio.gather(
+            *[_guarded(chunk) for chunk in chunks], return_exceptions=True
+        )
         errors = [e for e in results if isinstance(e, BaseException)]
         if errors:
-        logger.error("%d/%d chunk(s) failed", len(errors), len(chunks))
-        raise errors[0]
+            logger.error("%d/%d chunk(s) failed", len(errors), len(chunks))
+            raise errors[0]
 
     async def _send_chunk(self, chunk: list[dict[str, Any]]) -> None:
         response = await self._request_with_retry(chunk)
