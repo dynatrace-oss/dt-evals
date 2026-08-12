@@ -61,10 +61,11 @@ TEXT="$(printf ':rotating_light: *npm audit found %d vulnerabilit%s* in \`%s\`\n
   "$CRITICAL" "$HIGH" "$MODERATE" "$LOW" "$INFO" \
   "$AFFECTED" "$RUN_URL")"
 
-# jq -n builds the JSON payload so TEXT's content (repo/workspace names, arbitrary
-# but not attacker-controlled here) can never break out of the string literal the
-# way hand-escaped shell interpolation into a JSON string would.
-PAYLOAD="$(jq -n --arg text "$TEXT" '{text: $text}')"
+# "channel" only takes effect for legacy custom-integration webhooks; modern
+# Slack-app incoming webhooks are bound to one fixed channel and ignore it.
+# Harmless to send either way — jq -n keeps TEXT from ever breaking out of
+# the JSON string the way hand-escaped shell interpolation could.
+PAYLOAD="$(jq -n --arg text "$TEXT" --arg channel "#int-team-ai-observability-evals" '{text: $text, channel: $channel}')"
 
 curl --fail --silent --show-error -X POST \
   -H 'Content-Type: application/json' \
