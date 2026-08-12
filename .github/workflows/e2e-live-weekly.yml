@@ -1,5 +1,5 @@
 ---
-name: E2E — dt-evals CLI
+name: E2E — live weekly (dt-evals CLI)
 
 # Runs the built CLI against a real Dynatrace tenant and a real judge
 # provider. Deliberately NOT triggered by pull_request — real secrets and

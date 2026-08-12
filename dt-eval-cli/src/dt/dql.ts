@@ -139,6 +139,7 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
   const baseFields = [...fieldSet].join(', ');
 
   lines.push(`| fields ${baseFields}, ${promptFields}`);
+  lines.push('| sort start_time desc');
   lines.push(`| limit ${limit}`);
 
   return lines.join('\n');

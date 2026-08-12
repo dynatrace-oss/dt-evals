@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.17-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.16-alpha...v0.2.17-alpha) (2026-08-12)
+
+
+### 🐛 Bug Fixes
+
+* **dt-eval-cli:** sort spans by start_time desc before the row limit (AI-389) ([#179](https://github.com/dynatrace-oss/dt-evals/issues/179)) ([e5efd28](https://github.com/dynatrace-oss/dt-evals/commit/e5efd283a5adac6e3079d8a04443b73af21834fd))
+
 ## [0.2.16-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.15-alpha...v0.2.16-alpha) (2026-08-11)
 
 

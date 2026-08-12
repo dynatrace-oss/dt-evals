@@ -1,0 +1,47 @@
+---
+name: CI — dt-ai-ingest
+
+on:
+  pull_request:
+    paths:
+      - "dt-ai-ingest/**"
+      - ".github/workflows/ci-ai-ingest.yml"
+  workflow_dispatch:
+
+# Least-privilege: this workflow only reads the repo (checkout + tooling).
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-24.04
+    name: Lint, type-check & test (py${{ matrix.python-version }})
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    defaults:
+      run:
+        shell: bash
+        working-directory: dt-ai-ingest
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          python-version: "${{ matrix.python-version }}"
+          enable-cache: true
+          cache-dependency-glob: "dt-ai-ingest/uv.lock"
+
+      - name: Install
+        run: uv sync
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Type-check
+        run: uv run mypy src
+
+      - name: Test
+        run: uv run pytest
