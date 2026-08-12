@@ -19,6 +19,11 @@ def test_minimal_eval_to_bizevent():
     assert payload["gen_ai.evaluation.scoring_format"] == "score_0_to_1"
 
 
+def test_no_score_or_label_raises():
+    with pytest.raises(ValueError, match="score.*label"):
+        Eval(name="x")
+
+
 def test_score_out_of_range_raises():
     with pytest.raises(ValueError, match="out of range"):
         Eval(name="x", score=5.0, scoring_format="score_0_to_1")
@@ -41,7 +46,6 @@ def test_span_links_and_extra_passthrough():
         trace_id="t",
         span_id="s",
         run_id="r",
-        dataset_id="golden-v1",
         model="gpt-4o",
         model_provider="openai",
         extra={"custom.key": "v"},
@@ -50,10 +54,10 @@ def test_span_links_and_extra_passthrough():
     assert payload["span_id"] == "s"
     assert payload["gen_ai.response.id"] == "s"
     assert payload["dt.eval.run_id"] == "r"
-    assert payload["dt.eval.dataset_id"] == "golden-v1"
     assert payload["gen_ai.request.model"] == "gpt-4o"
     assert payload["gen_ai.provider.name"] == "openai"
     assert payload["custom.key"] == "v"
+    assert "dt.eval.dataset_id" not in payload
 
 
 def test_score_1_to_5_range():
@@ -62,11 +66,17 @@ def test_score_1_to_5_range():
         Eval(name="x", score=0.5, scoring_format="score_1_to_5")
 
 
-def test_dataset_id_in_bizevent():
-    payload = Eval(name="x", dataset_id="golden-set-v2").to_bizevent()
-    assert payload["dt.eval.dataset_id"] == "golden-set-v2"
+def test_run_id_in_bizevent():
+    payload = Eval(name="x", score=0.5, run_id="run-42").to_bizevent()
+    assert payload["dt.eval.run_id"] == "run-42"
+
+
+def test_label_only_is_valid():
+    payload = Eval(name="x", label="pass").to_bizevent()
+    assert payload["gen_ai.evaluation.score.label"] == "pass"
+    assert "gen_ai.evaluation.score.value" not in payload
 
 
 def test_extra_does_not_override_authoritative_key():
-    payload = Eval(name="x", extra={"event.provider": "spoof"}).to_bizevent()
+    payload = Eval(name="x", score=0.5, extra={"event.provider": "spoof"}).to_bizevent()
     assert payload["event.provider"] == "dt-ai-ingest"

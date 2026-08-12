@@ -6,6 +6,7 @@ OpenTelemetry span, and flush the batch once on exit.
 
 from __future__ import annotations
 
+import uuid
 from typing import TYPE_CHECKING, Any
 
 from dt_ai_ingest.schema import Eval
@@ -30,6 +31,7 @@ class EvaluationScope:
         trace_id, span_id = current_span_ids()
         self._attach.setdefault("trace_id", trace_id)
         self._attach.setdefault("span_id", span_id)
+        self._attach.setdefault("run_id", str(uuid.uuid4()))
         return self
 
     def record(self, name: str, **fields: Any) -> None:

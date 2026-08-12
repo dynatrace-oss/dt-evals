@@ -57,7 +57,6 @@ _FIELD_MAP: dict[str, str] = {
     "span_id": "span_id",
     # Run / dataset grouping
     "run_id": "dt.eval.run_id",
-    "dataset_id": "dt.eval.dataset_id",
     "span_start": "span.start_time",
     "span_end": "span.end_time",
 }
@@ -85,7 +84,6 @@ class Eval(BaseModel):
     trace_id: str | None = None
     span_id: str | None = None
     run_id: str | None = None
-    dataset_id: str | None = None
     span_start: str | None = None
     span_end: str | None = None
 
@@ -93,6 +91,8 @@ class Eval(BaseModel):
 
     @model_validator(mode="after")
     def _validate_score(self) -> Eval:
+        if self.score is None and self.label is None:
+            raise ValueError("at least one of 'score' or 'label' must be set")
         if self.scoring_format not in SCORING_RANGES:
             raise ValueError(
                 f"unknown scoring_format {self.scoring_format!r}; "
