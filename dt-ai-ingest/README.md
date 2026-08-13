@@ -14,12 +14,8 @@ evaluations and does not export traces.
 ```bash
 pip install dt-ai-ingest
 
-# Optional extras:
+# Optional extra:
 pip install dt-ai-ingest[parquet]   # Parquet file support (pyarrow)
-pip install dt-ai-ingest[mlflow]    # MLflow EvaluationResult adapter
-pip install dt-ai-ingest[ragas]     # Ragas EvaluationResult adapter
-pip install dt-ai-ingest[deepeval]  # DeepEval EvaluationResult adapter
-pip install dt-ai-ingest[all]       # All of the above
 ```
 
 ## Configure
@@ -29,7 +25,7 @@ Credentials are read from the environment, or passed to `DynatraceClient`:
 | Variable       | Meaning                                            |
 | -------------- | -------------------------------------------------- |
 | `DT_ENDPOINT`  | Tenant URL, e.g. `https://abc.live.dynatrace.com`  |
-| `DT_API_TOKEN` | Dynatrace access token with the `events.ingest` scope |
+| `DT_API_TOKEN` | Dynatrace access token with the `bizevents.ingest` scope |
 
 `DT_TENANT_URL` / `DT_ACCESS_TOKEN` are accepted as fallbacks.
 
@@ -133,7 +129,7 @@ async with DynatraceClient() as dt:
 
 `name` and `score` are required; `label` is optional.
 `run_id` is auto-generated per call if not provided, so every event in Grail is always groupable.
-Unknown kwargs passed directly to `Eval()` are rejected — use `extra={"custom.key": "value"}` to attach arbitrary keys. When ingesting from files or framework integrations, unrecognised columns are automatically routed to `extra`.
+Unknown kwargs passed directly to `Eval()` are rejected — use `extra={"custom.key": "value"}` to attach arbitrary keys. When ingesting from files, unrecognised columns are automatically routed to `extra`.
 
 | Field | BizEvent key | Meaning |
 | ----- | ------------ | ------- |
@@ -157,10 +153,6 @@ When your source data uses different column names, pass `mapping=` to rename the
 ```python
 # File ingestion
 await ingest_file("scores.csv", mapping={"metric": "name", "rating": "score"})
-
-# Framework integrations
-from dt_ai_ingest.integrations.mlflow import from_mlflow
-evals = from_mlflow(result, mapping={"outputs": "answer", "inputs": "question"})
 ```
 
 ## Development
