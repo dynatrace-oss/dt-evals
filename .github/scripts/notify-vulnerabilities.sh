@@ -57,7 +57,7 @@ fi
 
 echo "Found ${TOTAL} vulnerabilities: ${AFFECTED}"
 
-TEXT="$(printf ':rotating_light: *npm audit found %d vulnerabilit%s* in \`%s\`\n*By severity:* critical %d, high %d, moderate %d, low %d, info %d\n*Workspaces:* %s\n*Run:* %s' \
+TEXT="$(printf ':rotating_light: *npm audit found %d vulnerabilit%s* in `%s`\n*By severity:* critical %d, high %d, moderate %d, low %d, info %d\n*Workspaces:* %s\n*Run:* %s' \
   "$TOTAL" "$([ "$TOTAL" -eq 1 ] && echo y || echo ies)" "$GITHUB_REPOSITORY" \
   "$CRITICAL" "$HIGH" "$MODERATE" "$LOW" "$INFO" \
   "$AFFECTED" "$RUN_URL")"
