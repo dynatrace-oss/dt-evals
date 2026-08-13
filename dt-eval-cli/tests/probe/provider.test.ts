@@ -10,7 +10,10 @@ vi.mock('@aws-sdk/client-bedrock-runtime', () => ({
   BedrockRuntimeClient: bedrockClientCtor.mockImplementation(function () {
     return { send: vi.fn().mockResolvedValue({ output: { message: { content: [{ text: 'ok' }] } } }) };
   }),
-  ConverseCommand: vi.fn().mockImplementation((input: unknown) => input),
+  // biome-ignore lint/complexity/useArrowFunction: function expression required for new-able mock in vitest 4.x
+  ConverseCommand: vi.fn().mockImplementation(function (input: unknown) {
+    return input;
+  }),
 }));
 
 describe('probeProvider', () => {

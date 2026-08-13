@@ -28,11 +28,11 @@ export default defineConfig({
     // each spawns CLI subprocesses — running them in parallel interleaves captured
     // output and invites provider rate limits, both of which show up as flake
     // rather than as the real signal.
+    //
+    // fileParallelism: false pins maxWorkers to 1 (Vitest 4 removed the old
+    // poolOptions.forks.singleFork knob in favor of this).
     fileParallelism: false,
     pool: 'forks',
-    poolOptions: {
-      forks: { singleFork: true },
-    },
 
     // The two settings above only serialise *files*. Within a file, serialism
     // held by convention alone — nothing used `.concurrent`, while
