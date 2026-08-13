@@ -17,6 +17,7 @@ pip install dt-ai-ingest
 # Optional extras:
 pip install dt-ai-ingest[parquet]   # Parquet file support (pyarrow)
 pip install dt-ai-ingest[ragas]     # Ragas EvaluationResult adapter
+pip install dt-ai-ingest[deepeval]  # DeepEval EvaluationResult adapter
 ```
 
 ## Configure
@@ -188,6 +189,32 @@ Scores map by metric type: continuous metrics use `score_0_to_1`; binary metrics
 Extra columns (e.g. `retrieved_contexts`) are dropped unless you map them
 through — `mapping={"retrieved_contexts": "rag.contexts"}` routes them into
 `extra`.
+
+**DeepEval** — `pip install dt-ai-ingest[deepeval]`. `from_deepeval` fans a
+DeepEval `EvaluationResult` out into one `Eval` per `(test case, metric)` pair,
+mapping `input → question` and `actual_output → answer` by default:
+
+```python
+from deepeval import evaluate
+from dt_ai_ingest import ingest
+from dt_ai_ingest.integrations.deepeval import from_deepeval
+
+result = evaluate(test_cases, metrics=[AnswerRelevancyMetric(), FaithfulnessMetric()])
+
+evals = from_deepeval(
+    result,
+    run_id="rag-eval-2025-08",                        # groups this run in Grail
+    defaults={"model_provider": "openai"},
+)
+await ingest(evals)
+```
+
+DeepEval scores are normalised to `score_0_to_1`, and every metric's
+threshold-based `success` flag becomes a `pass`/`fail` label. Each metric's
+`reason` and `evaluation_model` are carried onto the `Eval` as `explanation`
+and `model`. Extra test-case fields (e.g. `retrieval_context`) are dropped
+unless you map them through — `mapping={"retrieval_context": "rag.contexts"}`
+routes them into `extra`.
 
 ## Development
 

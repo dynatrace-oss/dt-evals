@@ -38,6 +38,9 @@ parquet = [
 ragas = [
     "ragas>=0.2",
 ]
+deepeval = [
+    "deepeval>=3",
+]
 
 [project.urls]
 Homepage = "https://github.com/dynatrace-oss/dt-ai-ingest"
