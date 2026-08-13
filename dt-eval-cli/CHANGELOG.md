@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.18-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.17-alpha...v0.2.18-alpha) (2026-08-13)
+
+
+### 🐛 Bug Fixes
+
+* bump vitest 2.x -&gt; 4.x to clear devDependency vulnerabilities ([#186](https://github.com/dynatrace-oss/dt-evals/issues/186)) ([47b1ec5](https://github.com/dynatrace-oss/dt-evals/commit/47b1ec579b92523f859941f74d7ee4328ef70572))
+
 ## [0.2.17-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.16-alpha...v0.2.17-alpha) (2026-08-12)
 
 
