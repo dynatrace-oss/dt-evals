@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.19-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.18-alpha...v0.2.19-alpha) (2026-08-14)
+
+
+### 🐛 Bug Fixes
+
+* clear dependency-audit vulnerabilities across all workspaces ([#193](https://github.com/dynatrace-oss/dt-evals/issues/193)) ([e75594e](https://github.com/dynatrace-oss/dt-evals/commit/e75594e13c35a19e8e897c782de8e38167d32ef6))
+
 ## [0.2.18-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.17-alpha...v0.2.18-alpha) (2026-08-13)
 
 
