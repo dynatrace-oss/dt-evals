@@ -57,8 +57,10 @@ def test_csv_native_column_names(tmp_path):
 
 def test_blank_csv_cell_is_absent(tmp_path):
     path = tmp_path / "e.csv"
-    path.write_text("name,score\nfoo,\n")
-    assert list(rows_to_evals(path))[0].score is None
+    path.write_text("name,score,label\nfoo,0.5,\n")
+    ev = list(rows_to_evals(path))[0]
+    assert ev.score == 0.5
+    assert ev.label is None  # blank cell dropped, not sent as empty string
 
 
 def test_parquet(tmp_path):
@@ -69,7 +71,7 @@ def test_parquet(tmp_path):
         "name": ["faithfulness", "toxicity", "helpfulness"],
         "score": [0.92, 0.0, 4.0],
         "label": ["pass", "pass", "pass"],
-        "scoring_format": ["score_0_to_1", "score_0_to_1", "score_1_to_5"],
+        "scoring_format": ["score_0_to_1", "score_0_to_1", "rubric"],
         "model_provider": ["openai", "openai", "openai"],
         "run_id": ["run-1", "run-1", "run-1"],
     })
@@ -81,7 +83,7 @@ def test_parquet(tmp_path):
     assert evals[0].name == "faithfulness"
     assert evals[0].score == 0.92
     assert evals[0].model_provider == "openai"
-    assert evals[2].scoring_format == "score_1_to_5"
+    assert evals[2].scoring_format == "rubric"
     assert evals[2].score == 4.0
 
 
@@ -91,11 +93,13 @@ def test_parquet_nulls_are_absent(tmp_path):
 
     table = pa.table({
         "name": ["x"],
-        "score": pa.array([None], type=pa.float64()),
+        "score": [0.5],
+        "label": pa.array([None], type=pa.string()),
     })
     pq.write_table(table, tmp_path / "e.parquet")
     ev = list(rows_to_evals(tmp_path / "e.parquet"))[0]
-    assert ev.score is None
+    assert ev.score == 0.5
+    assert ev.label is None  # null cell dropped
 
 
 def test_unsupported_file_type(tmp_path):
