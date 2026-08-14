@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.16-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.15-alpha...dt-eval-lib-v0.0.16-alpha) (2026-08-14)
+
+
+### 🐛 Bug Fixes
+
+* clear dependency-audit vulnerabilities across all workspaces ([#193](https://github.com/dynatrace-oss/dt-evals/issues/193)) ([e75594e](https://github.com/dynatrace-oss/dt-evals/commit/e75594e13c35a19e8e897c782de8e38167d32ef6))
+
 ## [0.0.15-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.14-alpha...dt-eval-lib-v0.0.15-alpha) (2026-07-24)
 
 
