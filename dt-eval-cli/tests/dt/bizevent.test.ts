@@ -29,7 +29,7 @@ describe('buildBizeventPayload', () => {
   it('produces a payload with the correct schema fields', () => {
     const span = makeSpan();
     const result = makeEvalResult();
-    const payload = buildBizeventPayload(span, 'relevance', 'Relevance', result, 'run-001', 'openai', 'gpt-4o');
+    const payload = buildBizeventPayload(span, 'relevance', 'Relevance', result, 'run-001', 'llm_as_judge', 'openai', 'gpt-4o');
 
     expect(payload['event.type']).toBe('gen_ai.evaluation.result');
     expect(payload['event.provider']).toBe('dt-eval-cli');
@@ -38,6 +38,7 @@ describe('buildBizeventPayload', () => {
     expect(payload['gen_ai.evaluation.name']).toBe('Relevance');
     expect(payload['gen_ai.evaluation.spec_id']).toBe('relevance');
     expect(payload['gen_ai.evaluation.score.value']).toBe(0.9);
+    expect(payload['gen_ai.evaluation.type']).toBe('ready_made');
     expect(payload['gen_ai.provider.name']).toBe('openai');
     expect(payload['gen_ai.request.model']).toBe('gpt-4o');
     expect(payload['gen_ai.evaluation.input.request_model']).toBe('gpt-4o');
@@ -47,31 +48,31 @@ describe('buildBizeventPayload', () => {
   });
 
   it('sets event.type to "gen_ai.evaluation.result"', () => {
-    const payload = buildBizeventPayload(makeSpan(), 'toxicity', 'Toxicity', makeEvalResult(), 'run-1', 'anthropic', 'claude');
+    const payload = buildBizeventPayload(makeSpan(), 'toxicity', 'Toxicity', makeEvalResult(), 'run-1', 'llm_as_judge', 'anthropic', 'claude');
     expect(payload['event.type']).toBe('gen_ai.evaluation.result');
   });
 
   it('sets score label to "pass" from eval result', () => {
     const result = makeEvalResult(0.9, 'pass');
-    const payload = buildBizeventPayload(makeSpan(), 'relevance', 'Relevance', result, 'run-1', 'openai', 'gpt-4o');
+    const payload = buildBizeventPayload(makeSpan(), 'relevance', 'Relevance', result, 'run-1', 'llm_as_judge', 'openai', 'gpt-4o');
     expect(payload['gen_ai.evaluation.score.label']).toBe('pass');
   });
 
   it('sets score label to "fail" from eval result', () => {
     const result = makeEvalResult(0.1, 'fail');
-    const payload = buildBizeventPayload(makeSpan(), 'toxicity', 'Toxicity', result, 'run-1', 'openai', 'gpt-4o');
+    const payload = buildBizeventPayload(makeSpan(), 'toxicity', 'Toxicity', result, 'run-1', 'llm_as_judge', 'openai', 'gpt-4o');
     expect(payload['gen_ai.evaluation.score.label']).toBe('fail');
   });
 
   it('uses the exact score.value from EvalResult', () => {
     const result = makeEvalResult(0.75, 'pass');
-    const payload = buildBizeventPayload(makeSpan(), 'user-frustration', 'User Frustration', result, 'run-1', 'openai', 'gpt-4o');
+    const payload = buildBizeventPayload(makeSpan(), 'user-frustration', 'User Frustration', result, 'run-1', 'llm_as_judge', 'openai', 'gpt-4o');
     expect(payload['gen_ai.evaluation.score.value']).toBe(0.75);
   });
 
   it('uses explanation.summary as the explanation string', () => {
     const result = makeEvalResult(1, 'pass', 'No harmful content detected.');
-    const payload = buildBizeventPayload(makeSpan(), 'toxicity', 'Toxicity', result, 'run-1', 'openai', 'gpt-4o');
+    const payload = buildBizeventPayload(makeSpan(), 'toxicity', 'Toxicity', result, 'run-1', 'llm_as_judge', 'openai', 'gpt-4o');
     expect(payload['gen_ai.evaluation.explanation']).toBe('No harmful content detected.');
   });
 
@@ -91,20 +92,34 @@ describe('buildBizeventPayload', () => {
   });
 
   it('includes judge provider and model metadata', () => {
-    const payload = buildBizeventPayload(makeSpan(), 'faithfulness', 'Faithfulness', makeEvalResult(), 'run-1', 'anthropic', 'claude-sonnet-4-6');
+    const payload = buildBizeventPayload(makeSpan(), 'faithfulness', 'Faithfulness', makeEvalResult(), 'run-1', 'llm_as_judge', 'anthropic', 'claude-sonnet-4-6');
     expect(payload['gen_ai.provider.name']).toBe('anthropic');
     expect(payload['gen_ai.request.model']).toBe('claude-sonnet-4-6');
   });
 
+  it('records the deterministic method and omits provider/model when not an LLM judge', () => {
+    const payload = buildBizeventPayload(makeSpan(), 'json-format', 'json-format', makeEvalResult(1, 'pass'), 'run-1', 'json_schema');
+    expect(payload['gen_ai.evaluation.method']).toBe('json_schema');
+    expect(payload['gen_ai.provider.name']).toBeUndefined();
+    expect(payload['gen_ai.request.model']).toBeUndefined();
+  });
+
+  it('marks deterministic evaluations as custom and LLM-judge as ready_made', () => {
+    const det = buildBizeventPayload(makeSpan(), 'no-pii-leak', 'no-pii-leak', makeEvalResult(1, 'pass'), 'run-1', 'must_not_contain');
+    expect(det['gen_ai.evaluation.type']).toBe('custom');
+    const llm = buildBizeventPayload(makeSpan(), 'toxicity', 'Toxicity', makeEvalResult(), 'run-1', 'llm_as_judge', 'openai', 'gpt-4o');
+    expect(llm['gen_ai.evaluation.type']).toBe('ready_made');
+  });
+
   it('omits gen_ai.system when span.system is absent', () => {
     const span = makeSpan({ system: undefined });
-    const payload = buildBizeventPayload(span, 'relevance', 'Relevance', makeEvalResult(), 'run-1', 'openai', 'gpt-4o');
+    const payload = buildBizeventPayload(span, 'relevance', 'Relevance', makeEvalResult(), 'run-1', 'llm_as_judge', 'openai', 'gpt-4o');
     // gen_ai.system is not part of the dt-ai-ingest schema; only gen_ai.provider.name is used
     expect(payload['gen_ai.provider.name']).toBe('openai');
   });
 
   it('includes a valid ISO timestamp field', () => {
-    const payload = buildBizeventPayload(makeSpan(), 'toxicity', 'Toxicity', makeEvalResult(), 'run-1', 'openai', 'gpt-4o');
+    const payload = buildBizeventPayload(makeSpan(), 'toxicity', 'Toxicity', makeEvalResult(), 'run-1', 'llm_as_judge', 'openai', 'gpt-4o');
     expect(payload.timestamp).toBeDefined();
     expect(new Date(payload.timestamp!).toISOString()).toBe(payload.timestamp);
   });
@@ -112,7 +127,7 @@ describe('buildBizeventPayload', () => {
   describe('storeEvaluatedPrompt', () => {
     it('omits the evaluated question/answer/system_prompt by default', () => {
       const span = makeSpan({ systemInstruction: 'be helpful' });
-      const payload = buildBizeventPayload(span, 'relevance', 'Relevance', makeEvalResult(), 'run-1', 'openai', 'gpt-4o');
+      const payload = buildBizeventPayload(span, 'relevance', 'Relevance', makeEvalResult(), 'run-1', 'llm_as_judge', 'openai', 'gpt-4o');
       expect(payload['gen_ai.evaluation.input.question']).toBeUndefined();
       expect(payload['gen_ai.evaluation.input.answer']).toBeUndefined();
       expect(payload['gen_ai.evaluation.input.system_prompt']).toBeUndefined();
@@ -120,14 +135,14 @@ describe('buildBizeventPayload', () => {
 
     it('omits them when explicitly disabled', () => {
       const span = makeSpan({ systemInstruction: 'be helpful' });
-      const payload = buildBizeventPayload(span, 'relevance', 'Relevance', makeEvalResult(), 'run-1', 'openai', 'gpt-4o', undefined, undefined, false);
+      const payload = buildBizeventPayload(span, 'relevance', 'Relevance', makeEvalResult(), 'run-1', 'llm_as_judge', 'openai', 'gpt-4o', undefined, undefined, false);
       expect(payload['gen_ai.evaluation.input.question']).toBeUndefined();
       expect(payload['gen_ai.evaluation.input.answer']).toBeUndefined();
     });
 
     it('includes them when enabled', () => {
       const span = makeSpan({ systemInstruction: 'be helpful' });
-      const payload = buildBizeventPayload(span, 'relevance', 'Relevance', makeEvalResult(), 'run-1', 'openai', 'gpt-4o', undefined, undefined, true);
+      const payload = buildBizeventPayload(span, 'relevance', 'Relevance', makeEvalResult(), 'run-1', 'llm_as_judge', 'openai', 'gpt-4o', undefined, undefined, true);
       expect(payload['gen_ai.evaluation.input.question']).toBe(span.input);
       expect(payload['gen_ai.evaluation.input.answer']).toBe(span.output);
       expect(payload['gen_ai.evaluation.input.system_prompt']).toBe('be helpful');
@@ -165,8 +180,8 @@ describe('BizeventWriter', () => {
     const span2 = makeSpan({ traceId: 'trace-2' });
 
     const payloads = [
-      buildBizeventPayload(span1, 'toxicity', 'Toxicity', makeEvalResult(), 'run-1', 'openai', 'gpt-4o'),
-      buildBizeventPayload(span2, 'relevance', 'Relevance', makeEvalResult(), 'run-1', 'openai', 'gpt-4o'),
+      buildBizeventPayload(span1, 'toxicity', 'Toxicity', makeEvalResult(), 'run-1', 'llm_as_judge', 'openai', 'gpt-4o'),
+      buildBizeventPayload(span2, 'relevance', 'Relevance', makeEvalResult(), 'run-1', 'llm_as_judge', 'openai', 'gpt-4o'),
     ];
 
     await writer.writeBatch(payloads);
@@ -200,6 +215,7 @@ describe('BizeventWriter', () => {
         'User Frustration',
         makeEvalResult(0, 'fail'),
         'run-1',
+        'llm_as_judge',
         'openai',
         'gpt-4o',
         'my-service',
@@ -219,6 +235,7 @@ describe('BizeventWriter', () => {
         'Faithfulness',
         makeEvalResult(),
         'run-1',
+        'llm_as_judge',
         'openai',
         'gpt-4o',
         undefined,
@@ -236,6 +253,7 @@ describe('BizeventWriter', () => {
         'Relevance',
         makeEvalResult(),
         'run-1',
+        'llm_as_judge',
         'openai',
         'gpt-4o',
         undefined,
@@ -255,6 +273,7 @@ describe('BizeventWriter', () => {
         'User Frustration',
         makeEvalResult(),
         'run-1',
+        'llm_as_judge',
         'openai',
         'gpt-4o',
         undefined,

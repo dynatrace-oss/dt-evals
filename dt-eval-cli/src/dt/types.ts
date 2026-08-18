@@ -28,7 +28,7 @@ export interface BizeventPayload {
   'span.end_time'?: string;
   'timestamp'?: string;
   'gen_ai.evaluation.name': string;
-  'gen_ai.evaluation.type': 'ready_made';
+  'gen_ai.evaluation.type': 'ready_made' | 'custom';
   'gen_ai.evaluation.version': string;
   'gen_ai.evaluation.spec_id': string;
   'gen_ai.evaluation.scoring_format': string;
@@ -37,7 +37,7 @@ export interface BizeventPayload {
   'gen_ai.evaluation.explanation': string;
   /** Detailed judge rationale; only present when the evaluator produced one. */
   'gen_ai.evaluation.reasoning'?: string;
-  'gen_ai.evaluation.method': 'llm_as_judge';
+  'gen_ai.evaluation.method': 'llm_as_judge' | 'exact_match' | 'regex' | 'must_not_match' | 'json_schema' | 'must_contain' | 'must_not_contain';
   /** Only present when `storeEvaluatedPrompt` is enabled. */
   'gen_ai.evaluation.input.question'?: string;
   /** Only present when `storeEvaluatedPrompt` is enabled. */

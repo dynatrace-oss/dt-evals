@@ -280,6 +280,113 @@ describe('config', () => {
       expect(() => validateConfig(config)).toThrowError(ConfigValidationError);
     });
 
+    it('accepts a valid deterministic metric entry', () => {
+      const config = makeValidConfig();
+      config.metrics.enabled = [
+        { id: 'has-json', method: 'json_schema', params: { schema: { type: 'object' } } },
+        { id: 'has-error', method: 'must_contain', params: { keywords: ['error'], mode: 'any' } },
+        { id: 'no-refusal', method: 'must_not_contain', params: { keywords: ['i cannot help'], mode: 'any' } },
+        { id: 'matches', method: 'regex', params: { pattern: '\\d+' } },
+        { id: 'no-ssn', method: 'must_not_match', params: { pattern: '\\d{3}-\\d{2}-\\d{4}' } },
+      ] as never;
+
+      expect(() => validateConfig(config)).not.toThrow();
+    });
+
+    it('rejects a ReDoS-vulnerable regex pattern at config time', () => {
+      const config = makeValidConfig();
+      config.metrics.enabled = [
+        { id: 'evil', method: 'must_not_match', params: { pattern: '^(a+)+$' } },
+      ] as never;
+
+      expect(() => validateConfig(config)).toThrowError(ConfigValidationError);
+      try {
+        validateConfig(config);
+      } catch (err) {
+        const issues = (err as InstanceType<typeof ConfigValidationError>).issues;
+        expect(issues.some(m => /ReDoS/.test(m))).toBe(true);
+      }
+    });
+
+    it('accepts a safe (linear) regex pattern', () => {
+      const config = makeValidConfig();
+      config.metrics.enabled = [
+        { id: 'ok', method: 'must_not_match', params: { pattern: '\\d{3}-\\d{2}-\\d{4}' } },
+      ] as never;
+
+      expect(() => validateConfig(config)).not.toThrow();
+    });
+
+    it('requires inputs.expectedOutput for exact_match', () => {
+      const config = makeValidConfig();
+      config.metrics.enabled = [{ id: 'em', method: 'exact_match' }] as never;
+
+      expect(() => validateConfig(config)).toThrowError(ConfigValidationError);
+      try {
+        validateConfig(config);
+      } catch (err) {
+        const issues = (err as InstanceType<typeof ConfigValidationError>).issues;
+        expect(issues.some(m => /exact_match.*inputs\.expectedOutput/.test(m))).toBe(true);
+      }
+    });
+
+    it('accepts exact_match when inputs.expectedOutput routes a canonical field', () => {
+      const config = makeValidConfig();
+      config.metrics.enabled = [
+        { id: 'em', method: 'exact_match', inputs: { expectedOutput: 'context' } },
+      ] as never;
+
+      expect(() => validateConfig(config)).not.toThrow();
+    });
+
+    it('rejects an invalid contains mode (typo silently coerced by the scorer otherwise)', () => {
+      const config = makeValidConfig();
+      config.metrics.enabled = [
+        { id: 'c', method: 'must_contain', params: { keywords: ['x'], mode: 'alll' } },
+      ] as never;
+
+      expect(() => validateConfig(config)).toThrowError(ConfigValidationError);
+      try {
+        validateConfig(config);
+      } catch (err) {
+        const issues = (err as InstanceType<typeof ConfigValidationError>).issues;
+        expect(issues.some(m => /mode must be "any" or "all"/.test(m))).toBe(true);
+      }
+    });
+
+    it('rejects a non-string regex flags param', () => {
+      const config = makeValidConfig();
+      config.metrics.enabled = [
+        { id: 'r', method: 'regex', params: { pattern: 'abc', flags: 123 } },
+      ] as never;
+
+      expect(() => validateConfig(config)).toThrowError(ConfigValidationError);
+    });
+
+    it('throws for an unknown method', () => {
+      const config = makeValidConfig();
+      config.metrics.enabled = [{ id: 'x', method: 'bogus' }] as never;
+
+      expect(() => validateConfig(config)).toThrowError(ConfigValidationError);
+    });
+
+    it('throws when a deterministic method is missing required params', () => {
+      const config = makeValidConfig();
+      config.metrics.enabled = [
+        { id: 'r', method: 'regex' },
+        { id: 'c', method: 'must_not_contain', params: { keywords: [] } },
+      ] as never;
+
+      expect(() => validateConfig(config)).toThrowError(ConfigValidationError);
+      try {
+        validateConfig(config);
+      } catch (err) {
+        const issues = (err as InstanceType<typeof ConfigValidationError>).issues;
+        expect(issues).toContain('metrics.enabled[0].params.pattern is required for method "regex"');
+        expect(issues).toContain('metrics.enabled[1].params.keywords must be a non-empty string array for method "must_not_contain"');
+      }
+    });
+
     it('allows an empty scope.operationNames list to disable the operation-name filter', () => {
       const config = makeValidConfig({
         scope: {

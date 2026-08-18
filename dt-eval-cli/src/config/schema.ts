@@ -1,4 +1,6 @@
-export const CURRENT_SCHEMA_VERSION = 2;
+import type { DeterministicParams, EvaluatorMethod } from '@dynatrace-oss/dt-eval-lib';
+
+export const CURRENT_SCHEMA_VERSION = 3;
 
 /** A single Dynatrace tenant endpoint (origin for reads, destination for writes). */
 export interface DynatraceEndpoint {
@@ -100,13 +102,18 @@ export interface MetricInputs {
   input?: CanonicalSpanField;
   output?: CanonicalSpanField;
   context?: CanonicalSpanField;
+  /** Reference value for deterministic methods that compare against it (e.g. exact_match). */
+  expectedOutput?: CanonicalSpanField;
 }
 
 /**
- * A metric entry in `metrics.enabled`. Either a string id (legacy form) or an
- * object with optional per-metric input routing.
+ * A metric entry in `metrics.enabled`. Either a string id (legacy LLM-judge form)
+ * or an object. Object form carries optional per-metric input routing and, for
+ * deterministic evaluators, the `method` + `params`. Omitting `method` ⇒ `llm_as_judge`.
  */
-export type MetricEntry = string | { id: string; inputs?: MetricInputs };
+export type MetricEntry =
+  | string
+  | { id: string; inputs?: MetricInputs; method?: EvaluatorMethod; params?: DeterministicParams };
 
 export interface MetricsConfig {
   enabled: MetricEntry[];
@@ -144,6 +151,16 @@ export function metricId(entry: MetricEntry): string {
 /** Per-metric input routing, or undefined if the entry is a bare string. */
 export function metricInputs(entry: MetricEntry): MetricInputs | undefined {
   return typeof entry === 'string' ? undefined : entry.inputs;
+}
+
+/** Evaluation method for an entry. Defaults to "llm_as_judge" when omitted. */
+export function metricMethod(entry: MetricEntry): EvaluatorMethod {
+  return typeof entry === 'string' ? 'llm_as_judge' : entry.method ?? 'llm_as_judge';
+}
+
+/** Deterministic-method params, or undefined for LLM-judge / bare-string entries. */
+export function metricParams(entry: MetricEntry): DeterministicParams | undefined {
+  return typeof entry === 'string' ? undefined : entry.params;
 }
 
 /** Normalize a single-or-list candidate to a list. */
