@@ -16,7 +16,7 @@ export function contains(
   const keywords = params.keywords ?? [];
   if (keywords.length === 0) {
     throw new EvalConfigError(
-      "must_contain/must_not_contain requires a non-empty 'keywords' array",
+      "${mustContain ? 'must_contain' : 'must_not_contain'} requires a non-empty 'keywords' array",
     );
   }
   const mode = params.mode ?? "any";
