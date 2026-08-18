@@ -22,7 +22,16 @@ export {
   EvalResponseError,
   EvalTimeoutError,
 } from "./errors";
-export type { PromptDefinition, PromptStore } from "./prompts/index";
+export type {
+  ContainsParams,
+  DeterministicParams,
+  EvaluatorMethod,
+  ExactMatchParams,
+  JsonSchemaParams,
+  PromptDefinition,
+  PromptStore,
+  RegexParams,
+} from "./prompts/index";
 // Prompt catalog
 export {
   BuiltInMetric,

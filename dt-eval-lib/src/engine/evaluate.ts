@@ -2,24 +2,36 @@ import { EvalConfigError, EvalInputError, EvalResponseError, EvalTimeoutError } 
 import { getPrompt } from "../prompts/index";
 import type { BuiltInMetric, PromptDefinition } from "../prompts/types";
 import { computeScore } from "../scoring/index";
+import { isDeterministic, runScorer } from "./deterministic/index";
 import { createProvider } from "./providers/index";
 import type { LLMJudgeResponse } from "./providers/types";
 import type { EvalConfig, EvalInput, EvalResult } from "./types";
 
 /**
  * Main evaluation function.
- * Resolves the metric, validates input, renders the prompt,
- * calls the LLM provider, and computes the final score.
+ * Resolves the metric and validates input, then either runs a deterministic
+ * scorer or renders the prompt and calls the LLM provider.
  */
 export async function evaluate(
   metric: BuiltInMetric | PromptDefinition,
   input: EvalInput,
   config: EvalConfig,
 ): Promise<EvalResult> {
-  const { provider: providerOptions, scoring } = config;
-
   const prompt = typeof metric === "string" ? getPrompt(metric) : metric;
   validateInput(input, prompt);
+
+  const method = prompt.method ?? "llm_as_judge";
+  if (isDeterministic(method)) {
+    return runScorer(method, prompt, input, config.scoring?.thresholdOverride);
+  }
+
+  const providerOptions = config.provider;
+  if (!providerOptions) {
+    throw new EvalConfigError("LLM-judge evaluators require config.provider");
+  }
+  if (!prompt.prompt) {
+    throw new EvalConfigError(`Metric "${prompt.id}" has no prompt template`);
+  }
 
   const maxRetries = providerOptions.maxRetries ?? 2;
   if (maxRetries < 0 || !Number.isInteger(maxRetries)) {
@@ -31,7 +43,11 @@ export async function evaluate(
 
   const response = await callWithRetry(() => provider.call(renderedPrompt), maxRetries);
 
-  const score = computeScore(response.scoreValue, prompt.scoring, scoring?.thresholdOverride);
+  const score = computeScore(
+    response.scoreValue,
+    prompt.scoring,
+    config.scoring?.thresholdOverride,
+  );
 
   return {
     score,

@@ -37,7 +37,8 @@ export interface ScoringOptions {
 
 /** Top-level evaluation configuration */
 export interface EvalConfig {
-  provider: ProviderOptions;
+  /** Required for LLM-judge evaluators; unused by deterministic methods */
+  provider?: ProviderOptions;
   scoring?: ScoringOptions;
 }
 
