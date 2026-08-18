@@ -130,6 +130,8 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
     'gen_ai.operation.name',
     'gen_ai.system',
     'gen_ai.provider.name',
+    'gen_ai.response.model',
+    'gen_ai.agent.name',
     ...fields.input,
     ...fields.output,
     ...fields.context,
@@ -307,6 +309,8 @@ export function parseSpanResults(
       system: asString(r['gen_ai.system']) ?? asString(r['gen_ai.provider.name']),
       operationName: asString(r['gen_ai.operation.name']),
       requestModel: pickFirstMatch(r, fields.model)?.value,
+      responseModel: asString(r['gen_ai.response.model']),
+      agentName: asString(r['gen_ai.agent.name']),
       isError: statusCode === 'ERROR' || undefined,
     });
   }

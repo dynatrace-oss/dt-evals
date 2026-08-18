@@ -10,6 +10,8 @@ export interface GenAiSpan {
   system?: string;            // gen_ai.provider.name (e.g. "openai")
   operationName?: string;     // gen_ai.operation.name (e.g. "chat", "text_completion")
   requestModel?: string;      // gen_ai.request.model
+  responseModel?: string;     // gen_ai.response.model
+  agentName?: string;         // gen_ai.agent.name
   /** Latest user-role content extracted from prompt slots or structured messages.
    * Useful for metrics that should score the user's turn alone. */
   userPrompt?: string;
@@ -40,6 +42,10 @@ export interface BizeventPayload {
   'gen_ai.evaluation.input.answer'?: string;
   /** Only present when `storeEvaluatedPrompt` is enabled. */
   'gen_ai.evaluation.input.system_prompt'?: string;
+  'gen_ai.evaluation.input.request_model'?: string;
+  'gen_ai.evaluation.input.response_model'?: string;
+  'gen_ai.evaluation.input.provider'?: string;
+  'gen_ai.evaluation.input.agent'?: string;
   'gen_ai.request.model'?: string;
   'gen_ai.provider.name'?: string;
   'dt.service.name'?: string;

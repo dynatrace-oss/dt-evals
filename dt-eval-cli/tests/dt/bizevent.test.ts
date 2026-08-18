@@ -12,6 +12,8 @@ function makeSpan(overrides?: Partial<GenAiSpan>): GenAiSpan {
     output: 'Paris.',
     system: 'openai',
     requestModel: 'gpt-4o',
+    responseModel: 'gpt-5',
+    agentName: 'my-agent',
     ...overrides,
   };
 }
@@ -38,6 +40,10 @@ describe('buildBizeventPayload', () => {
     expect(payload['gen_ai.evaluation.score.value']).toBe(0.9);
     expect(payload['gen_ai.provider.name']).toBe('openai');
     expect(payload['gen_ai.request.model']).toBe('gpt-4o');
+    expect(payload['gen_ai.evaluation.input.request_model']).toBe('gpt-4o');
+    expect(payload['gen_ai.evaluation.input.response_model']).toBe('gpt-5');
+    expect(payload['gen_ai.evaluation.input.provider']).toBe('openai');
+    expect(payload['gen_ai.evaluation.input.agent']).toBe('my-agent');
   });
 
   it('sets event.type to "gen_ai.evaluation.result"', () => {

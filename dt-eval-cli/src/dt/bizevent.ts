@@ -75,6 +75,11 @@ export function buildBizeventPayload(
     payload['gen_ai.response.id'] = span.spanId;
   }
 
+  if (span.requestModel) payload['gen_ai.evaluation.input.request_model'] = span.requestModel;
+  if (span.responseModel) payload['gen_ai.evaluation.input.response_model'] = span.responseModel;
+  if (span.system) payload['gen_ai.evaluation.input.provider'] = span.system;
+  if (span.agentName) payload['gen_ai.evaluation.input.agent'] = span.agentName;
+
   if (storeEvaluatedPrompt) {
     // Record the evaluated question/answer, while keeping system_prompt
     // reserved for the actual system instruction on the traced span.
