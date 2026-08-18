@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.20-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.19-alpha...v0.2.20-alpha) (2026-08-18)
+
+
+### ✨ New Features
+
+* add input model/provider/agent fields to eval bizevent output, ref: NOISSUE ([#200](https://github.com/dynatrace-oss/dt-evals/issues/200)) ([df0efb6](https://github.com/dynatrace-oss/dt-evals/commit/df0efb67701baa24018d845a467d910195f048d1))
+
 ## [0.2.19-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.18-alpha...v0.2.19-alpha) (2026-08-14)
 
 
