@@ -1,15 +1,15 @@
-name: Run dt-evals for smartfreight each 1h
+name: Run dt-evals for smartfreight every 20m
 
 on:
   schedule:
-    - cron: "5 * * * *"
+    - cron: "*/20 * * * *"
 
   workflow_dispatch:
     inputs:
       since:
-        description: "Time window (e.g. 1h, 6h, 24h)"
+        description: "Time window (e.g. 20m, 1h, 6h, 24h)"
         required: false
-        default: "1h"
+        default: "20m"
       sample:
         description: "Sample percentage (overrides config)"
         required: false
@@ -31,7 +31,7 @@ permissions:
 env:
   DT_EVAL_VERSION: latest
   DT_EVAL_DEBUG: ${{ inputs.dt_eval_debug || 'false' }}
-  DT_EVAL_SINCE: ${{ inputs.since || '1h' }}
+  DT_EVAL_SINCE: ${{ inputs.since || '20m' }}
   DT_EVAL_SAMPLE: ${{ inputs.sample || '' }}
   DT_EVAL_DRY_RUN: ${{ inputs.dry_run || 'false' }}
 
