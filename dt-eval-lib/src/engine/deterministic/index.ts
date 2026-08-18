@@ -1,12 +1,5 @@
 import { EvalConfigError } from "../../errors";
-import type {
-  ContainsParams,
-  EvaluatorMethod,
-  ExactMatchParams,
-  JsonSchemaParams,
-  PromptDefinition,
-  RegexParams,
-} from "../../prompts/types";
+import type { EvaluatorMethod, PromptDefinition } from "../../prompts/types";
 import { BINARY_SCALE, computeScore } from "../../scoring/index";
 import type { EvalInput, EvalResult } from "../types";
 import { contains } from "./contains";
@@ -14,7 +7,13 @@ import { exactMatch } from "./exact-match";
 import { jsonSchema } from "./json-schema";
 import { assertPatternSafe } from "./redos";
 import { regex } from "./regex";
-import type { DeterministicOutcome } from "./types";
+import type {
+  ContainsParams,
+  DeterministicOutcome,
+  ExactMatchParams,
+  JsonSchemaParams,
+  RegexParams,
+} from "./types";
 
 /** True for every method except the LLM judge. */
 export function isDeterministic(method: EvaluatorMethod): boolean {

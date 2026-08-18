@@ -1,7 +1,6 @@
 import { EvalConfigError, EvalInputError } from "../../errors";
-import type { RegexParams } from "../../prompts/types";
 import type { EvalInput } from "../types";
-import type { DeterministicOutcome } from "./types";
+import type { DeterministicOutcome, RegexParams } from "./types";
 
 /**
  * Hard cap on the text fed to the native regex engine. Oversized output is

@@ -1,7 +1,6 @@
 import { EvalConfigError } from "../../errors";
-import type { ContainsParams } from "../../prompts/types";
 import type { EvalInput } from "../types";
-import type { DeterministicOutcome } from "./types";
+import type { ContainsParams, DeterministicOutcome } from "./types";
 
 /**
  * Keyword presence check shared by the must_contain / must_not_contain methods.
@@ -16,7 +15,7 @@ export function contains(
   const keywords = params.keywords ?? [];
   if (keywords.length === 0) {
     throw new EvalConfigError(
-      "${mustContain ? 'must_contain' : 'must_not_contain'} requires a non-empty 'keywords' array",
+      `${mustContain ? "must_contain" : "must_not_contain"} requires a non-empty 'keywords' array`,
     );
   }
   const mode = params.mode ?? "any";

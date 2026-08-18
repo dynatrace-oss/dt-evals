@@ -1,6 +1,5 @@
-import type { ExactMatchParams } from "../../prompts/types";
 import type { EvalInput } from "../types";
-import type { DeterministicOutcome } from "./types";
+import type { DeterministicOutcome, ExactMatchParams } from "./types";
 
 export function exactMatch(input: EvalInput, params: ExactMatchParams): DeterministicOutcome {
   let actual = input.output;

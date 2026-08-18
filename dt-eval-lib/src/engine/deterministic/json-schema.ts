@@ -1,7 +1,6 @@
 import { EvalConfigError } from "../../errors";
-import type { JsonSchemaParams } from "../../prompts/types";
 import type { EvalInput } from "../types";
-import type { DeterministicOutcome } from "./types";
+import type { DeterministicOutcome, JsonSchemaParams } from "./types";
 
 export async function jsonSchema(
   input: EvalInput,
