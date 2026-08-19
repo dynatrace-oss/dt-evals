@@ -31,6 +31,12 @@ describe("deterministic evaluators", () => {
     expect(r.score.label).toBe("fail");
   });
 
+  it("exact_match: rejects a missing expected output even when requiredFields omits it", async () => {
+    await expect(
+      run({ method: "exact_match", requiredFields: ["output"] }, { output: "" }),
+    ).rejects.toThrow(/expectedOutput/);
+  });
+
   it("exact_match: trim + caseSensitive:false → pass", async () => {
     const r = await run(
       {
@@ -54,6 +60,12 @@ describe("deterministic evaluators", () => {
   it("regex: no match → fail", async () => {
     const r = await run({ method: "regex", params: { pattern: "^\\d+$" } }, { output: "abc" });
     expect(r.score.label).toBe("fail");
+  });
+
+  it("regex: rejects params for a different method", async () => {
+    await expect(
+      run({ method: "regex", params: { keywords: ["x"] } }, { output: "x" }),
+    ).rejects.toThrow(/pattern/);
   });
 
   it("must_not_match: no match → pass (PII-clean output)", async () => {
@@ -142,6 +154,15 @@ describe("deterministic evaluators", () => {
     expect(r.score.label).toBe("pass");
   });
 
+  it("must_contain: rejects an unsupported mode at runtime", async () => {
+    await expect(
+      run(
+        { method: "must_contain", params: { keywords: ["dog"], mode: "invalid" } },
+        { output: "dog" },
+      ),
+    ).rejects.toThrow(/mode/);
+  });
+
   it("must_not_contain: keyword absent → pass (blocklist)", async () => {
     const r = await run(
       { method: "must_not_contain", params: { keywords: ["i cannot help"], mode: "any" } },
@@ -189,6 +210,32 @@ describe("deterministic evaluators", () => {
       { output: "not json" },
     );
     expect(r.score.label).toBe("fail");
+  });
+
+  it("json_schema: rejects params for a different method", async () => {
+    await expect(
+      run({ method: "json_schema", params: { pattern: ".*" } }, { output: "{}" }),
+    ).rejects.toThrow(/schema/);
+  });
+
+  it("json_schema: rejects an invalid schema even when the output is invalid JSON", async () => {
+    await expect(
+      run(
+        { method: "json_schema", params: { schema: { type: "not-a-type" } } },
+        { output: "not json" },
+      ),
+    ).rejects.toThrow(/Invalid JSON Schema/);
+  });
+
+  it.each([
+    ["exact_match", { caseSensitive: "false" }, /caseSensitive/],
+    ["regex", { pattern: "x", flags: 1 }, /flags/],
+    ["must_contain", { keywords: [1] }, /keywords/],
+    ["json_schema", { schema: [] }, /schema/],
+  ])("validates %s params at runtime", async (method, params, expectedError) => {
+    await expect(
+      run({ method, params } as Partial<PromptDefinition>, { output: "x", expectedOutput: "x" }),
+    ).rejects.toThrow(expectedError as RegExp);
   });
 
   it("does not require a provider", async () => {

@@ -46,4 +46,28 @@ describe("regex ReDoS guard fails closed", () => {
     const r = await evaluate(regexDef("abc"), { input: "", output: "abc" }, {});
     expect(r.score.label).toBe("pass");
   });
+
+  it("coalesces concurrent analysis of the same pattern", async () => {
+    let finishAnalysis!: (result: { status: "safe" }) => void;
+    const check = vi.fn().mockResolvedValue({ status: "safe" });
+    vi.doMock("recheck", () => ({ check }));
+    const { assertPatternSafe } = await import("../src/engine/deterministic/redos");
+    await assertPatternSafe("warm-import");
+    check.mockClear();
+    check.mockImplementation(
+      () =>
+        new Promise<{ status: "safe" }>((resolve) => {
+          finishAnalysis = resolve;
+        }),
+    );
+
+    const first = assertPatternSafe("concurrent");
+    const second = assertPatternSafe("concurrent");
+    await vi.waitFor(() => expect(check).toHaveBeenCalled());
+    expect(check).toHaveBeenCalledOnce();
+    finishAnalysis({ status: "safe" });
+
+    await expect(Promise.all([first, second])).resolves.toHaveLength(2);
+    expect(check).toHaveBeenCalledOnce();
+  });
 });
