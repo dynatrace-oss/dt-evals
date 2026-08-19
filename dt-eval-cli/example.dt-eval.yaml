@@ -2,7 +2,7 @@
 # Copy this file to <your-service>.dt-eval.yaml and fill in your values.
 # Run: dt-eval run --config <your-service>.dt-eval.yaml
 
-schemaVersion: 1
+schemaVersion: 3
 
 # Human-readable name shown in run output and stored in Dynatrace bizevents.
 name: my-ai-service-prod
@@ -88,6 +88,19 @@ metrics:
     - bias                  # Demographic or ideological bias
     - summarization-quality # Quality of summaries vs. source document
     - conciseness           # Avoids unnecessary verbosity
+
+    # Deterministic metrics (no LLM call):
+    - id: valid-json
+      method: json_schema
+      params:
+        schema:
+          type: object
+          required: [answer]
+    - id: no-refusal
+      method: must_not_contain
+      params:
+        keywords: ["i cannot help", "i'm sorry"]
+        mode: any
 
     # Statistical drift detection (no LLM call — compares current vs. baseline scores in DT):
     - drift

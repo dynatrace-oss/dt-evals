@@ -56,6 +56,7 @@ jobs:
         run: |
           npm ci
           npm install ../dt-eval-lib
+          npm run typecheck
           npm run build
 
       - name: Install E2E dependencies

@@ -23,6 +23,7 @@
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
     "dev": "tsx src/index.ts"
   },
   "homepage": "https://github.com/dynatrace-oss/dt-evals#readme",

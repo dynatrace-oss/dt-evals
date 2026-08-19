@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { createRequire } from 'node:module';
 import { join, dirname } from 'node:path';
+import { Ajv } from 'ajv';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import {
   CURRENT_SCHEMA_VERSION,
@@ -210,6 +211,7 @@ export function saveConfig(config: DtEvalConfig, filePath: string): void {
 const DETERMINISTIC_METHODS = ['exact_match', 'regex', 'must_not_match', 'json_schema', 'must_contain', 'must_not_contain'];
 const ALL_METHODS = ['llm_as_judge', ...DETERMINISTIC_METHODS];
 const CANONICAL_SPAN_FIELDS = ['input', 'output', 'context', 'systemInstruction', 'model', 'userPrompt'];
+const METRIC_INPUT_SLOTS = ['input', 'output', 'context', 'expectedOutput'];
 
 type CheckSync = (source: string, flags: string, params?: object) => { status: string };
 let _checkSync: CheckSync | null | undefined;
@@ -246,6 +248,26 @@ function regexSafetyIssue(pattern: string, flags: string): string | null {
     return 'it is vulnerable to catastrophic backtracking (ReDoS); simplify the pattern';
   }
   return 'its safety could not be verified (analysis inconclusive or timed out); simplify the pattern';
+}
+
+/** Validate per-metric routing before the runner can silently fall back. */
+function validateMetricInputs(entry: Record<string, unknown>, i: number, issues: string[]): void {
+  const inputs = entry['inputs'];
+  if (inputs === undefined) return;
+  if (typeof inputs !== 'object' || inputs === null || Array.isArray(inputs)) {
+    issues.push(`metrics.enabled[${i}].inputs must be an object`);
+    return;
+  }
+
+  for (const [slot, field] of Object.entries(inputs)) {
+    if (!METRIC_INPUT_SLOTS.includes(slot)) {
+      issues.push(`metrics.enabled[${i}].inputs.${slot} is not supported`);
+      continue;
+    }
+    if (typeof field !== 'string' || !CANONICAL_SPAN_FIELDS.includes(field)) {
+      issues.push(`metrics.enabled[${i}].inputs.${slot} must route one of: ${CANONICAL_SPAN_FIELDS.join(', ')}`);
+    }
+  }
 }
 
 /** Validate the optional deterministic `method` + `params` on an object metric entry. */
@@ -291,8 +313,17 @@ function validateMethodEntry(entry: Record<string, unknown>, i: number, issues: 
     }
     checkBoolean(params, 'caseSensitive', i, method, issues);
   }
-  if (method === 'json_schema' && (typeof params['schema'] !== 'object' || params['schema'] === null)) {
-    issues.push(`metrics.enabled[${i}].params.schema (object) is required for method "json_schema"`);
+  if (method === 'json_schema') {
+    const schema = params['schema'];
+    if (typeof schema !== 'object' || schema === null) {
+      issues.push(`metrics.enabled[${i}].params.schema (object) is required for method "json_schema"`);
+    } else {
+      try {
+        new Ajv({ allErrors: true, strict: false }).compile(schema);
+      } catch (err) {
+        issues.push(`metrics.enabled[${i}].params.schema is not a valid JSON Schema: ${(err as Error).message}`);
+      }
+    }
   }
 }
 
@@ -368,6 +399,7 @@ export function validateConfig(config: DtEvalConfig): void {
         if (typeof (entry as { id?: unknown }).id !== 'string' || !(entry as { id: string }).id.trim()) {
           issues.push(`metrics.enabled[${i}].id must be a non-empty string`);
         }
+        validateMetricInputs(entry as Record<string, unknown>, i, issues);
         validateMethodEntry(entry as Record<string, unknown>, i, issues);
       } else {
         issues.push(`metrics.enabled[${i}] must be a string or { id, method?, params?, inputs? } object`);

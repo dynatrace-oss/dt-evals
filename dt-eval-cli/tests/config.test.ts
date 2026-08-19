@@ -339,6 +339,51 @@ describe('config', () => {
       expect(() => validateConfig(config)).not.toThrow();
     });
 
+    it.each(['input', 'output', 'context', 'expectedOutput'])(
+      'rejects an invalid inputs.%s canonical field',
+      (slot) => {
+        const config = makeValidConfig();
+        config.metrics.enabled = [
+          {
+            id: 'routed',
+            method: 'must_contain',
+            params: { keywords: ['ok'] },
+            inputs: { [slot]: 'outpt' },
+          },
+        ] as never;
+
+        expect(() => validateConfig(config)).toThrowError(ConfigValidationError);
+        try {
+          validateConfig(config);
+        } catch (err) {
+          const issues = (err as InstanceType<typeof ConfigValidationError>).issues;
+          expect(issues).toContain(
+            `metrics.enabled[0].inputs.${slot} must route one of: input, output, context, systemInstruction, model, userPrompt`,
+          );
+        }
+      },
+    );
+
+    it('rejects unknown input routing slots', () => {
+      const config = makeValidConfig();
+      config.metrics.enabled = [
+        {
+          id: 'routed',
+          method: 'must_contain',
+          params: { keywords: ['ok'] },
+          inputs: { answer: 'output' },
+        },
+      ] as never;
+
+      expect(() => validateConfig(config)).toThrowError(ConfigValidationError);
+      try {
+        validateConfig(config);
+      } catch (err) {
+        const issues = (err as InstanceType<typeof ConfigValidationError>).issues;
+        expect(issues).toContain('metrics.enabled[0].inputs.answer is not supported');
+      }
+    });
+
     it('rejects an invalid contains mode (typo silently coerced by the scorer otherwise)', () => {
       const config = makeValidConfig();
       config.metrics.enabled = [
@@ -384,6 +429,27 @@ describe('config', () => {
         const issues = (err as InstanceType<typeof ConfigValidationError>).issues;
         expect(issues).toContain('metrics.enabled[0].params.pattern is required for method "regex"');
         expect(issues).toContain('metrics.enabled[1].params.keywords must be a non-empty string array for method "must_not_contain"');
+      }
+    });
+
+    it('rejects a JSON Schema that AJV cannot compile', () => {
+      const config = makeValidConfig();
+      config.metrics.enabled = [
+        {
+          id: 'invalid-schema',
+          method: 'json_schema',
+          params: { schema: { type: 'not-a-json-schema-type' } },
+        },
+      ] as never;
+
+      expect(() => validateConfig(config)).toThrowError(ConfigValidationError);
+      try {
+        validateConfig(config);
+      } catch (err) {
+        const issues = (err as InstanceType<typeof ConfigValidationError>).issues;
+        expect(issues.some(issue =>
+          issue.startsWith('metrics.enabled[0].params.schema is not a valid JSON Schema:'),
+        )).toBe(true);
       }
     });
 
