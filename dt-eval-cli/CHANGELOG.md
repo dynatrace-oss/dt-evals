@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.21-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.20-alpha...v0.2.21-alpha) (2026-08-19)
+
+
+### ✨ New Features
+
+* **dt-eval-cli:** emit judge reasoning as a separate bizevent field ([#202](https://github.com/dynatrace-oss/dt-evals/issues/202)) ([a5d7e30](https://github.com/dynatrace-oss/dt-evals/commit/a5d7e305dff0d9169001217c9691a33f4b8414ae))
+
 ## [0.2.20-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.19-alpha...v0.2.20-alpha) (2026-08-18)
 
 
