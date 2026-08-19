@@ -35,6 +35,8 @@ export interface BizeventPayload {
   'gen_ai.evaluation.score.value': number;
   'gen_ai.evaluation.score.label': 'pass' | 'fail';
   'gen_ai.evaluation.explanation': string;
+  /** Detailed judge rationale; only present when the evaluator produced one. */
+  'gen_ai.evaluation.reasoning'?: string;
   'gen_ai.evaluation.method': 'llm_as_judge';
   /** Only present when `storeEvaluatedPrompt` is enabled. */
   'gen_ai.evaluation.input.question'?: string;

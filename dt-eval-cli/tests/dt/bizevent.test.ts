@@ -75,6 +75,21 @@ describe('buildBizeventPayload', () => {
     expect(payload['gen_ai.evaluation.explanation']).toBe('No harmful content detected.');
   });
 
+  it('includes explanation.reasoning as a separate field when present', () => {
+    const result: EvalResult = {
+      score: { value: 1, label: 'pass' },
+      explanation: { summary: 'Supported.', reasoning: 'Every atomic fact is entailed by the source.' },
+    };
+    const payload = buildBizeventPayload(makeSpan(), 'faithfulness', 'Faithfulness', result, 'run-1', 'openai', 'gpt-4o');
+    expect(payload['gen_ai.evaluation.explanation']).toBe('Supported.');
+    expect(payload['gen_ai.evaluation.reasoning']).toBe('Every atomic fact is entailed by the source.');
+  });
+
+  it('omits the reasoning field when the evaluator produced none', () => {
+    const payload = buildBizeventPayload(makeSpan(), 'toxicity', 'Toxicity', makeEvalResult(), 'run-1', 'openai', 'gpt-4o');
+    expect(payload).not.toHaveProperty('gen_ai.evaluation.reasoning');
+  });
+
   it('includes judge provider and model metadata', () => {
     const payload = buildBizeventPayload(makeSpan(), 'faithfulness', 'Faithfulness', makeEvalResult(), 'run-1', 'anthropic', 'claude-sonnet-4-6');
     expect(payload['gen_ai.provider.name']).toBe('anthropic');

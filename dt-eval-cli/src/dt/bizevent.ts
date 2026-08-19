@@ -70,6 +70,9 @@ export function buildBizeventPayload(
     'span.end_time': span.endTime,
   };
 
+  // Detailed judge rationale, kept separate from the concise explanation (summary).
+  if (result.explanation.reasoning) payload['gen_ai.evaluation.reasoning'] = result.explanation.reasoning;
+
   if (span.spanId) {
     payload['span_id'] = span.spanId;
     payload['gen_ai.response.id'] = span.spanId;
