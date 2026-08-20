@@ -3,6 +3,14 @@
 export type { DriftOptions, DriftResult, DriftWindowStats } from "./drift";
 // Drift detection
 export { detectDrift, detectDriftBatch } from "./drift";
+// Deterministic evaluator param types
+export type {
+  ContainsParams,
+  DeterministicParams,
+  ExactMatchParams,
+  JsonSchemaParams,
+  RegexParams,
+} from "./engine/deterministic/types";
 // Main eval function
 export { evaluate } from "./engine/index";
 export type {
@@ -22,7 +30,11 @@ export {
   EvalResponseError,
   EvalTimeoutError,
 } from "./errors";
-export type { PromptDefinition, PromptStore } from "./prompts/index";
+export type {
+  EvaluatorMethod,
+  PromptDefinition,
+  PromptStore,
+} from "./prompts/index";
 // Prompt catalog
 export {
   BuiltInMetric,

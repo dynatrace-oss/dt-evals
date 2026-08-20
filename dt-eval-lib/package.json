@@ -48,7 +48,9 @@
     "@anthropic-ai/sdk": "^0.32.0",
     "@aws-sdk/client-bedrock-runtime": "^3.0.0",
     "@google/genai": "^1.0.0",
-    "openai": "^4.73.0"
+    "ajv": "^8.0.0",
+    "openai": "^4.73.0",
+    "recheck": "^4.0.0"
   },
   "peerDependenciesMeta": {
     "openai": {
@@ -62,6 +64,12 @@
     },
     "@google/genai": {
       "optional": true
+    },
+    "ajv": {
+      "optional": true
+    },
+    "recheck": {
+      "optional": true
     }
   },
   "devDependencies": {
@@ -69,8 +77,10 @@
     "@aws-sdk/client-bedrock-runtime": "^3.1031.0",
     "@biomejs/biome": "2.4.9",
     "@google/genai": "^1.0.0",
+    "ajv": "^8.17.1",
     "dotenv": "^17.3.1",
     "openai": "^4.73.0",
+    "recheck": "^4.5.0",
     "tsup": "^8.3.0",
     "tsx": "^4.23.12",
     "typescript": "^5.7.0",

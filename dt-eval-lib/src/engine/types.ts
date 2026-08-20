@@ -37,7 +37,7 @@ export interface ScoringOptions {
 
 /** Top-level evaluation configuration */
 export interface EvalConfig {
-  provider: ProviderOptions;
+  provider?: ProviderOptions;
   scoring?: ScoringOptions;
 }
 

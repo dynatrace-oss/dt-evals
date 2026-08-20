@@ -1,0 +1,67 @@
+import { EvalConfigError } from "../../errors";
+
+/**
+ * ReDoS guard for the regex / must_not_match methods.
+ *
+ * A catastrophic-backtracking pattern (e.g. `^(a+)+$`) can monopolise the event
+ * loop on short input — a real DoS vector since the evaluated text is app output
+ * that may be attacker-influenced. ReDoS is a property of the *pattern*, so we
+ * screen the pattern and only run it once proven safe.
+ *
+ * This guard **fails closed**: a pattern is executed only when the analyzer
+ * (`recheck`) reports it `safe`. If `recheck` is not installed, or the analysis
+ * errors / times out / is inconclusive, the pattern is rejected. `recheck` is an
+ * optional peer (kept out of the default install so an LLM-only consumer stays
+ * lightweight), but any consumer that runs regex methods must ship it — the CLI
+ * and dt-eval-deploy do.
+ *
+ * Verdicts are cached per pattern so a batch re-using one metric only analyses
+ * once.
+ */
+const verdicts = new Map<string, Promise<string | null>>();
+
+export async function assertPatternSafe(pattern: string, flags = ""): Promise<void> {
+  const key = JSON.stringify([flags, pattern]);
+  let pending = verdicts.get(key);
+  if (!pending) {
+    pending = analyzePattern(pattern, flags);
+    verdicts.set(key, pending);
+  }
+
+  let reason: string | null;
+  try {
+    reason = await pending;
+  } catch (error) {
+    verdicts.delete(key);
+    throw error;
+  }
+  if (reason) reject(reason, pattern);
+}
+
+async function analyzePattern(pattern: string, flags: string): Promise<string | null> {
+  let check: typeof import("recheck").check;
+  try {
+    ({ check } = await import("recheck"));
+  } catch {
+    // Do not cache — availability is process-wide, not per-pattern.
+    throw new EvalConfigError(
+      "regex / must_not_match require the optional 'recheck' dependency for ReDoS safety, which is not installed. Install it (e.g. `npm i recheck`) or remove regex-based evaluators.",
+    );
+  }
+
+  try {
+    const diagnostics = await check(pattern, flags, { checker: "auto", timeout: 1000 });
+    if (diagnostics.status === "safe") {
+      return null;
+    } else if (diagnostics.status === "vulnerable") {
+      return "it is vulnerable to catastrophic backtracking (ReDoS); simplify the pattern";
+    }
+    return "its safety could not be verified (analysis was inconclusive or timed out); simplify the pattern";
+  } catch (error) {
+    return `its safety analysis failed (${(error as Error).message}); simplify the pattern`;
+  }
+}
+
+function reject(reason: string, pattern: string): never {
+  throw new EvalConfigError(`Regex pattern rejected — ${reason}: /${pattern}/`);
+}
