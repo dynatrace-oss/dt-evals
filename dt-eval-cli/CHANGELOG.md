@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.22-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.21-alpha...v0.2.22-alpha) (2026-08-20)
+
+
+### ✨ New Features
+
+* **dt-eval-cli:** wire deterministic evaluators (config, runner, telemetry) ([#197](https://github.com/dynatrace-oss/dt-evals/issues/197)) ([325079f](https://github.com/dynatrace-oss/dt-evals/commit/325079f17d6f004c8abf09d97ae12d8134dd0d9e))
+
 ## [0.2.21-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.20-alpha...v0.2.21-alpha) (2026-08-19)
 
 
