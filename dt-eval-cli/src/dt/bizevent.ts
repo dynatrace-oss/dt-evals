@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module';
 import type { DynatraceClient } from './client.js';
 import type { GenAiSpan, BizeventPayload } from './types.js';
-import type { EvalResult } from '@dynatrace-oss/dt-eval-lib';
+import type { EvalResult, EvaluatorMethod } from '@dynatrace-oss/dt-eval-lib';
 
 declare const __CLIENT_VERSION__: string | undefined;
 const CLIENT_NAME = 'dt-eval-cli';
@@ -40,8 +40,10 @@ export function buildBizeventPayload(
   metricName: string,
   result: EvalResult,
   runId: string,
-  judgeProvider: string,
-  judgeModel: string,
+  method: EvaluatorMethod,
+  /** LLM-judge only — omitted for deterministic methods. */
+  judgeProvider?: string,
+  judgeModel?: string,
   serviceName?: string,
   judgeInputs?: JudgeInputs,
   storeEvaluatedPrompt = false,
@@ -52,16 +54,18 @@ export function buildBizeventPayload(
     'trace_id': span.traceId,
     'timestamp': new Date().toISOString(),
     'gen_ai.evaluation.name': metricName,
-    'gen_ai.evaluation.type': 'ready_made',
+    // Built-in catalog metrics (LLM judge) are ready_made; deterministic
+    // methods are authored by the user in their config, so they are custom.
+    'gen_ai.evaluation.type': method === 'llm_as_judge' ? 'ready_made' : 'custom',
     'gen_ai.evaluation.version': 'v1.0',
     'gen_ai.evaluation.spec_id': metricId,
     'gen_ai.evaluation.scoring_format': scoringFormat(result.score.value),
     'gen_ai.evaluation.score.value': result.score.value,
     'gen_ai.evaluation.score.label': result.score.label,
     'gen_ai.evaluation.explanation': result.explanation.summary,
-    'gen_ai.evaluation.method': 'llm_as_judge',
-    'gen_ai.request.model': judgeModel,
-    'gen_ai.provider.name': judgeProvider,
+    'gen_ai.evaluation.method': method,
+    ...(judgeModel ? { 'gen_ai.request.model': judgeModel } : {}),
+    ...(judgeProvider ? { 'gen_ai.provider.name': judgeProvider } : {}),
     ...(serviceName ? { 'dt.service.name': serviceName } : {}),
     'dt.eval.run_id': runId,
     'gen_ai.eval.client': CLIENT_NAME,
@@ -110,7 +114,7 @@ export class BizeventWriter {
     judgeModel: string,
     serviceName?: string,
   ): Promise<void> {
-    const payload = buildBizeventPayload(span, metricId, metricName, result, runId, judgeProvider, judgeModel, serviceName);
+    const payload = buildBizeventPayload(span, metricId, metricName, result, runId, 'llm_as_judge', judgeProvider, judgeModel, serviceName);
     await this.writeBatch([payload]);
   }
 

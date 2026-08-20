@@ -23,6 +23,7 @@
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
     "dev": "tsx src/index.ts"
   },
   "homepage": "https://github.com/dynatrace-oss/dt-evals#readme",
@@ -41,10 +42,12 @@
     "@google/genai": "^1.0.0",
     "@inquirer/prompts": "^7.10.1",
     "@types/figlet": "^1.7.0",
+    "ajv": "^8.20.0",
     "commander": "^12.0.0",
     "figlet": "^1.11.0",
     "openai": "^4.73.0",
     "picocolors": "^1.1.1",
+    "recheck": "^4.5.0",
     "yaml": "^2.4.0"
   },
   "devDependencies": {

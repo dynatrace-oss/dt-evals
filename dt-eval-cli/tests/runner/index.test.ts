@@ -17,6 +17,7 @@ vi.mock('@dynatrace-oss/dt-eval-lib', () => ({
     requiredFields: ['input', 'output'],
     scoring: { type: 'continuous', range: [0, 1], threshold: 0.7 },
   })),
+  BINARY_SCALE: { type: 'binary', range: [0, 1], threshold: 0.5 },
   DRIFT_METRIC_ID: 'drift',
 }));
 
@@ -520,6 +521,36 @@ describe('runEvals', () => {
     const callArgs = evaluate.mock.calls[0] as unknown[];
     const evalInput = callArgs[1] as { context?: string };
     expect(evalInput.context).toBe('retrieved facts');
+  });
+
+  it('dispatches a deterministic metric via a synthesized definition and tags the bizevent method', async () => {
+    const span = makeSpan({ traceId: 'trace-det' });
+    const dtClient = makeDtClient([span]);
+    const config = makeConfig({
+      metrics: {
+        enabled: [
+          { id: 'json-ok', method: 'json_schema', params: { schema: { type: 'object' } } },
+        ],
+      },
+    });
+
+    await runEvals(
+      dtClient as unknown as import('../../src/dt/client.js').DynatraceClient,
+      config,
+      { since: '1h' },
+    );
+
+    // evaluate() is called with the synthesized deterministic definition (no getPrompt lookup)
+    expect(evaluate).toHaveBeenCalledOnce();
+    const prompt = evaluate.mock.calls[0]![0] as { id: string; method: string };
+    expect(prompt.id).toBe('json-ok');
+    expect(prompt.method).toBe('json_schema');
+
+    // bizevent carries the method and omits judge provider/model
+    const [payloads] = dtClient.ingestBizevents.mock.calls[0] as [Record<string, unknown>[]];
+    expect(payloads[0]!['gen_ai.evaluation.method']).toBe('json_schema');
+    expect(payloads[0]!['gen_ai.provider.name']).toBeUndefined();
+    expect(payloads[0]!['gen_ai.request.model']).toBeUndefined();
   });
 
   it('emits onProgress events for each phase in order', async () => {

@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { evaluate, getPrompt, type EvalConfig, type EvalInput, type EvalResult } from '@dynatrace-oss/dt-eval-lib';
+import { evaluate, getPrompt, BINARY_SCALE, type EvalConfig, type EvalInput, type EvalResult, type EvaluatorMethod, type DeterministicParams, type PromptDefinition } from '@dynatrace-oss/dt-eval-lib';
 import type { DynatraceClient } from '../dt/client.js';
 import type { DtEvalConfig, MetricEntry, MetricInputs, CanonicalSpanField } from '../config/schema.js';
-import { metricId, metricInputs } from '../config/schema.js';
+import { metricId, metricInputs, metricMethod, metricParams } from '../config/schema.js';
 import type { GenAiSpan, BizeventPayload } from '../dt/types.js';
 import { buildGenAiSpanQuery, parseSpanResults, filterSpansByOperationName } from '../dt/dql.js';
 import { BizeventWriter, buildBizeventPayload } from '../dt/bizevent.js';
@@ -71,6 +71,29 @@ interface EvalTask {
   span: GenAiSpan;
   metric: string;
   inputs?: MetricInputs;
+  method: EvaluatorMethod;
+  params?: DeterministicParams;
+}
+
+/**
+ * Resolve the evaluator definition for a task. LLM-judge metrics come from the
+ * lib catalog; deterministic metrics are synthesized from the entry's method +
+ * params (binary pass/fail scale, output-only required fields except exact_match).
+ */
+function resolvePrompt(task: EvalTask): PromptDefinition {
+  if (task.method === 'llm_as_judge') {
+    return getPrompt(task.metric);
+  }
+  return {
+    id: task.metric,
+    name: task.metric,
+    version: 'v1.0',
+    description: `${task.method} evaluator`,
+    method: task.method,
+    params: task.params,
+    requiredFields: task.method === 'exact_match' ? ['output', 'expectedOutput'] : ['output'],
+    scoring: BINARY_SCALE,
+  };
 }
 
 /**
@@ -94,10 +117,14 @@ function buildEvalInput(span: GenAiSpan, inputs: MetricInputs | undefined): Eval
   if (!inputs) {
     return { input: span.input, output: span.output, context: span.context };
   }
+  const expectedOutput = inputs.expectedOutput
+    ? resolveCanonicalField(span, inputs.expectedOutput)
+    : undefined;
   return {
     input: (inputs.input && resolveCanonicalField(span, inputs.input)) ?? span.input,
     output: (inputs.output && resolveCanonicalField(span, inputs.output)) ?? span.output,
     context: (inputs.context && resolveCanonicalField(span, inputs.context)) ?? span.context,
+    ...(expectedOutput !== undefined ? { expectedOutput } : {}),
   };
 }
 
@@ -105,6 +132,7 @@ interface EvalTaskResult {
   span: GenAiSpan;
   metricId: string;
   metricName: string;
+  method: EvaluatorMethod;
   evalResult: EvalResult;
   /** The exact input the judge was given — may be a routed subset of span fields. */
   evalInput: EvalInput;
@@ -209,7 +237,13 @@ export async function runEvals(
   const runDrift = metricIds.includes(DRIFT_METRIC_ID);
 
   const tasks: EvalTask[] = maskedSpans.flatMap(span =>
-    evalEntries.map(entry => ({ span, metric: metricId(entry), inputs: metricInputs(entry) })),
+    evalEntries.map(entry => ({
+      span,
+      metric: metricId(entry),
+      inputs: metricInputs(entry),
+      method: metricMethod(entry),
+      params: metricParams(entry),
+    })),
   );
   const evaluatorStats = new Map<string, EvaluatorRunStats>();
   for (const entry of evalEntries) {
@@ -275,11 +309,11 @@ export async function runEvals(
       const t0 = Date.now();
       const input: EvalInput = buildEvalInput(task.span, task.inputs);
       try {
-        const prompt = getPrompt(task.metric);
+        const prompt = resolvePrompt(task);
         const evalResult = await evaluate(prompt, input, libConfig);
         evalCount++;
         const elapsed = Date.now() - t0;
-        logger.debug(`eval [${evalCount}/${tasks.length}] ${task.metric} ${judgeProvider}/${judgeModel} trace=${task.span.traceId.slice(0, 8)}… ${elapsed}ms score=${evalResult.score.value}`);
+        logger.debug(`eval [${evalCount}/${tasks.length}] ${task.metric} ${task.method} trace=${task.span.traceId.slice(0, 8)}… ${elapsed}ms score=${evalResult.score.value}`);
         recordEvaluatorOutcome(evaluatorStats.get(task.metric), true, elapsed);
         emit?.({
           phase: 'eval-completed',
@@ -289,7 +323,7 @@ export async function runEvals(
           traceId: task.span.traceId,
           durationMs: elapsed,
         });
-        return { span: task.span, metricId: task.metric, metricName: prompt.name, evalResult, evalInput: input };
+        return { span: task.span, metricId: task.metric, metricName: prompt.name, method: task.method, evalResult, evalInput: input };
       } catch (err) {
         evalCount++;
         evalErrors++;
@@ -348,9 +382,15 @@ export async function runEvals(
   if (!emit) logger.step('Writing bizevents...');
   const storeEvaluatedPrompt = opts.storeEvaluatedPrompt ?? evalConfig.storeEvaluatedPrompt ?? false;
   const writer = new BizeventWriter(writeClient);
-  const payloads: BizeventPayload[] = successResults.map(r =>
-    buildBizeventPayload(r.span, r.metricId, r.metricName, r.evalResult, runId, judgeProvider, judgeModel, evalConfig.scope.service, r.evalInput, storeEvaluatedPrompt),
-  );
+  const payloads: BizeventPayload[] = successResults.map(r => {
+    const isLlm = r.method === 'llm_as_judge';
+    return buildBizeventPayload(
+      r.span, r.metricId, r.metricName, r.evalResult, runId, r.method,
+      isLlm ? judgeProvider : undefined,
+      isLlm ? judgeModel : undefined,
+      evalConfig.scope.service, r.evalInput, storeEvaluatedPrompt,
+    );
+  });
   emit?.({ phase: 'writing', payloads: payloads.length });
 
   const t0Ingest = Date.now();

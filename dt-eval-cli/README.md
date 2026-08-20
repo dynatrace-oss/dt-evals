@@ -283,7 +283,7 @@ Config is resolved in this order:
 ### Example config
 
 ```yaml
-schemaVersion: 2
+schemaVersion: 3
 name: travel-assistant-prod
 
 dynatrace:
@@ -311,6 +311,17 @@ metrics:
     - hallucination
     - relevance
     - answer-completeness
+    - id: valid-json
+      method: json_schema
+      params:
+        schema:
+          type: object
+          required: [answer]
+    - id: no-refusal
+      method: must_not_contain
+      params:
+        keywords: ["i cannot help", "i'm sorry"]
+        mode: any
     - drift
 
 alerts:
@@ -320,6 +331,24 @@ alerts:
     answer-completeness: 0.8
 
 storeEvaluatedPrompt: false
+```
+
+String entries and object entries without `method` use the configured
+LLM-as-judge provider. Deterministic entries set `method` to `exact_match`,
+`regex`, `must_not_match`, `json_schema`, `must_contain`, or
+`must_not_contain`. `exact_match` also requires an `inputs.expectedOutput`
+route to a canonical span field:
+
+```yaml
+metrics:
+  enabled:
+    - id: exact-answer
+      method: exact_match
+      params:
+        caseSensitive: false
+        trim: true
+      inputs:
+        expectedOutput: context
 ```
 
 By default, the runner keeps only chat/text-generation spans:
@@ -453,7 +482,7 @@ A complete `.dt-eval.yaml` combining everything — schema bump, custom
 span field mapping, per-metric input routing, sampling, alerts:
 
 ```yaml
-schemaVersion: 2
+schemaVersion: 3
 name: travel-assistant-prod
 
 dynatrace:
@@ -485,6 +514,11 @@ metrics:
     - id: user-frustration
       inputs:
         input: userPrompt
+    - id: no-refusal
+      method: must_not_contain
+      params:
+        keywords: ["i cannot help", "i'm sorry"]
+        mode: any
 
 alerts:
   thresholds:

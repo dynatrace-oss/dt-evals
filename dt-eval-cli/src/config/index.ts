@@ -1,6 +1,8 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
+import { createRequire } from 'node:module';
 import { join, dirname } from 'node:path';
+import { Ajv } from 'ajv';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import {
   CURRENT_SCHEMA_VERSION,
@@ -206,6 +208,132 @@ export function saveConfig(config: DtEvalConfig, filePath: string): void {
   writeFileSync(filePath, yamlContent, 'utf-8');
 }
 
+const DETERMINISTIC_METHODS = ['exact_match', 'regex', 'must_not_match', 'json_schema', 'must_contain', 'must_not_contain'];
+const ALL_METHODS = ['llm_as_judge', ...DETERMINISTIC_METHODS];
+const CANONICAL_SPAN_FIELDS = ['input', 'output', 'context', 'systemInstruction', 'model', 'userPrompt'];
+const METRIC_INPUT_SLOTS = ['input', 'output', 'context', 'expectedOutput'];
+
+type CheckSync = (source: string, flags: string, params?: object) => { status: string };
+let _checkSync: CheckSync | null | undefined;
+/** Lazily load recheck's synchronous ReDoS checker; null if unavailable. */
+function loadCheckSync(): CheckSync | null {
+  if (_checkSync === undefined) {
+    try {
+      _checkSync = createRequire(import.meta.url)('recheck').checkSync as CheckSync;
+    } catch {
+      _checkSync = null;
+    }
+  }
+  return _checkSync;
+}
+
+/**
+ * Fail-closed regex safety check, mirroring the lib's run-time guard: a pattern
+ * is accepted only when recheck reports it `safe`. Returns a human-readable
+ * reason to reject, or null when the pattern is safe. When the analyzer cannot
+ * be loaded here, returns null and defers to the lib's run-time guard (which
+ * fails closed with an install message).
+ */
+function regexSafetyIssue(pattern: string, flags: string): string | null {
+  const checkSync = loadCheckSync();
+  if (!checkSync) return null;
+  let status: string;
+  try {
+    status = checkSync(pattern, flags, { checker: 'auto', timeout: 1000 }).status;
+  } catch {
+    return 'its safety could not be verified (analysis failed); simplify the pattern';
+  }
+  if (status === 'safe') return null;
+  if (status === 'vulnerable') {
+    return 'it is vulnerable to catastrophic backtracking (ReDoS); simplify the pattern';
+  }
+  return 'its safety could not be verified (analysis inconclusive or timed out); simplify the pattern';
+}
+
+/** Validate per-metric routing before the runner can silently fall back. */
+function validateMetricInputs(entry: Record<string, unknown>, i: number, issues: string[]): void {
+  const inputs = entry['inputs'];
+  if (inputs === undefined) return;
+  if (typeof inputs !== 'object' || inputs === null || Array.isArray(inputs)) {
+    issues.push(`metrics.enabled[${i}].inputs must be an object`);
+    return;
+  }
+
+  for (const [slot, field] of Object.entries(inputs)) {
+    if (!METRIC_INPUT_SLOTS.includes(slot)) {
+      issues.push(`metrics.enabled[${i}].inputs.${slot} is not supported`);
+      continue;
+    }
+    if (typeof field !== 'string' || !CANONICAL_SPAN_FIELDS.includes(field)) {
+      issues.push(`metrics.enabled[${i}].inputs.${slot} must route one of: ${CANONICAL_SPAN_FIELDS.join(', ')}`);
+    }
+  }
+}
+
+/** Validate the optional deterministic `method` + `params` on an object metric entry. */
+function validateMethodEntry(entry: Record<string, unknown>, i: number, issues: string[]): void {
+  const method = entry['method'];
+  if (method === undefined) return;
+  if (typeof method !== 'string' || !ALL_METHODS.includes(method)) {
+    issues.push(`metrics.enabled[${i}].method must be one of: ${ALL_METHODS.join(', ')}`);
+    return;
+  }
+  if (!DETERMINISTIC_METHODS.includes(method)) return;
+
+  const params = (entry['params'] ?? {}) as Record<string, unknown>;
+  if (method === 'exact_match') {
+    // The runner marks expectedOutput a required field for exact_match, so a
+    // span-field routing for it must be configured or every span fails at runtime.
+    const expected = (entry['inputs'] as Record<string, unknown> | undefined)?.['expectedOutput'];
+    if (typeof expected !== 'string' || !CANONICAL_SPAN_FIELDS.includes(expected)) {
+      issues.push(`metrics.enabled[${i}] method "exact_match" requires inputs.expectedOutput to route one of: ${CANONICAL_SPAN_FIELDS.join(', ')}`);
+    }
+    checkBoolean(params, 'caseSensitive', i, method, issues);
+    checkBoolean(params, 'trim', i, method, issues);
+  }
+  if (method === 'regex' || method === 'must_not_match') {
+    const pattern = params['pattern'];
+    if (typeof pattern !== 'string' || !pattern) {
+      issues.push(`metrics.enabled[${i}].params.pattern is required for method "${method}"`);
+    } else {
+      const reason = regexSafetyIssue(pattern, typeof params['flags'] === 'string' ? params['flags'] : '');
+      if (reason) issues.push(`metrics.enabled[${i}].params.pattern for method "${method}": ${reason}`);
+    }
+    if (params['flags'] !== undefined && typeof params['flags'] !== 'string') {
+      issues.push(`metrics.enabled[${i}].params.flags must be a string for method "${method}"`);
+    }
+  }
+  if (method === 'must_contain' || method === 'must_not_contain') {
+    const kw = params['keywords'];
+    if (!Array.isArray(kw) || kw.length === 0 || kw.some(k => typeof k !== 'string' || !k)) {
+      issues.push(`metrics.enabled[${i}].params.keywords must be a non-empty string array for method "${method}"`);
+    }
+    if (params['mode'] !== undefined && params['mode'] !== 'any' && params['mode'] !== 'all') {
+      issues.push(`metrics.enabled[${i}].params.mode must be "any" or "all" for method "${method}"`);
+    }
+    checkBoolean(params, 'caseSensitive', i, method, issues);
+  }
+  if (method === 'json_schema') {
+    const schema = params['schema'];
+    if (typeof schema !== 'object' || schema === null) {
+      issues.push(`metrics.enabled[${i}].params.schema (object) is required for method "json_schema"`);
+    } else {
+      try {
+        new Ajv({ allErrors: true, strict: false }).compile(schema);
+      } catch (err) {
+        issues.push(`metrics.enabled[${i}].params.schema is not a valid JSON Schema: ${(err as Error).message}`);
+      }
+    }
+  }
+}
+
+/** Push an issue if an optional param is present but not a boolean. */
+function checkBoolean(params: Record<string, unknown>, key: string, i: number, method: string, issues: string[]): void {
+  if (params[key] !== undefined && typeof params[key] !== 'boolean') {
+    issues.push(`metrics.enabled[${i}].params.${key} must be a boolean for method "${method}"`);
+  }
+}
+
 export function validateConfig(config: DtEvalConfig): void {
   const issues: string[] = [];
 
@@ -271,8 +399,10 @@ export function validateConfig(config: DtEvalConfig): void {
         if (typeof (entry as { id?: unknown }).id !== 'string' || !(entry as { id: string }).id.trim()) {
           issues.push(`metrics.enabled[${i}].id must be a non-empty string`);
         }
+        validateMetricInputs(entry as Record<string, unknown>, i, issues);
+        validateMethodEntry(entry as Record<string, unknown>, i, issues);
       } else {
-        issues.push(`metrics.enabled[${i}] must be a string or { id, inputs? } object`);
+        issues.push(`metrics.enabled[${i}] must be a string or { id, method?, params?, inputs? } object`);
       }
     }
   }
