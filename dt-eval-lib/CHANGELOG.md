@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.17-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.16-alpha...dt-eval-lib-v0.0.17-alpha) (2026-08-20)
+
+
+### ✨ New Features
+
+* **dt-eval-lib:** add deterministic evaluators (exact_match, regex, must_not_match, json_schema, must_contain, must_not_contain) ([#196](https://github.com/dynatrace-oss/dt-evals/issues/196)) ([2281505](https://github.com/dynatrace-oss/dt-evals/commit/228150510ff519e73d1a04a7b0d2eb1e36e30fa3))
+
 ## [0.0.16-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.15-alpha...dt-eval-lib-v0.0.16-alpha) (2026-08-14)
 
 
