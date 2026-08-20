@@ -9,8 +9,8 @@ import type { EvalConfig, EvalInput, EvalResult } from "./types";
 
 /**
  * Main evaluation function.
- * Resolves the metric and validates input, then either runs a deterministic
- * scorer or renders the prompt and calls the LLM provider.
+ * Resolves the metric, validates input, and dispatches to the configured
+ * evaluation method.
  */
 export async function evaluate(
   metric: BuiltInMetric | PromptDefinition,

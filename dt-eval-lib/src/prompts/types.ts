@@ -21,7 +21,7 @@ export enum BuiltInMetric {
 /** Identifier for the population-level drift detection metric. */
 export const DRIFT_METRIC_ID = "drift";
 
-/** How an evaluator computes its score. Defaults to "llm_as_judge" when omitted. */
+/** Evaluation method. The evaluation engine defaults to "llm_as_judge" when omitted. */
 export type EvaluatorMethod =
   | "llm_as_judge"
   | "exact_match"
@@ -37,7 +37,7 @@ export interface PromptDefinition {
   version: string;
   /** Description of what this metric evaluates */
   description: string;
-  /** Evaluation method — defaults to "llm_as_judge" when omitted */
+  /** Evaluation method. The evaluation engine defaults to "llm_as_judge" when omitted. */
   method?: EvaluatorMethod;
   /** The evaluation prompt template (LLM judge only) — uses {{input}}, {{output}}, {{context}}, {{expectedOutput}} placeholders */
   prompt?: string;
