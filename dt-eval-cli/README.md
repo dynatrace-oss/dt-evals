@@ -606,6 +606,68 @@ Drift results are written back as the same event type with `gen_ai.evaluation.ty
 | `toxicity` | Harmful, offensive, or unsafe output | `output` |
 | `user-frustration` | Frustration signals in the user's message | `input` |
 
+### Deterministic evaluators (code checks)
+
+Not every check needs an LLM. Add a `method` to a metric entry in
+`metrics.enabled` to run a fast, reproducible, zero-cost code check instead of
+an LLM judge. Each check scores the span output as pass (`1.0`) or fail
+(`0.0`). Omitting `method` keeps the default LLM-as-judge behavior, so existing
+configs are unaffected.
+
+Available methods: `exact_match`, `regex`, `must_not_match`, `must_contain`,
+`must_not_contain`, and `json_schema`.
+
+**`must_contain` — require an expected keyword to be present**
+
+```yaml
+metrics:
+  enabled:
+    - id: cites-a-source
+      method: must_contain
+      params:
+        keywords: ["source", "reference", "according to"]
+        mode: any          # any = pass if one is present; all = require every keyword
+```
+
+**`must_not_contain` — block forbidden or harmful words**
+
+```yaml
+    - id: no-harmful-words
+      method: must_not_contain
+      params:
+        keywords: ["harmful_word_1", "harmful_word_2", "harmful_word_3"]
+        mode: any          # fail if ANY blocked word appears
+        # matching is case-insensitive by default; set caseSensitive: true to change
+```
+
+**`must_not_match` — fail if the output matches a pattern (e.g. a leaked IP address)**
+
+```yaml
+    - id: no-ip-leaked
+      method: must_not_match
+      params:
+        pattern: "\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b"
+```
+
+> Use `regex` for the opposite check — pass only when the output **does** match
+> the pattern.
+
+**`json_schema` — require valid, well-structured JSON**
+
+```yaml
+    - id: valid-response-object
+      method: json_schema
+      params:
+        schema:
+          type: object
+          required: [answer]
+```
+
+> **Note:** `json_schema` parses the raw output, so the output must be **bare**
+> JSON — a response wrapped in markdown fences (` ```json … ``` `) will not
+> parse. `json_schema` needs the optional `ajv` dependency, and `regex` /
+> `must_not_match` need the optional `recheck` dependency (for ReDoS safety).
+
 ### Custom evaluators
 
 You can create a custom judge metric with `dt-evals evaluators add`, then
