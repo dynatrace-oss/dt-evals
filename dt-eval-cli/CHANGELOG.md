@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.23-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.22-alpha...v0.2.23-alpha) (2026-08-26)
+
+
+### 📚 Documentation
+
+* **dt-eval-cli:** add deterministic evaluator examples (AI-454) ([#207](https://github.com/dynatrace-oss/dt-evals/issues/207)) ([ee09c0f](https://github.com/dynatrace-oss/dt-evals/commit/ee09c0f045c7b6beba659a25ef5e93817c207cee))
+
 ## [0.2.22-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.21-alpha...v0.2.22-alpha) (2026-08-20)
 
 
