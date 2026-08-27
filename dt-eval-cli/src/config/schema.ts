@@ -80,7 +80,10 @@ export interface ScopeConfig {
   spanFields?: SpanFieldsMap;
   mode?: "span" | "trajectory";
   keepPartTypes?: string[];
-  /** Maximum number of conversations to evaluate. Only used in trajectory mode. */
+  /**
+   * Fetch/selection cap for trajectory mode: how many conversation groups to consider before
+   * `sampling` is applied (default: random @ 5%). Increase to widen coverage, decrease to cut cost.
+   */
   maxConversations?: number;
   /** Maximum number of messages to keep per trajectory (oldest are dropped). Only used in trajectory mode. */
   maxMessages?: number;
