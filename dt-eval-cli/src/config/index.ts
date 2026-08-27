@@ -31,7 +31,7 @@ function getGlobalConfigPath(): string {
   return join(homedir(), '.dt-eval', 'config.yaml');
 }
 
-function getProjectConfigPath(): string {
+export function getProjectConfigPath(): string {
   return join(process.cwd(), '.dt-eval.yaml');
 }
 

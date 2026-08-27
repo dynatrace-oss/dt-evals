@@ -47,6 +47,7 @@ export function buildBizeventPayload(
   serviceName?: string,
   judgeInputs?: JudgeInputs,
   storeEvaluatedPrompt = false,
+  evalName?: string,
 ): BizeventPayload {
   const payload: BizeventPayload = {
     'event.type': 'gen_ai.evaluation.result',
@@ -68,6 +69,7 @@ export function buildBizeventPayload(
     ...(judgeProvider ? { 'gen_ai.provider.name': judgeProvider } : {}),
     ...(serviceName ? { 'dt.service.name': serviceName } : {}),
     'dt.eval.run_id': runId,
+    ...(evalName ? { 'dt.eval.name': evalName } : {}),
     'gen_ai.eval.client': CLIENT_NAME,
     'gen_ai.eval.client.version': CLIENT_VERSION,
     'span.start_time': span.startTime,
