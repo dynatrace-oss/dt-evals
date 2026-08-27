@@ -387,11 +387,10 @@ export function selectTrajectorySpans(spans: GenAiSpan[], maxConversations = DEF
       const aStop = a.finishReasons?.toLowerCase().includes('stop') ?? false;
       const bStop = b.finishReasons?.toLowerCase().includes('stop') ?? false;
       if (aStop !== bStop) return aStop ? a : b;
-      const aTime = a.endTime ?? a.startTime;
-      const bTime = b.endTime ?? b.startTime;
-      if (!aTime) return b;
-      if (!bTime) return a;
-      return aTime >= bTime ? a : b;
+      const ms = (s: GenAiSpan) => new Date(s.endTime ?? s.startTime ?? 0).getTime();
+      if (!a.endTime && !a.startTime) return b;
+      if (!b.endTime && !b.startTime) return a;
+      return ms(a) >= ms(b) ? a : b;
     });
     selected.push(best);
     // groups are in first-seen order; cap is best-effort, not strictly most-recent-N
