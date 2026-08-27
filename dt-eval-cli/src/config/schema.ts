@@ -79,6 +79,7 @@ export interface ScopeConfig {
   /** Custom span attribute mapping. Defaults handle OTel + OpenLLMetry. */
   spanFields?: SpanFieldsMap;
   mode?: "span" | "trajectory";
+  keepPartTypes?: string[];
 }
 
 /**
