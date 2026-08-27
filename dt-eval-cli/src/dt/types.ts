@@ -16,6 +16,8 @@ export interface GenAiSpan {
    * Useful for metrics that should score the user's turn alone. */
   userPrompt?: string;
   isError?: boolean;
+  conversationId?: string;   // gen_ai.conversation.id
+  finishReasons?: string;    // gen_ai.response.finish_reasons (raw string from DQL)
 }
 
 export interface BizeventPayload {

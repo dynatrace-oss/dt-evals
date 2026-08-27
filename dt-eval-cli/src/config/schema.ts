@@ -80,6 +80,8 @@ export interface ScopeConfig {
   spanFields?: SpanFieldsMap;
   mode?: "span" | "trajectory";
   keepPartTypes?: string[];
+  /** Maximum number of conversations to evaluate. Only used in trajectory mode. */
+  maxConversations?: number;
 }
 
 /**

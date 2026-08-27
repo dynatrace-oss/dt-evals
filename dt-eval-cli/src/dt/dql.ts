@@ -12,6 +12,8 @@ export interface DqlQueryOptions {
   spanFields?: SpanFieldsMap;
   /** GenAI operation names to keep. Empty array disables this filter. */
   operationNames?: string[];
+  mode?: "span" | "trajectory";
+  maxConversations?: number;
 }
 
 export type DqlResult = GenAiSpan[];
@@ -77,9 +79,10 @@ export function filterSpansByOperationName(spans: GenAiSpan[], operationNames?: 
 }
 
 export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
-  const { app, since, limit = 1000, errorsOnly = false, spanFields } = opts;
+  const { app, since, limit = 1000, errorsOnly = false, spanFields, mode, maxConversations = 200 } = opts;
   const operationNames = resolveOperationNames(opts.operationNames);
   const fields = resolveFields(spanFields);
+  const isTrajectory = mode === 'trajectory';
 
   // Use explicit from:/to: timeframe — a filter alone leaves Grail's default
   // ~2h analysis window in effect even when the filter asks for longer.
@@ -138,11 +141,15 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
     ...fields.systemInstruction,
     ...fields.model,
   ]);
+  if (isTrajectory) {
+    fieldSet.add('gen_ai.conversation.id');
+    fieldSet.add('gen_ai.response.finish_reasons');
+  }
   const baseFields = [...fieldSet].join(', ');
 
   lines.push(`| fields ${baseFields}, ${promptFields}`);
-  lines.push('| sort start_time desc');
-  lines.push(`| limit ${limit}`);
+  lines.push(isTrajectory ? '| sort end_time desc' : '| sort start_time desc');
+  lines.push(isTrajectory ? `| limit ${maxConversations * 20}` : `| limit ${limit}`);
 
   return lines.join('\n');
 }
@@ -342,10 +349,48 @@ export function parseSpanResults(
       responseModel: asString(r['gen_ai.response.model']),
       agentName: asString(r['gen_ai.agent.name']),
       isError: statusCode === 'ERROR' || undefined,
+      conversationId: asString(r['gen_ai.conversation.id']),
+      finishReasons: asString(r['gen_ai.response.finish_reasons']),
     });
   }
 
   return spans;
+}
+
+/**
+ * Group spans by conversationId (falling back to traceId), then select one
+ * representative span per group. Prefers spans with a "stop" finish reason;
+ * among ties, picks the latest by endTime (or startTime as fallback).
+ * Returns at most `maxConversations` spans (default 200).
+ */
+export function selectTrajectorySpans(spans: GenAiSpan[], maxConversations = 200): GenAiSpan[] {
+  const groups = new Map<string, GenAiSpan[]>();
+  for (const span of spans) {
+    const key = span.conversationId ?? span.traceId;
+    const group = groups.get(key);
+    if (group) {
+      group.push(span);
+    } else {
+      groups.set(key, [span]);
+    }
+  }
+
+  const selected: GenAiSpan[] = [];
+  for (const group of groups.values()) {
+    const best = group.reduce((a, b) => {
+      const aStop = a.finishReasons?.toLowerCase().includes('stop') ?? false;
+      const bStop = b.finishReasons?.toLowerCase().includes('stop') ?? false;
+      if (aStop !== bStop) return aStop ? a : b;
+      const aTime = a.endTime ?? a.startTime;
+      const bTime = b.endTime ?? b.startTime;
+      if (!aTime) return b;
+      if (!bTime) return a;
+      return aTime >= bTime ? a : b;
+    });
+    selected.push(best);
+    if (selected.length >= maxConversations) break;
+  }
+  return selected;
 }
 
 function asString(value: unknown): string | undefined {
