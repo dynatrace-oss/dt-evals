@@ -229,7 +229,7 @@ function extractRolesFromJsonMessages(value: string | undefined):
   return out;
 }
 
-const DEFAULT_KEEP_PART_TYPES = ["text", "tool_call", "tool_call_response"];
+const DEFAULT_KEEP_PART_TYPES = ['text', 'tool_call', 'tool_call_response'];
 
 function extractFullHistory(raw: string, keepPartTypes?: string[]): string | null {
   try {
@@ -305,7 +305,7 @@ export function parseSpanResults(
       if (inputMatch?.key === DEFAULT_INPUT_FIELDS[0]) {
         if (options.mode === 'trajectory' && input) {
           const filtered = extractFullHistory(input, options.keepPartTypes);
-          if (filtered) input = filtered;
+          if (filtered && filtered !== '[]') input = filtered;
         } else if (inputRoles.user) {
           input = inputRoles.user;
         }
