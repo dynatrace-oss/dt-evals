@@ -22,6 +22,9 @@ export type DqlResult = GenAiSpan[];
 // (gen_ai.prompt.0.content, gen_ai.prompt.1.content, ...)
 const PROMPT_SLOTS = 3;
 
+const TRAJECTORY_SPANS_PER_CONVERSATION = 20;
+const DEFAULT_MAX_CONVERSATIONS = 200;
+
 // Built-in candidate attribute lists per canonical field. User-supplied
 // candidates are prepended to these so the user's choice wins, but the
 // defaults remain as a fallback.
@@ -79,7 +82,7 @@ export function filterSpansByOperationName(spans: GenAiSpan[], operationNames?: 
 }
 
 export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
-  const { app, since, limit = 1000, errorsOnly = false, spanFields, mode, maxConversations = 200 } = opts;
+  const { app, since, limit = 1000, errorsOnly = false, spanFields, mode, maxConversations = DEFAULT_MAX_CONVERSATIONS } = opts;
   const operationNames = resolveOperationNames(opts.operationNames);
   const fields = resolveFields(spanFields);
   const isTrajectory = mode === 'trajectory';
@@ -149,7 +152,7 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
 
   lines.push(`| fields ${baseFields}, ${promptFields}`);
   lines.push(isTrajectory ? '| sort end_time desc' : '| sort start_time desc');
-  lines.push(isTrajectory ? `| limit ${maxConversations * 20}` : `| limit ${limit}`);
+  lines.push(isTrajectory ? `| limit ${maxConversations * TRAJECTORY_SPANS_PER_CONVERSATION}` : `| limit ${limit}`);
 
   return lines.join('\n');
 }
@@ -363,7 +366,7 @@ export function parseSpanResults(
  * among ties, picks the latest by endTime (or startTime as fallback).
  * Returns at most `maxConversations` spans (default 200).
  */
-export function selectTrajectorySpans(spans: GenAiSpan[], maxConversations = 200): GenAiSpan[] {
+export function selectTrajectorySpans(spans: GenAiSpan[], maxConversations = DEFAULT_MAX_CONVERSATIONS): GenAiSpan[] {
   const groups = new Map<string, GenAiSpan[]>();
   for (const span of spans) {
     const key = span.conversationId ?? span.traceId;
@@ -388,6 +391,7 @@ export function selectTrajectorySpans(spans: GenAiSpan[], maxConversations = 200
       return aTime >= bTime ? a : b;
     });
     selected.push(best);
+    // groups are in first-seen order; cap is best-effort, not strictly most-recent-N
     if (selected.length >= maxConversations) break;
   }
   return selected;
