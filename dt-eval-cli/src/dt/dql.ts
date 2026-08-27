@@ -363,13 +363,15 @@ export function parseSpanResults(
   return spans;
 }
 
-// Assumes the selected span's gen_ai.input.messages carries the full conversation history
-// (holds for stateless APIs that re-send history each call; breaks for stateful APIs).
 /**
  * Group spans by conversationId (falling back to traceId), then select one
  * representative span per group. Prefers spans with a "stop" finish reason;
  * among ties, picks the latest by endTime (or startTime as fallback).
  * Returns at most `maxConversations` spans (default 200).
+ *
+ * Assumes the selected span's gen_ai.input.messages carries the full conversation
+ * history (holds for stateless APIs that re-send history each call; breaks for
+ * stateful APIs like the Responses API with previous_response_id).
  */
 export function selectTrajectorySpans(spans: GenAiSpan[], maxConversations = DEFAULT_MAX_CONVERSATIONS): GenAiSpan[] {
   const groups = new Map<string, GenAiSpan[]>();
