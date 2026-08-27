@@ -82,6 +82,8 @@ export interface ScopeConfig {
   keepPartTypes?: string[];
   /** Maximum number of conversations to evaluate. Only used in trajectory mode. */
   maxConversations?: number;
+  /** Maximum number of messages to keep per trajectory (oldest are dropped). Only used in trajectory mode. */
+  maxMessages?: number;
 }
 
 /**
