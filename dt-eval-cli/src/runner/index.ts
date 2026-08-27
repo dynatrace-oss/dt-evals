@@ -200,7 +200,7 @@ export async function runEvals(
   logger.timing('DQL fetch', dqlMs, { rawRecords: (rawRecords as unknown[]).length });
 
   const t0Parse = Date.now();
-  const parsedSpans = parseSpanResults(rawRecords, { spanFields: evalConfig.scope.spanFields });
+  const parsedSpans = parseSpanResults(rawRecords, { spanFields: evalConfig.scope.spanFields, mode: evalConfig.scope.mode, keepPartTypes: evalConfig.scope.keepPartTypes });
   // Safety net: re-apply the operation-name keep-list at the parser layer so a DQL
   // change or unexpected extra records can't leak non-keep-listed operation spans
   // into evaluation.
