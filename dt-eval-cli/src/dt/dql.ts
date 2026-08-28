@@ -149,6 +149,8 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
 
 export interface ParseSpanOptions {
   spanFields?: SpanFieldsMap;
+  mode?: "span" | "trajectory";
+  keepPartTypes?: string[];
 }
 
 /**
@@ -227,6 +229,29 @@ function extractRolesFromJsonMessages(value: string | undefined):
   return out;
 }
 
+const DEFAULT_KEEP_PART_TYPES = ['text', 'tool_call', 'tool_call_response'];
+
+function extractFullHistory(raw: string, keepPartTypes?: string[]): string | null {
+  try {
+    const messages = JSON.parse(raw);
+    if (!Array.isArray(messages)) return null;
+    const keep = new Set(keepPartTypes ?? DEFAULT_KEEP_PART_TYPES);
+    const filtered = messages
+      .map((msg: { role: string; parts?: Array<{ type?: string; content?: unknown; text?: unknown }>; content?: unknown }) => {
+        if (!Array.isArray(msg.parts)) return msg;
+        const parts = msg.parts.filter((p) => !p.type || keep.has(p.type));
+        return { ...msg, parts };
+      })
+      .filter((msg) => {
+        if (!Array.isArray(msg.parts)) return true;
+        return msg.parts.length > 0;
+      });
+    return JSON.stringify(filtered);
+  } catch {
+    return null;
+  }
+}
+
 export function parseSpanResults(
   records: unknown[],
   options: ParseSpanOptions = {},
@@ -277,8 +302,13 @@ export function parseSpanResults(
     if (inputRoles) {
       systemInstruction ??= inputRoles.system;
       userPrompt ??= inputRoles.user;
-      if (inputMatch?.key === DEFAULT_INPUT_FIELDS[0] && inputRoles.user) {
-        input = inputRoles.user;
+      if (inputMatch?.key === DEFAULT_INPUT_FIELDS[0]) {
+        if (options.mode === 'trajectory' && input) {
+          const filtered = extractFullHistory(input, options.keepPartTypes);
+          if (filtered && filtered !== '[]') input = filtered;
+        } else if (inputRoles.user) {
+          input = inputRoles.user;
+        }
       }
     }
 

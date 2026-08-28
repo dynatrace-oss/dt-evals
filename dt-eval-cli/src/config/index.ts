@@ -390,6 +390,11 @@ export function validateConfig(config: DtEvalConfig): void {
     }
   }
 
+  const mode = config.scope?.mode as unknown;
+  if (mode !== undefined && mode !== 'span' && mode !== 'trajectory') {
+    issues.push(`scope.mode must be "span" or "trajectory" (got "${mode}")`);
+  }
+
   const { strategy } = config.scope?.sampling ?? {};
   if (strategy && !['random', 'latest', 'errors-only'].includes(strategy)) {
     issues.push(`scope.sampling.strategy must be one of: random, latest, errors-only`);
