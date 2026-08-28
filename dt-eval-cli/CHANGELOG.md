@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.24-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.23-alpha...v0.2.24-alpha) (2026-08-28)
+
+
+### ✨ New Features
+
+* **dt-eval-cli:** print resolved config path and carry eval name in bizevents (AI-459) ([#217](https://github.com/dynatrace-oss/dt-evals/issues/217)) ([28ac860](https://github.com/dynatrace-oss/dt-evals/commit/28ac860dfbf207e2574d426dac7227c4d7fcaed9))
+
 ## [0.2.23-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.22-alpha...v0.2.23-alpha) (2026-08-26)
 
 
