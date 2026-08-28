@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { loadConfig, validateConfig, getProjectConfigPath } from '../../config/index.js';
+import { loadConfig, validateConfig } from '../../config/index.js';
 import { resolveEndpoints, metricId } from '../../config/schema.js';
 import { DynatraceClient } from '../../dt/client.js';
 import { runEvals, type RunProgressEvent, type RunResult } from '../../runner/index.js';
@@ -115,7 +115,6 @@ export function createRunCommand(): Command {
       configureLogger({ level: 'debug' });
     }
     const configPath = configArg ?? options.config;
-    const resolvedConfigPath = configPath ?? getProjectConfigPath();
     let config;
     try {
       config = loadConfig(configPath ? { projectFile: configPath } : undefined);
@@ -130,7 +129,7 @@ export function createRunCommand(): Command {
       process.exit(1);
     }
 
-    if (!options.ci) logger.info(`Using config: ${resolvedConfigPath}`);
+    if (!options.ci) logger.info(`Using config: ${config.sourcePath ?? 'defaults + environment'}`);
 
     const { origin, destination } = resolveEndpoints(config.dynatrace);
     const missing: string[] = [];

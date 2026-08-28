@@ -31,7 +31,7 @@ function getGlobalConfigPath(): string {
   return join(homedir(), '.dt-eval', 'config.yaml');
 }
 
-export function getProjectConfigPath(): string {
+function getProjectConfigPath(): string {
   return join(process.cwd(), '.dt-eval.yaml');
 }
 
@@ -169,11 +169,16 @@ export function loadConfig(opts?: LoadConfigOptions): DtEvalConfig {
   const globalPath = opts?.globalFile ?? getGlobalConfigPath();
   const projectPath = opts?.projectFile ?? getProjectConfigPath();
 
-  const globalConfig = readYamlFile(globalPath) ?? {};
-  const projectConfig = readYamlFile(projectPath) ?? {};
+  const globalConfig = readYamlFile(globalPath);
+  const projectConfig = readYamlFile(projectPath);
+
+  // Track the source file per layer so project overrides global — the merged
+  // config then carries the path it was effectively loaded from.
+  if (globalConfig) globalConfig.sourcePath = globalPath;
+  if (projectConfig) projectConfig.sourcePath = projectPath;
 
   // Merge: defaults < global < project (migrate legacy field names first)
-  const merged = resolveEffectiveConfig(deepMerge(migrateLegacy(globalConfig) as DtEvalConfig, migrateLegacy(projectConfig) as Partial<DtEvalConfig>));
+  const merged = resolveEffectiveConfig(deepMerge(migrateLegacy(globalConfig ?? {}) as DtEvalConfig, migrateLegacy(projectConfig ?? {}) as Partial<DtEvalConfig>));
 
   // Apply env var overrides (highest precedence)
   return applyEnvVars(merged);
@@ -187,6 +192,7 @@ export function loadConfig(opts?: LoadConfigOptions): DtEvalConfig {
  */
 function stripSecrets(config: DtEvalConfig): DtEvalConfig {
   const clone = JSON.parse(JSON.stringify(config)) as DtEvalConfig;
+  delete clone.sourcePath;
   if (clone.judge) {
     delete clone.judge.apiKey;
     delete clone.judge.secretKey;
