@@ -39,6 +39,7 @@ export const DEFAULT_CONFIG: Omit<DtEvalConfig, 'dynatrace' | 'judge'> & {
   },
   scope: {
     since: '1h',
+    mode: 'span' as const,
     operationNames: DEFAULT_OPERATION_NAMES,
     sampling: {
       strategy: 'random',
