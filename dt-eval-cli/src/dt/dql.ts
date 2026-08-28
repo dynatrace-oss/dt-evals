@@ -24,6 +24,7 @@ const PROMPT_SLOTS = 3;
 
 const TRAJECTORY_SPANS_PER_CONVERSATION = 20;
 const DEFAULT_MAX_CONVERSATIONS = 200;
+const DEFAULT_MAX_MESSAGES = 50;
 
 // Built-in candidate attribute lists per canonical field. User-supplied
 // candidates are prepended to these so the user's choice wins, but the
@@ -161,6 +162,7 @@ export interface ParseSpanOptions {
   spanFields?: SpanFieldsMap;
   mode?: "span" | "trajectory";
   keepPartTypes?: string[];
+  maxMessages?: number;
 }
 
 /**
@@ -241,12 +243,12 @@ function extractRolesFromJsonMessages(value: string | undefined):
 
 const DEFAULT_KEEP_PART_TYPES = ['text', 'tool_call', 'tool_call_response'];
 
-function extractFullHistory(raw: string, keepPartTypes?: string[]): string | null {
+function extractFullHistory(raw: string, keepPartTypes?: string[], maxMessages = DEFAULT_MAX_MESSAGES): string | null {
   try {
     const messages = JSON.parse(raw);
     if (!Array.isArray(messages)) return null;
     const keep = new Set(keepPartTypes ?? DEFAULT_KEEP_PART_TYPES);
-    const filtered = messages
+    let msgs = messages
       .map((msg: { role: string; parts?: Array<{ type?: string; content?: unknown; text?: unknown }>; content?: unknown }) => {
         if (!Array.isArray(msg.parts)) return msg;
         const parts = msg.parts.filter((p) => !p.type || keep.has(p.type));
@@ -256,7 +258,8 @@ function extractFullHistory(raw: string, keepPartTypes?: string[]): string | nul
         if (!Array.isArray(msg.parts)) return true;
         return msg.parts.length > 0;
       });
-    return JSON.stringify(filtered);
+    if (msgs.length > maxMessages) msgs = msgs.slice(msgs.length - maxMessages);
+    return JSON.stringify(msgs);
   } catch {
     return null;
   }
@@ -314,7 +317,7 @@ export function parseSpanResults(
       userPrompt ??= inputRoles.user;
       if (inputMatch?.key === DEFAULT_INPUT_FIELDS[0]) {
         if (options.mode === 'trajectory' && input) {
-          const filtered = extractFullHistory(input, options.keepPartTypes);
+          const filtered = extractFullHistory(input, options.keepPartTypes, options.maxMessages);
           if (filtered && filtered !== '[]') input = filtered;
         } else if (inputRoles.user) {
           input = inputRoles.user;
@@ -365,6 +368,10 @@ export function parseSpanResults(
  * representative span per group. Prefers spans with a "stop" finish reason;
  * among ties, picks the latest by endTime (or startTime as fallback).
  * Returns at most `maxConversations` spans (default 200).
+ *
+ * Assumes the selected span's gen_ai.input.messages carries the full conversation
+ * history (holds for stateless APIs that re-send history each call; breaks for
+ * stateful APIs like the Responses API with previous_response_id).
  */
 export function selectTrajectorySpans(spans: GenAiSpan[], maxConversations = DEFAULT_MAX_CONVERSATIONS): GenAiSpan[] {
   const groups = new Map<string, GenAiSpan[]>();
@@ -384,11 +391,10 @@ export function selectTrajectorySpans(spans: GenAiSpan[], maxConversations = DEF
       const aStop = a.finishReasons?.toLowerCase().includes('stop') ?? false;
       const bStop = b.finishReasons?.toLowerCase().includes('stop') ?? false;
       if (aStop !== bStop) return aStop ? a : b;
-      const aTime = a.endTime ?? a.startTime;
-      const bTime = b.endTime ?? b.startTime;
-      if (!aTime) return b;
-      if (!bTime) return a;
-      return aTime >= bTime ? a : b;
+      const ms = (s: GenAiSpan) => new Date(s.endTime ?? s.startTime ?? 0).getTime();
+      if (!a.endTime && !a.startTime) return b;
+      if (!b.endTime && !b.startTime) return a;
+      return ms(a) >= ms(b) ? a : b;
     });
     selected.push(best);
     // groups are in first-seen order; cap is best-effort, not strictly most-recent-N
