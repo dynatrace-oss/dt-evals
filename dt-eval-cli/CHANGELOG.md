@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.25-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.24-alpha...v0.2.25-alpha) (2026-08-28)
+
+
+### ✨ New Features
+
+* **dt-eval-cli:** add conversation grouping and span selection for trajectory mode (AI-458-3) ([#212](https://github.com/dynatrace-oss/dt-evals/issues/212)) ([afd7356](https://github.com/dynatrace-oss/dt-evals/commit/afd7356d2669390828391ad3ecb27f0f0e962b93))
+* **dt-eval-cli:** add maxMessages truncation fallback for trajectory mode (AI-458-4) ([#213](https://github.com/dynatrace-oss/dt-evals/issues/213)) ([e4085cd](https://github.com/dynatrace-oss/dt-evals/commit/e4085cd01e8a0fe943f7ebb18098c0fba8665cf3))
+* **dt-eval-cli:** add trajectory mode flag and preserve full message history (AI-458-1+2) ([#215](https://github.com/dynatrace-oss/dt-evals/issues/215)) ([adbb15e](https://github.com/dynatrace-oss/dt-evals/commit/adbb15e1662fb25190bbbc7ac93f3d01b48460ff))
+
 ## [0.2.24-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.23-alpha...v0.2.24-alpha) (2026-08-28)
 
 
