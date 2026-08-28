@@ -142,6 +142,15 @@ describe('config', () => {
 
       const config = loadConfig({ globalFile: GLOBAL_CONFIG_PATH, projectFile: join(TEST_DIR, 'nonexistent.yaml') });
       expect(config.dynatrace.environmentUrl).toBe('https://global.dynatrace.com');
+      expect(config.sourcePath).toBe(GLOBAL_CONFIG_PATH);
+    });
+
+    it('sourcePath resolves to the project file when it exists, else the global, else undefined', () => {
+      writeYaml(GLOBAL_CONFIG_PATH, { schemaVersion: 1, dynatrace: { environmentUrl: 'https://global.dynatrace.com' }, judge: { provider: 'openai' } });
+      writeYaml(PROJECT_CONFIG_PATH, { dynatrace: { environmentUrl: 'https://project.dynatrace.com' } });
+
+      expect(loadConfig({ globalFile: GLOBAL_CONFIG_PATH, projectFile: PROJECT_CONFIG_PATH }).sourcePath).toBe(PROJECT_CONFIG_PATH);
+      expect(loadConfig({ globalFile: join(TEST_DIR, 'nope.yaml'), projectFile: join(TEST_DIR, 'nope.yaml') }).sourcePath).toBeUndefined();
     });
   });
 

@@ -52,6 +52,7 @@ export interface BizeventPayload {
   'gen_ai.provider.name'?: string;
   'dt.service.name'?: string;
   'dt.eval.run_id': string;
+  'dt.eval.name'?: string;
   'gen_ai.eval.client': string;
   'gen_ai.eval.client.version': string;
 }

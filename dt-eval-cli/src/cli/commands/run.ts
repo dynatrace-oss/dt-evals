@@ -129,6 +129,8 @@ export function createRunCommand(): Command {
       process.exit(1);
     }
 
+    if (!options.ci) logger.info(`Using config: ${config.sourcePath ?? 'defaults + environment'}`);
+
     const { origin, destination } = resolveEndpoints(config.dynatrace);
     const missing: string[] = [];
     if (!origin.apiToken) missing.push('origin (set DT_ORIGIN_API_TOKEN or dynatrace.origin.apiToken / DT_API_TOKEN)');

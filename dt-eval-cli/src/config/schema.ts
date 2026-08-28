@@ -126,6 +126,8 @@ export interface AlertsConfig {
 
 export interface DtEvalConfig {
   schemaVersion: number;
+  /** Absolute path of the config file this was loaded from. Runtime-only metadata; never persisted. */
+  sourcePath?: string;
   /** Human-readable name for this eval configuration (e.g. "travel-advisor-prod") */
   name?: string;
   dynatrace: DynatraceConfig;

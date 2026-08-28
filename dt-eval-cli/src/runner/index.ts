@@ -388,7 +388,7 @@ export async function runEvals(
       r.span, r.metricId, r.metricName, r.evalResult, runId, r.method,
       isLlm ? judgeProvider : undefined,
       isLlm ? judgeModel : undefined,
-      evalConfig.scope.service, r.evalInput, storeEvaluatedPrompt,
+      evalConfig.scope.service, r.evalInput, storeEvaluatedPrompt, evalConfig.name,
     );
   });
   emit?.({ phase: 'writing', payloads: payloads.length });
