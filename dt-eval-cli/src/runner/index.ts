@@ -4,7 +4,7 @@ import type { DynatraceClient } from '../dt/client.js';
 import type { DtEvalConfig, MetricEntry, MetricInputs, CanonicalSpanField } from '../config/schema.js';
 import { metricId, metricInputs, metricMethod, metricParams } from '../config/schema.js';
 import type { GenAiSpan, BizeventPayload } from '../dt/types.js';
-import { buildGenAiSpanQuery, parseSpanResults, filterSpansByOperationName } from '../dt/dql.js';
+import { buildGenAiSpanQuery, parseSpanResults, filterSpansByOperationName, selectTrajectorySpans } from '../dt/dql.js';
 import { BizeventWriter, buildBizeventPayload } from '../dt/bizevent.js';
 import { DRIFT_METRIC_ID, runDriftDetection, buildDriftBizevents } from './drift.js';
 import { applySampling } from './sampler.js';
@@ -191,6 +191,8 @@ export async function runEvals(
     errorsOnly: evalConfig.scope.sampling?.strategy === 'errors-only',
     spanFields: evalConfig.scope.spanFields,
     operationNames: evalConfig.scope.operationNames,
+    mode: evalConfig.scope.mode,
+    maxConversations: evalConfig.scope.maxConversations,
   });
   logger.debug(`DQL query:\n${query}`);
 
@@ -204,7 +206,10 @@ export async function runEvals(
   // Safety net: re-apply the operation-name keep-list at the parser layer so a DQL
   // change or unexpected extra records can't leak non-keep-listed operation spans
   // into evaluation.
-  const allSpans = filterSpansByOperationName(parsedSpans, evalConfig.scope.operationNames);
+  const filteredSpans = filterSpansByOperationName(parsedSpans, evalConfig.scope.operationNames);
+  const allSpans = evalConfig.scope.mode === 'trajectory'
+    ? selectTrajectorySpans(filteredSpans, evalConfig.scope.maxConversations)
+    : filteredSpans;
   logger.timing('Parse spans', Date.now() - t0Parse, {
     spans: allSpans.length,
     dropped: parsedSpans.length - allSpans.length,
