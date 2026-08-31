@@ -37,6 +37,34 @@ describe("deterministic evaluators", () => {
     ).rejects.toThrow(/expectedOutput/);
   });
 
+  it("exact_match: params.expectedOutput literal → pass", async () => {
+    const r = await run(
+      { method: "exact_match", params: { expectedOutput: "OK" } },
+      { output: "OK" },
+    );
+    expect(r.score.label).toBe("pass");
+  });
+
+  it("exact_match: params.expectedOutput literal → fail on mismatch", async () => {
+    const r = await run(
+      { method: "exact_match", params: { expectedOutput: "OK" } },
+      { output: "ERROR" },
+    );
+    expect(r.score.label).toBe("fail");
+  });
+
+  it("exact_match: params.expectedOutput takes precedence over inputs.expectedOutput", async () => {
+    const r = await run(
+      {
+        method: "exact_match",
+        params: { expectedOutput: "OK" },
+        requiredFields: ["output", "expectedOutput"],
+      },
+      { output: "OK", expectedOutput: "DIFFERENT" },
+    );
+    expect(r.score.label).toBe("pass");
+  });
+
   it("exact_match: trim + caseSensitive:false → pass", async () => {
     const r = await run(
       {

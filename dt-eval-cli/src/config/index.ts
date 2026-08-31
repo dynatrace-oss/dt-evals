@@ -288,11 +288,12 @@ function validateMethodEntry(entry: Record<string, unknown>, i: number, issues: 
 
   const params = (entry['params'] ?? {}) as Record<string, unknown>;
   if (method === 'exact_match') {
-    // The runner marks expectedOutput a required field for exact_match, so a
-    // span-field routing for it must be configured or every span fails at runtime.
-    const expected = (entry['inputs'] as Record<string, unknown> | undefined)?.['expectedOutput'];
-    if (typeof expected !== 'string' || !CANONICAL_SPAN_FIELDS.includes(expected)) {
-      issues.push(`metrics.enabled[${i}] method "exact_match" requires inputs.expectedOutput to route one of: ${CANONICAL_SPAN_FIELDS.join(', ')}`);
+    const literalExpected = params['expectedOutput'];
+    const routedExpected = (entry['inputs'] as Record<string, unknown> | undefined)?.['expectedOutput'];
+    const hasLiteral = typeof literalExpected === 'string' && literalExpected.length > 0;
+    const hasRouted = typeof routedExpected === 'string' && CANONICAL_SPAN_FIELDS.includes(routedExpected);
+    if (!hasLiteral && !hasRouted) {
+      issues.push(`metrics.enabled[${i}] method "exact_match" requires either params.expectedOutput (literal string) or inputs.expectedOutput routing one of: ${CANONICAL_SPAN_FIELDS.join(', ')}`);
     }
     checkBoolean(params, 'caseSensitive', i, method, issues);
     checkBoolean(params, 'trim', i, method, issues);

@@ -3,11 +3,14 @@ import type { EvalInput } from "../types";
 import type { DeterministicOutcome, ExactMatchParams } from "./types";
 
 export function exactMatch(input: EvalInput, params: ExactMatchParams): DeterministicOutcome {
-  if (input.expectedOutput == null) {
-    throw new EvalInputError("exact_match requires expectedOutput");
+  const resolvedExpected = params.expectedOutput ?? input.expectedOutput;
+  if (resolvedExpected == null) {
+    throw new EvalInputError(
+      "exact_match requires expectedOutput (via params.expectedOutput or inputs.expectedOutput)",
+    );
   }
   let actual = input.output;
-  let expected = input.expectedOutput;
+  let expected = resolvedExpected;
   if (params.trim) {
     actual = actual.trim();
     expected = expected.trim();
