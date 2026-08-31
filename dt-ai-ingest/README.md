@@ -9,17 +9,6 @@ It is send-only: you bring the score, it ships one `gen_ai.evaluation.result` Bi
 evaluation, which renders in the Dynatrace GenAI Observability app. It does not run
 evaluations and does not export traces.
 
-## Install
-
-```bash
-pip install dt-ai-ingest
-
-# Optional extras:
-pip install dt-ai-ingest[parquet]   # Parquet file support (pyarrow)
-pip install dt-ai-ingest[ragas]     # Ragas EvaluationResult adapter
-pip install dt-ai-ingest[deepeval]  # DeepEval EvaluationResult adapter
-```
-
 ## Configure
 
 Credentials are read from the environment, or passed to `DynatraceClient`:
@@ -88,7 +77,7 @@ await dt_ai_ingest.ingest_file(
 await dt_ai_ingest.ingest_file("scores.jsonl", run_id="golden-set-v1")
 ```
 
-**Parquet** — requires `pip install dt-ai-ingest[parquet]`. Column names follow the same conventions; nulls are dropped naturally:
+**Parquet** — requires the `parquet` extra (`pyarrow`). Column names follow the same conventions; nulls are dropped naturally:
 
 ```python
 await dt_ai_ingest.ingest_file("scores.parquet", run_id="golden-set-v1")
@@ -163,7 +152,7 @@ Adapters convert a third-party eval result into `Eval` rows you can `ingest()`.
 Each ships behind its own extra and never imports its source library until you
 call it.
 
-**Ragas** — `pip install dt-ai-ingest[ragas]`. `from_ragas` fans a Ragas
+**Ragas** — requires the `ragas` extra. `from_ragas` fans a Ragas
 `EvaluationResult` out into one `Eval` per `(sample, metric)` pair, mapping
 `user_input → question` and `response → answer` by default:
 
@@ -190,7 +179,7 @@ Extra columns (e.g. `retrieved_contexts`) are dropped unless you map them
 through — `mapping={"retrieved_contexts": "rag.contexts"}` routes them into
 `extra`.
 
-**DeepEval** — `pip install dt-ai-ingest[deepeval]`. `from_deepeval` fans a
+**DeepEval** — requires the `deepeval` extra. `from_deepeval` fans a
 DeepEval `EvaluationResult` out into one `Eval` per `(test case, metric)` pair,
 mapping `input → question` and `actual_output → answer` by default:
 
