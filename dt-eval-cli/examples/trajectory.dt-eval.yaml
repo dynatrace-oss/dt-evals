@@ -8,12 +8,12 @@ name: my-agent-prod
 
 dynatrace:
   environmentUrl: https://<your-env-id>.apps.dynatracelabs.com
-  apiToken: dt0c01.REPLACE_ME   # tip: use DT_API_TOKEN env var instead
+  # apiToken is loaded from the DT_API_TOKEN env var (or a local .env file).
 
 judge:
   provider: openai
-  apiKey: sk-REPLACE_ME         # tip: use OPENAI_API_KEY env var instead
   model: gpt-4.1
+  # apiKey is loaded from the provider env var, e.g. OPENAI_API_KEY.
 
 scope:
   service: my-agent-prod

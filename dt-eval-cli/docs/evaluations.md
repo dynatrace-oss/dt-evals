@@ -15,6 +15,10 @@ fetch gen_ai.* spans  →  sample  →  mask PII  →  evaluate  →  write bize
 5. **Write bizevents** — write results back to Dynatrace as `gen_ai.evaluation.result`
    business events. If `drift` is enabled, it runs afterward against the historical baseline.
 
+> **Trajectory mode** adds steps between *fetch* and *sample*: spans are grouped into
+> conversations and one representative span (with truncated history) is selected per
+> conversation. See [Evaluation scope](#evaluation-scope) below.
+
 ## Two axes
 
 An evaluation in `dt-evals` is defined along two independent axes:
