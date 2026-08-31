@@ -43,11 +43,12 @@ metrics:
         keywords: ["source", "reference", "according to"]
         mode: any            # any = pass if one present; all = require every keyword
 
-    # must_not_contain — block forbidden phrases (case-insensitive by default).
-    - id: no-refusal
+    # must_not_contain — block internal/confidential markers leaking into the
+    # answer (case-insensitive by default).
+    - id: no-confidential-disclosure
       method: must_not_contain
       params:
-        keywords: ["i cannot help", "i'm sorry"]
+        keywords: ["confidential", "internal use only", "do not distribute"]
         mode: any
 
     # must_not_match — fail if the output matches a pattern (e.g. a leaked IP).
