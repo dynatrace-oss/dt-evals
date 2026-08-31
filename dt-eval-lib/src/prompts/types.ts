@@ -13,6 +13,7 @@ export enum BuiltInMetric {
   ContextRelevance = "context-relevance",
   AnswerCompleteness = "answer-completeness",
   PromptInjection = "prompt-injection",
+  OutputPromptInjection = "output-prompt-injection",
   Bias = "bias",
   SummarizationQuality = "summarization-quality",
   Conciseness = "conciseness",

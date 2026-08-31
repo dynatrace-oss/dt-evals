@@ -51,7 +51,7 @@ Tune `--concurrency` (or `judge.concurrency` in your yaml) to control how many j
 
 ## What It Does
 
-- **14 built-in judge metrics** for safety, grounding, relevance, quality, and retrieval quality
+- **15 built-in judge metrics** for safety, grounding, relevance, quality, and retrieval quality
 - **Statistical drift detection** against a 7 day baseline of prior evaluation scores
 - **Flexible sampling** with random percentage, latest `N`, or `errors-only`
 - **PII masking before judge calls** for emails, phone numbers, credit cards, and SSNs
@@ -587,7 +587,7 @@ Drift results are written back as the same event type with `gen_ai.evaluation.ty
 
 ## Built-in Evaluators
 
-`dt-evals` ships with 14 built-in LLM judge evaluators, plus drift detection as a separate statistical metric.
+`dt-evals` ships with 15 built-in LLM judge evaluators, plus drift detection as a separate statistical metric.
 
 | Evaluator | Measures | Fields used |
 |-----------|----------|-------------|
@@ -599,6 +599,7 @@ Drift results are written back as the same event type with `gen_ai.evaluation.ty
 | `faithfulness` | Whether the answer is grounded in provided context | `input`, `output` |
 | `fluency` | Grammar, clarity, and natural language quality | `input`, `output` |
 | `hallucination` | Unsupported or fabricated claims | `input`, `output` |
+| `output-prompt-injection` | Injection payload emitted in the output to hijack a downstream agent | `output` |
 | `pii-leakage` | Personally identifiable information in the answer | `input`, `output` |
 | `prompt-injection` | Prompt injection attempts in the input | `input` |
 | `relevance` | Whether the answer addresses the user request | `input`, `output` |

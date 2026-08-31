@@ -3,9 +3,9 @@ import { EvalMetricError } from "../src/errors";
 import { BuiltInMetric, getPrompt, listPrompts } from "../src/prompts/index";
 
 describe("prompt catalog", () => {
-  it("loads all 14 built-in prompts", () => {
+  it("loads all 15 built-in prompts", () => {
     const prompts = listPrompts();
-    expect(prompts).toHaveLength(14);
+    expect(prompts).toHaveLength(15);
   });
 
   it("each prompt has id, name, version, description, prompt, requiredFields, scoring", () => {
@@ -73,6 +73,7 @@ describe("prompt catalog", () => {
     { id: BuiltInMetric.ContextRelevance, fields: ["input"] },
     { id: BuiltInMetric.AnswerCompleteness, fields: ["input", "output"] },
     { id: BuiltInMetric.PromptInjection, fields: ["input"] },
+    { id: BuiltInMetric.OutputPromptInjection, fields: ["output"] },
     { id: BuiltInMetric.Bias, fields: ["input", "output"] },
     { id: BuiltInMetric.SummarizationQuality, fields: ["input", "output"] },
     { id: BuiltInMetric.Conciseness, fields: ["input", "output"] },
@@ -107,9 +108,9 @@ describe("getPrompt", () => {
 });
 
 describe("listPrompts", () => {
-  it("returns all 14 prompts", () => {
+  it("returns all 15 prompts", () => {
     const prompts = listPrompts();
-    expect(prompts).toHaveLength(14);
+    expect(prompts).toHaveLength(15);
   });
 
   it("getPrompt and listPrompts are synchronous", () => {
@@ -121,8 +122,8 @@ describe("listPrompts", () => {
 });
 
 describe("BuiltInMetric enum", () => {
-  it("has all 14 metric IDs", () => {
-    expect(Object.values(BuiltInMetric)).toHaveLength(14);
+  it("has all 15 metric IDs", () => {
+    expect(Object.values(BuiltInMetric)).toHaveLength(15);
   });
 
   it("enum values match catalog IDs", () => {
