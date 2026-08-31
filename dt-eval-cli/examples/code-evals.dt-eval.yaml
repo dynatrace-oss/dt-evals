@@ -1,0 +1,73 @@
+# Code (deterministic) evaluation example
+# Deterministic checks run in-process — fast, reproducible, zero-cost, no judge call.
+# They coexist with LLM-as-judge metrics in the same run.
+# Run: dt-evals run --config examples/code-evals.dt-eval.yaml
+# See: docs/evaluations.md#evaluation-types
+
+schemaVersion: 3
+name: my-ai-service-prod
+
+dynatrace:
+  environmentUrl: https://<your-env-id>.apps.dynatracelabs.com
+  # apiToken is loaded from the DT_API_TOKEN env var (or a local .env file).
+
+judge:
+  provider: openai
+  model: gpt-4.1
+  # apiKey is loaded from the provider env var, e.g. OPENAI_API_KEY.
+
+scope:
+  service: my-ai-service-prod
+  since: 1h
+  sampling:
+    strategy: random
+    percent: 10
+
+metrics:
+  enabled:
+    # LLM-as-judge metric — subjective quality, no ground truth.
+    - relevance
+
+    # json_schema — output must be bare, valid JSON matching the schema.
+    - id: valid-json
+      method: json_schema
+      params:
+        schema:
+          type: object
+          required: [answer]
+
+    # must_contain — require an expected keyword to be present.
+    - id: cites-a-source
+      method: must_contain
+      params:
+        keywords: ["source", "reference", "according to"]
+        mode: any            # any = pass if one present; all = require every keyword
+
+    # must_not_contain — block internal/confidential markers leaking into the
+    # answer (case-insensitive by default).
+    - id: no-confidential-disclosure
+      method: must_not_contain
+      params:
+        keywords: ["confidential", "internal use only", "do not distribute"]
+        mode: any
+
+    # must_not_match — fail if the output matches a pattern (e.g. a leaked IP).
+    - id: no-ip-leaked
+      method: must_not_match
+      params:
+        pattern: "\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b"
+
+    # exact_match — compare the span output to another span field, routed via
+    # inputs.expectedOutput. It compares against a span field, not a literal
+    # string, so the routed field must carry the expected value.
+    - id: exact-answer
+      method: exact_match
+      params:
+        caseSensitive: false
+        trim: true
+      inputs:
+        expectedOutput: context   # canonical span field holding the expected value
+
+alerts:
+  thresholds:
+    relevance: 0.6

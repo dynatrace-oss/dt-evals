@@ -14,3 +14,5 @@ dist/
 # Project-specific eval configs (contain credentials — use example.dt-eval.yaml as a template)
 *.dt-eval.yaml
 !example.dt-eval.yaml
+# Committed, placeholder-only example configs
+!examples/*.dt-eval.yaml

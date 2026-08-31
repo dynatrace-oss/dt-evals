@@ -1,0 +1,51 @@
+# Trajectory (multi-turn) evaluation example
+# Scores a whole conversation instead of a single span/turn.
+# Run: dt-evals run --config examples/trajectory.dt-eval.yaml
+# See: docs/evaluations.md#evaluation-scope
+
+schemaVersion: 3
+name: my-agent-prod
+
+dynatrace:
+  environmentUrl: https://<your-env-id>.apps.dynatracelabs.com
+  # apiToken is loaded from the DT_API_TOKEN env var (or a local .env file).
+
+judge:
+  provider: openai
+  model: gpt-4.1
+  # apiKey is loaded from the provider env var, e.g. OPENAI_API_KEY.
+
+scope:
+  service: my-agent-prod
+  since: 24h
+
+  # Enable multi-turn evaluation. Spans are grouped by gen_ai.conversation.id
+  # (falling back to trace.id), one representative span is picked per conversation,
+  # and its full gen_ai.input.messages history is scored as one trajectory.
+  mode: trajectory
+
+  # How many conversation groups to consider before `sampling` is applied (default: 200).
+  maxConversations: 200
+
+  # Max messages kept per trajectory; oldest are dropped (default: 50).
+  maxMessages: 50
+
+  # Message part types to keep from the history (default shown below).
+  keepPartTypes: [text, tool_call, tool_call_response]
+
+  sampling:
+    strategy: random
+    percent: 10
+
+metrics:
+  # Conversation-level judges are the natural fit for trajectories.
+  enabled:
+    - answer-completeness   # were all parts of the user's goal addressed
+    - faithfulness          # stayed grounded across the conversation
+    - user-frustration      # frustration signals building over turns
+
+alerts:
+  thresholds:
+    answer-completeness: 0.7
+    faithfulness: 0.7
+    user-frustration: 1
