@@ -187,8 +187,16 @@ scores the span output as pass (`1.0`) or fail (`0.0`).
 **Use it for** objective, structural checks — valid JSON, required keywords,
 forbidden phrases, exact/regex matches — where the answer is unambiguous.
 
-Available methods: `exact_match`, `regex`, `must_not_match`, `must_contain`,
-`must_not_contain`, `json_schema`.
+Available methods:
+
+| Method | How it works | Suggested use |
+|--------|--------------|---------------|
+| `exact_match` | Passes when the output equals an expected value (routed via `inputs.expectedOutput`); `caseSensitive` / `trim` options | Check a fixed, canonical answer |
+| `must_contain` | Passes when the output contains the keyword(s) — `mode: any` (one) or `all` (every) | Require a citation, disclaimer, or required token |
+| `must_not_contain` | Fails when the output contains a forbidden keyword (`mode: any` / `all`) | Block refusals, confidential markers, or banned terms |
+| `regex` | Passes when the output matches the `pattern` | Enforce a required format (ID, date, currency) |
+| `must_not_match` | Fails when the output matches the `pattern` | Catch leaked patterns (IPs, emails, secrets) |
+| `json_schema` | Passes when the output is bare JSON matching the `schema` | Validate structured or tool output |
 
 ```yaml
 metrics:
