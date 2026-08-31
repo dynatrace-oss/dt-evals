@@ -1,7 +1,8 @@
 # Configuration
 
-Full configuration reference for `dt-evals`. For evaluation concepts (span vs
-trajectory, LLM judge vs code checks) see [Evaluations](evaluations.md).
+Full configuration reference for `dt-evals`. For evaluation concepts and the
+types of supported evals (code evals or LLM-as-judge), see
+[Evaluations](evaluations.md).
 
 Config is resolved in this order:
 
@@ -174,6 +175,9 @@ OpenInference usually stores chat turns in `llm.input_messages` /
 so listing both keeps the mapping resilient across instrumentations.
 
 ## Per-metric input routing
+
+`dt-evals` ships multiple built-in metrics, or you can define your own — see
+[Evaluations](evaluations.md#evaluation-types) for the catalog and details.
 
 Metric entries in `metrics.enabled` accept either a string id (the legacy form)
 or an object with `inputs` that overrides which canonical span field feeds each

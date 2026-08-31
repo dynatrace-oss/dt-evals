@@ -1,5 +1,22 @@
 # Evaluations
 
+## How a run works
+
+```text
+fetch gen_ai.* spans  →  sample  →  mask PII  →  evaluate  →  write bizevents
+    (scope.service,      (scope.    (in memory)  (judge or    (gen_ai.evaluation.result
+     scope.since)         sampling)               code check)   in Dynatrace)
+```
+
+1. **Fetch** — query `gen_ai.*` spans from Dynatrace for the configured service and window.
+2. **Sample** — reduce to the traces (or conversations, in trajectory mode) to score.
+3. **Mask PII** — redact sensitive values in memory before content leaves the process.
+4. **Evaluate** — run each enabled metric as an LLM-as-judge or a deterministic code check.
+5. **Write bizevents** — write results back to Dynatrace as `gen_ai.evaluation.result`
+   business events. If `drift` is enabled, it runs afterward against the historical baseline.
+
+## Two axes
+
 An evaluation in `dt-evals` is defined along two independent axes:
 
 - **Scope** — *how much* is scored: a single turn (`span`) or a whole
