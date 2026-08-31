@@ -41,12 +41,12 @@ npx @dynatrace-oss/dt-evals run --since 1h --sample 10 --concurrency 10
 
 ## What It Does
 
-- **14 built-in judge metrics** plus **deterministic code checks** for safety, grounding, relevance, quality, and structure
-- **Single-turn (span) and multi-turn (trajectory) evaluation** — see [Evaluations](docs/evaluations.md)
-- **Statistical drift detection** against a 7-day baseline of prior scores
-- **Flexible sampling** with random percentage, latest `N`, or `errors-only`
-- **PII masking before judge calls** for emails, phone numbers, credit cards, and SSNs
-- **OpenAI, Anthropic, Azure OpenAI, Google Gemini (Vertex AI), and Bedrock support** with optional custom base URLs
+- **14 built-in judge metrics** plus **deterministic code checks** for safety, grounding, relevance, quality, and structure — see [Evaluation types](docs/evaluations.md#evaluation-types)
+- **Single-turn (span) and multi-turn (trajectory) evaluation** — see [Evaluation scope](docs/evaluations.md#evaluation-scope)
+- **Statistical drift detection** against a 7-day baseline of prior scores — see [Drift detection](docs/evaluations.md#drift-detection)
+- **Flexible sampling** with random percentage, latest `N`, or `errors-only` — see [Scope](docs/configuration.md#scope)
+- **PII masking before judge calls** for emails, phone numbers, credit cards, and SSNs — see [PII handling](docs/configuration.md#pii-handling)
+- **OpenAI, Anthropic, Azure OpenAI, Google Gemini Enterprise Platform (Vertex AI), and Bedrock support** with optional custom base URLs — see [Environment variables](docs/configuration.md#environment-variables)
 - **CI-friendly runs** with JSON output and non-zero exit codes on threshold breaches
 - **Local run history and scheduled runs** stored locally
 - **TypeScript API** for running the evaluator catalog directly in code
@@ -63,11 +63,13 @@ sample traces -> mask sensitive data -> score with judge or code check -> write 
                                              query in DQL, dashboard, alert, export
 ```
 
+For a step-by-step breakdown of the run pipeline, see [How a run works](docs/evaluations.md#how-a-run-works).
+
 ## Requirements
 
 - Node.js `>=20`
 - A Dynatrace environment with GenAI spans or OpenTelemetry-style `gen_ai.*` fields
-- Credentials for your judge provider (OpenAI, Anthropic, Azure OpenAI, Google Gemini/Vertex AI, or Bedrock)
+- Credentials for your judge provider (OpenAI, Anthropic, Azure OpenAI, Google Gemini Enterprise Platform (Vertex AI), or Bedrock)
 
 ## Install
 
@@ -104,6 +106,8 @@ dt-evals configure \
   --output .dt-eval.yaml
 ```
 
+For every config option see [Configuration](docs/configuration.md), or start from a ready-to-run file in [`examples/`](examples/).
+
 ### 2. Validate the setup
 
 ```bash
@@ -127,6 +131,8 @@ dt-evals run --since 6h --metric relevance --ci
 ```
 
 Tune `--concurrency` (or `judge.concurrency` in your config) to control how many judge calls run in parallel. Default is 5.
+
+To score whole conversations instead of single turns, set `scope.mode: trajectory` — see [Evaluation scope](docs/evaluations.md#evaluation-scope) and [`examples/trajectory.dt-eval.yaml`](examples/trajectory.dt-eval.yaml). For deterministic checks, see [`examples/code-evals.dt-eval.yaml`](examples/code-evals.dt-eval.yaml).
 
 ## Documentation
 
@@ -167,7 +173,7 @@ Global flags:
 --debug                    Per-step timing logs
 ```
 
-Run records are stored in `~/.dt-eval/runs.json`; schedules in `~/.dt-eval/schedules.json`.
+Flags override values from the config file; for the full set of config keys see [Configuration](docs/configuration.md). Run records are stored in `~/.dt-eval/runs.json`; schedules in `~/.dt-eval/schedules.json`.
 
 ## TypeScript Library
 
