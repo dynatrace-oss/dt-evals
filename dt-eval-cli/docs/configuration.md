@@ -88,6 +88,17 @@ Sampling strategies:
 | Most recent traces | `strategy: latest`, `count: 200` |
 | Error traces only | `strategy: errors-only` |
 
+Notes on how sampling is applied (defaults to `random` at 5%):
+
+- `random` shuffles the fetched spans and keeps `floor(percent / 100 × count)` of
+  them, so a low `percent` over a small window can round down to **zero** — raise
+  `percent` or widen `since` if a run evaluates nothing. `percent: 100` keeps all.
+- `latest` keeps the newest `count` spans (all of them when `count` is unset).
+- `errors-only` returns every error span and ignores `percent` / `count`.
+- In [trajectory mode](evaluations.md#evaluation-scope), sampling runs *after*
+  conversations are grouped, so it samples whole conversations (one representative
+  span each) drawn from at most `maxConversations`.
+
 ## Cross-tenant configuration
 
 `dynatrace.environmentUrl` / `dynatrace.apiToken` describe a single tenant that

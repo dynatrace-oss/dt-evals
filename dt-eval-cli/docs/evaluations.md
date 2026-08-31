@@ -102,6 +102,10 @@ scope:
   keepPartTypes: [text]
 ```
 
+> **Sampling** here applies to conversations, not individual spans: `scope.sampling`
+> selects a share of the grouped conversations (each represented by one span), drawn
+> from at most `maxConversations`. See [Configuration](configuration.md#scope).
+
 See [`examples/trajectory.dt-eval.yaml`](../examples/trajectory.dt-eval.yaml)
 for a complete config.
 
