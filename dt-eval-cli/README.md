@@ -20,7 +20,7 @@ npx @dynatrace-oss/dt-evals validate
 npx @dynatrace-oss/dt-evals run --since 1h --sample 10 --concurrency 10
 ```
 
-> 🎮 **See it live before installing** — [**open the dt-evals playground dashboard**](http://wkf10640.apps.dynatrace.com/ui/apps/dynatrace.dashboards/dashboard/monaco-2cf9a79b-8b32-3244-aed1-e9d8c6e3e6a8) on our public Dynatrace tenant. Real evaluation runs against production GenAI traces — scores per metric, drift over time, threshold breaches, click-through to the originating trace.
+> 🎮 **See it live before installing** — [**open the dt-evals playground dashboard**](https://wkf10640.apps.dynatrace.com/ui/apps/dynatrace.dashboards/dashboard/monaco-2cf9a79b-8b32-3244-aed1-e9d8c6e3e6a8) on our public Dynatrace tenant. Real evaluation runs against production GenAI traces — scores per metric, drift over time, threshold breaches, click-through to the originating trace.
 
 ## Why Teams Use It
 

@@ -33,7 +33,7 @@ judge:
   # apiKey: sk-REPLACE_ME
 
   # (Optional) Override the model. Defaults: openai → gpt-4o, anthropic → claude-sonnet-4-6
-  model: gpt-5.3
+  model: gpt-4.1
 
   # (Optional) Custom base URL — useful for Azure OpenAI or local proxies.
   # baseUrl: https://my-azure-resource.openai.azure.com/

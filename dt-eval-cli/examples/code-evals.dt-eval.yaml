@@ -57,14 +57,16 @@ metrics:
       params:
         pattern: "\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b"
 
-    # exact_match — compare output against a canonical span field.
+    # exact_match — compare the span output to another span field, routed via
+    # inputs.expectedOutput. It compares against a span field, not a literal
+    # string, so the routed field must carry the expected value.
     - id: exact-answer
       method: exact_match
       params:
         caseSensitive: false
         trim: true
       inputs:
-        expectedOutput: context
+        expectedOutput: context   # canonical span field holding the expected value
 
 alerts:
   thresholds:
