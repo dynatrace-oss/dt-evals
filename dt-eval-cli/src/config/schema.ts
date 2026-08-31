@@ -111,8 +111,6 @@ export interface MetricInputs {
   input?: CanonicalSpanField;
   output?: CanonicalSpanField;
   context?: CanonicalSpanField;
-  /** Reference value for deterministic methods that compare against it (e.g. exact_match). */
-  expectedOutput?: CanonicalSpanField;
 }
 
 /**

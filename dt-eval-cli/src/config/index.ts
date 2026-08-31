@@ -217,7 +217,7 @@ export function saveConfig(config: DtEvalConfig, filePath: string): void {
 const DETERMINISTIC_METHODS = ['exact_match', 'regex', 'must_not_match', 'json_schema', 'must_contain', 'must_not_contain'];
 const ALL_METHODS = ['llm_as_judge', ...DETERMINISTIC_METHODS];
 const CANONICAL_SPAN_FIELDS = ['input', 'output', 'context', 'systemInstruction', 'model', 'userPrompt'];
-const METRIC_INPUT_SLOTS = ['input', 'output', 'context', 'expectedOutput'];
+const METRIC_INPUT_SLOTS = ['input', 'output', 'context'];
 
 type CheckSync = (source: string, flags: string, params?: object) => { status: string };
 let _checkSync: CheckSync | null | undefined;
@@ -289,11 +289,8 @@ function validateMethodEntry(entry: Record<string, unknown>, i: number, issues: 
   const params = (entry['params'] ?? {}) as Record<string, unknown>;
   if (method === 'exact_match') {
     const literalExpected = params['expectedOutput'];
-    const routedExpected = (entry['inputs'] as Record<string, unknown> | undefined)?.['expectedOutput'];
-    const hasLiteral = typeof literalExpected === 'string' && literalExpected.length > 0;
-    const hasRouted = typeof routedExpected === 'string' && CANONICAL_SPAN_FIELDS.includes(routedExpected);
-    if (!hasLiteral && !hasRouted) {
-      issues.push(`metrics.enabled[${i}] method "exact_match" requires either params.expectedOutput (literal string) or inputs.expectedOutput routing one of: ${CANONICAL_SPAN_FIELDS.join(', ')}`);
+    if (typeof literalExpected !== 'string' || literalExpected.length === 0) {
+      issues.push(`metrics.enabled[${i}] method "exact_match" requires params.expectedOutput (a non-empty literal string)`);
     }
     checkBoolean(params, 'caseSensitive', i, method, issues);
     checkBoolean(params, 'trim', i, method, issues);
