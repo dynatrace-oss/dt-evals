@@ -61,7 +61,7 @@ single reply. It is **opt-in**: `scope.mode` defaults to `span`, so set
 **Use it for** conversation-level outcomes: goal/task completion, coherence
 across turns, knowledge retention, and frustration that builds over a session.
 
-**How it works**
+#### How it works
 
 1. **Fetch** — the query additionally pulls `gen_ai.conversation.id` and
    `gen_ai.response.finish_reasons`, ordered by most recent.
@@ -86,7 +86,7 @@ scope:
   keepPartTypes: [text, tool_call, tool_call_response]  # message parts to keep (default)
 ```
 
-**What you can tune**
+#### What you can tune
 
 | Key | Default | What it controls |
 |-----|---------|------------------|
@@ -240,7 +240,7 @@ Use `regex` for the opposite of `must_not_match` — pass only when the output
 See [`examples/code-evals.dt-eval.yaml`](../examples/code-evals.dt-eval.yaml)
 for a complete config.
 
-#### Limitations and assumptions
+#### Limitations
 
 - **`json_schema` parses raw output**, so the output must be **bare** JSON — a
   response wrapped in markdown fences (` ```json … ``` `) will not parse.
