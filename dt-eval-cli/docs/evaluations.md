@@ -53,22 +53,53 @@ scope:
 
 ### Trajectory — multi-turn (agentic)
 
-Scores a whole conversation. Spans are grouped by `gen_ai.conversation.id`
-(falling back to `trace.id` when absent); one representative span is picked per
-conversation (preferring one whose `finish_reason` is `stop`, else the latest),
-and its full `gen_ai.input.messages` history is evaluated as a single
-trajectory.
+Scores a whole conversation as one unit — the mode for agentic and multi-turn
+assistants, where quality is a property of the entire session rather than any
+single reply. It is **opt-in**: `scope.mode` defaults to `span`, so set
+`mode: trajectory` to enable it.
 
 **Use it for** conversation-level outcomes: goal/task completion, coherence
 across turns, knowledge retention, and frustration that builds over a session.
+
+**How it works**
+
+1. **Fetch** — the query additionally pulls `gen_ai.conversation.id` and
+   `gen_ai.response.finish_reasons`, ordered by most recent.
+2. **Group** — spans are grouped into conversations by `gen_ai.conversation.id`
+   (falling back to `trace.id` when the attribute is absent).
+3. **Select** — one representative span is picked per conversation: the span whose
+   `finish_reason` is `stop` (the completed turn), or the latest span otherwise.
+4. **Rebuild history** — the representative span's `gen_ai.input.messages` (a JSON
+   array of role-tagged messages) is treated as the full transcript. Each
+   message's `parts` are filtered to `keepPartTypes`, messages left empty are
+   dropped, and if the transcript exceeds `maxMessages` only the most recent
+   `maxMessages` are kept.
+5. The trajectory is then sampled, masked, and evaluated like any other input,
+   and written back as a `gen_ai.evaluation.result` bizevent.
 
 ```yaml
 scope:
   mode: trajectory
   since: 24h
-  maxConversations: 200                          # groups to consider before sampling (default 200)
-  maxMessages: 50                                # messages kept per conversation (default 50)
-  keepPartTypes: [text, tool_call, tool_call_response]
+  maxConversations: 200                                 # groups to consider before sampling (default 200)
+  maxMessages: 50                                       # messages kept per conversation (default 50)
+  keepPartTypes: [text, tool_call, tool_call_response]  # message parts to keep (default)
+```
+
+**What you can tune**
+
+| Key | Default | What it controls |
+|-----|---------|------------------|
+| `maxConversations` | `200` | How many conversation groups to consider before sampling. Raise for wider coverage, lower to cut cost. |
+| `maxMessages` | `50` | Max messages kept per trajectory; the oldest are dropped first. Lower it to keep judges within a smaller context. |
+| `keepPartTypes` | `[text, tool_call, tool_call_response]` | Which message part types survive into the transcript. |
+
+For example, to score only the natural-language turns and drop tool traffic:
+
+```yaml
+scope:
+  mode: trajectory
+  keepPartTypes: [text]
 ```
 
 See [`examples/trajectory.dt-eval.yaml`](../examples/trajectory.dt-eval.yaml)
