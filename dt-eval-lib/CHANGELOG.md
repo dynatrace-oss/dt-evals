@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.19-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.18-alpha...dt-eval-lib-v0.0.19-alpha) (2026-09-01)
+
+
+### ✨ New Features
+
+* **dt-eval-lib:** add output-prompt-injection evaluator for agent-emitted injection ([#224](https://github.com/dynatrace-oss/dt-evals/issues/224)) ([bc7074c](https://github.com/dynatrace-oss/dt-evals/commit/bc7074c40587f854e3a07766109be8364938d888))
+
 ## [0.0.18-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.17-alpha...dt-eval-lib-v0.0.18-alpha) (2026-09-01)
 
 
