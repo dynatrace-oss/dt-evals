@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.0-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.26-alpha...v0.3.0-alpha) (2026-09-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* **dt-eval-cli:** rename scope.mode → scope.level with agent-* values ([#223](https://github.com/dynatrace-oss/dt-evals/issues/223))
+
+### 🔄 Refactoring
+
+* **dt-eval-cli:** rename scope.mode → scope.level with agent-* values ([#223](https://github.com/dynatrace-oss/dt-evals/issues/223)) ([332ab3a](https://github.com/dynatrace-oss/dt-evals/commit/332ab3af4beb83a21657ec95ddbe3409abd02b5c))
+
 ## [0.2.26-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.25-alpha...v0.2.26-alpha) (2026-09-01)
 
 
