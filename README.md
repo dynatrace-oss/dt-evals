@@ -315,7 +315,7 @@ DT_API_TOKEN=dt0c01.xxxxx
 
 ## Built-in Evaluators
 
-14 built-in LLM judge evaluators plus statistical drift detection.
+15 built-in LLM judge evaluators plus statistical drift detection.
 
 | Evaluator | Measures |
 |-----------|----------|

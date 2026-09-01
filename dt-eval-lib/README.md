@@ -71,6 +71,7 @@ All built-in metrics return a **continuous** score in `[0.0, 1.0]`. The score is
 | `faithfulness` | `BuiltInMetric.Faithfulness` | 0.0 – 1.0 | `input`, `output` |
 | `fluency` | `BuiltInMetric.Fluency` | 0.0 – 1.0 | `input`, `output` |
 | `hallucination` | `BuiltInMetric.Hallucination` | 0.0 – 1.0 | `input`, `output` |
+| `output-prompt-injection` | `BuiltInMetric.OutputPromptInjection` | 0.0 – 1.0 | `output` |
 | `pii-leakage` | `BuiltInMetric.PiiLeakage` | 0.0 – 1.0 | `input`, `output` |
 | `prompt-injection` | `BuiltInMetric.PromptInjection` | 0.0 – 1.0 | `input` |
 | `relevance` | `BuiltInMetric.Relevance` | 0.0 – 1.0 | `input`, `output` |
@@ -160,7 +161,7 @@ Use `listPrompts()` and `getPrompt()` to discover available metrics:
 ```ts
 import { listPrompts, getPrompt, BuiltInMetric } from "@dynatrace-oss/dt-eval-lib";
 
-const all = listPrompts();                        // all 14 built-in metrics
+const all = listPrompts();                        // all 15 built-in metrics
 const tox = getPrompt(BuiltInMetric.Toxicity);    // single metric by ID
 ```
 
