@@ -78,7 +78,8 @@ interface EvalTask {
 /**
  * Resolve the evaluator definition for a task. LLM-judge metrics come from the
  * lib catalog; deterministic metrics are synthesized from the entry's method +
- * params (binary pass/fail scale, output-only required fields except exact_match).
+ * params (binary pass/fail scale, output-only required fields). exact_match
+ * takes its expected value from params.expectedOutput, not a span field.
  */
 function resolvePrompt(task: EvalTask): PromptDefinition {
   if (task.method === 'llm_as_judge') {
@@ -91,7 +92,7 @@ function resolvePrompt(task: EvalTask): PromptDefinition {
     description: `${task.method} evaluator`,
     method: task.method,
     params: task.params,
-    requiredFields: task.method === 'exact_match' ? ['output', 'expectedOutput'] : ['output'],
+    requiredFields: ['output'],
     scoring: BINARY_SCALE,
   };
 }
@@ -117,14 +118,10 @@ function buildEvalInput(span: GenAiSpan, inputs: MetricInputs | undefined): Eval
   if (!inputs) {
     return { input: span.input, output: span.output, context: span.context };
   }
-  const expectedOutput = inputs.expectedOutput
-    ? resolveCanonicalField(span, inputs.expectedOutput)
-    : undefined;
   return {
     input: (inputs.input && resolveCanonicalField(span, inputs.input)) ?? span.input,
     output: (inputs.output && resolveCanonicalField(span, inputs.output)) ?? span.output,
     context: (inputs.context && resolveCanonicalField(span, inputs.context)) ?? span.context,
-    ...(expectedOutput !== undefined ? { expectedOutput } : {}),
   };
 }
 

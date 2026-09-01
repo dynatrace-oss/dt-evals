@@ -72,7 +72,12 @@ function readParams(def: PromptDefinition): Record<string, unknown> {
 }
 
 function exactMatchParams(params: Record<string, unknown>): ExactMatchParams {
+  const expectedOutput = params.expectedOutput;
+  if (expectedOutput !== undefined && typeof expectedOutput !== "string") {
+    throw new EvalConfigError("exact_match 'expectedOutput' must be a string");
+  }
   return {
+    ...(expectedOutput !== undefined ? { expectedOutput } : {}),
     caseSensitive: optionalBoolean(params, "caseSensitive", "exact_match"),
     trim: optionalBoolean(params, "trim", "exact_match"),
   };

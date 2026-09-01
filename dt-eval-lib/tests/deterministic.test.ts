@@ -17,34 +17,58 @@ function run(def: Partial<PromptDefinition>, input: Partial<EvalInput>) {
 describe("deterministic evaluators", () => {
   it("exact_match: equal → pass", async () => {
     const r = await run(
-      { method: "exact_match", requiredFields: ["output", "expectedOutput"] },
-      { output: "hello", expectedOutput: "hello" },
+      { method: "exact_match", params: { expectedOutput: "hello" } },
+      { output: "hello" },
     );
     expect(r.score).toEqual({ value: 1, label: "pass" });
   });
 
   it("exact_match: differs → fail", async () => {
     const r = await run(
-      { method: "exact_match", requiredFields: ["output", "expectedOutput"] },
-      { output: "hello", expectedOutput: "world" },
+      { method: "exact_match", params: { expectedOutput: "world" } },
+      { output: "hello" },
     );
     expect(r.score.label).toBe("fail");
   });
 
-  it("exact_match: rejects a missing expected output even when requiredFields omits it", async () => {
+  it("exact_match: rejects a missing params.expectedOutput", async () => {
+    await expect(run({ method: "exact_match", params: {} }, { output: "" })).rejects.toThrow(
+      /params.expectedOutput/,
+    );
+  });
+
+  it("exact_match: ignores input.expectedOutput (span routing dropped)", async () => {
     await expect(
-      run({ method: "exact_match", requiredFields: ["output"] }, { output: "" }),
-    ).rejects.toThrow(/expectedOutput/);
+      run(
+        { method: "exact_match", params: {}, requiredFields: ["output"] },
+        { output: "OK", expectedOutput: "OK" },
+      ),
+    ).rejects.toThrow(/params.expectedOutput/);
+  });
+
+  it("exact_match: params.expectedOutput literal → pass", async () => {
+    const r = await run(
+      { method: "exact_match", params: { expectedOutput: "OK" } },
+      { output: "OK" },
+    );
+    expect(r.score.label).toBe("pass");
+  });
+
+  it("exact_match: params.expectedOutput literal → fail on mismatch", async () => {
+    const r = await run(
+      { method: "exact_match", params: { expectedOutput: "OK" } },
+      { output: "ERROR" },
+    );
+    expect(r.score.label).toBe("fail");
   });
 
   it("exact_match: trim + caseSensitive:false → pass", async () => {
     const r = await run(
       {
         method: "exact_match",
-        params: { trim: true, caseSensitive: false },
-        requiredFields: ["output", "expectedOutput"],
+        params: { trim: true, caseSensitive: false, expectedOutput: "hello" },
       },
-      { output: "  Hello ", expectedOutput: "hello" },
+      { output: "  Hello " },
     );
     expect(r.score.label).toBe("pass");
   });

@@ -6,6 +6,7 @@ export interface DeterministicOutcome {
 }
 
 export interface ExactMatchParams {
+  expectedOutput?: string;
   caseSensitive?: boolean;
   trim?: boolean;
 }

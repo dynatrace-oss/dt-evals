@@ -217,7 +217,7 @@ export function saveConfig(config: DtEvalConfig, filePath: string): void {
 const DETERMINISTIC_METHODS = ['exact_match', 'regex', 'must_not_match', 'json_schema', 'must_contain', 'must_not_contain'];
 const ALL_METHODS = ['llm_as_judge', ...DETERMINISTIC_METHODS];
 const CANONICAL_SPAN_FIELDS = ['input', 'output', 'context', 'systemInstruction', 'model', 'userPrompt'];
-const METRIC_INPUT_SLOTS = ['input', 'output', 'context', 'expectedOutput'];
+const METRIC_INPUT_SLOTS = ['input', 'output', 'context'];
 
 type CheckSync = (source: string, flags: string, params?: object) => { status: string };
 let _checkSync: CheckSync | null | undefined;
@@ -288,11 +288,9 @@ function validateMethodEntry(entry: Record<string, unknown>, i: number, issues: 
 
   const params = (entry['params'] ?? {}) as Record<string, unknown>;
   if (method === 'exact_match') {
-    // The runner marks expectedOutput a required field for exact_match, so a
-    // span-field routing for it must be configured or every span fails at runtime.
-    const expected = (entry['inputs'] as Record<string, unknown> | undefined)?.['expectedOutput'];
-    if (typeof expected !== 'string' || !CANONICAL_SPAN_FIELDS.includes(expected)) {
-      issues.push(`metrics.enabled[${i}] method "exact_match" requires inputs.expectedOutput to route one of: ${CANONICAL_SPAN_FIELDS.join(', ')}`);
+    const literalExpected = params['expectedOutput'];
+    if (typeof literalExpected !== 'string' || literalExpected.length === 0) {
+      issues.push(`metrics.enabled[${i}] method "exact_match" requires params.expectedOutput (a non-empty literal string)`);
     }
     checkBoolean(params, 'caseSensitive', i, method, issues);
     checkBoolean(params, 'trim', i, method, issues);

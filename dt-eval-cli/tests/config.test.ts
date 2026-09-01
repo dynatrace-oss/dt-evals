@@ -326,7 +326,7 @@ describe('config', () => {
       expect(() => validateConfig(config)).not.toThrow();
     });
 
-    it('requires inputs.expectedOutput for exact_match', () => {
+    it('requires params.expectedOutput for exact_match', () => {
       const config = makeValidConfig();
       config.metrics.enabled = [{ id: 'em', method: 'exact_match' }] as never;
 
@@ -335,20 +335,35 @@ describe('config', () => {
         validateConfig(config);
       } catch (err) {
         const issues = (err as InstanceType<typeof ConfigValidationError>).issues;
-        expect(issues.some(m => /exact_match.*inputs\.expectedOutput/.test(m))).toBe(true);
+        expect(issues.some(m => /exact_match.*params\.expectedOutput/.test(m))).toBe(true);
       }
     });
 
-    it('accepts exact_match when inputs.expectedOutput routes a canonical field', () => {
+    it('accepts exact_match with a params.expectedOutput literal', () => {
       const config = makeValidConfig();
       config.metrics.enabled = [
-        { id: 'em', method: 'exact_match', inputs: { expectedOutput: 'context' } },
+        { id: 'em', method: 'exact_match', params: { expectedOutput: 'OK' } },
       ] as never;
 
       expect(() => validateConfig(config)).not.toThrow();
     });
 
-    it.each(['input', 'output', 'context', 'expectedOutput'])(
+    it('rejects inputs.expectedOutput routing for exact_match (span routing dropped)', () => {
+      const config = makeValidConfig();
+      config.metrics.enabled = [
+        { id: 'em', method: 'exact_match', params: { expectedOutput: 'OK' }, inputs: { expectedOutput: 'context' } },
+      ] as never;
+
+      expect(() => validateConfig(config)).toThrowError(ConfigValidationError);
+      try {
+        validateConfig(config);
+      } catch (err) {
+        const issues = (err as InstanceType<typeof ConfigValidationError>).issues;
+        expect(issues.some(m => /inputs\.expectedOutput is not supported/.test(m))).toBe(true);
+      }
+    });
+
+    it.each(['input', 'output', 'context'])(
       'rejects an invalid inputs.%s canonical field',
       (slot) => {
         const config = makeValidConfig();

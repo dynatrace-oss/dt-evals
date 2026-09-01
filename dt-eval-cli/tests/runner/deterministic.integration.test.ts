@@ -32,7 +32,7 @@ describe('deterministic evaluator integration', () => {
         enabled: [{
           id: 'answer-match',
           method: 'exact_match',
-          inputs: { expectedOutput: 'context' },
+          params: { expectedOutput: 'expected answer' },
         }],
       },
     };

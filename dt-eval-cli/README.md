@@ -336,8 +336,8 @@ storeEvaluatedPrompt: false
 String entries and object entries without `method` use the configured
 LLM-as-judge provider. Deterministic entries set `method` to `exact_match`,
 `regex`, `must_not_match`, `json_schema`, `must_contain`, or
-`must_not_contain`. `exact_match` also requires an `inputs.expectedOutput`
-route to a canonical span field:
+`must_not_contain`. `exact_match` compares the span output against a literal
+`params.expectedOutput` defined in the config:
 
 ```yaml
 metrics:
@@ -345,10 +345,9 @@ metrics:
     - id: exact-answer
       method: exact_match
       params:
+        expectedOutput: "OK"
         caseSensitive: false
         trim: true
-      inputs:
-        expectedOutput: context
 ```
 
 By default, the runner keeps only chat/text-generation spans:
