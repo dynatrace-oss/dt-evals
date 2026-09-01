@@ -394,11 +394,6 @@ export function validateConfig(config: DtEvalConfig): void {
   if (level !== undefined && level !== 'agent-span' && level !== 'agent-session') {
     issues.push(`scope.level must be "agent-span" or "agent-session" (got "${level}")`);
   }
-  // `scope.mode` was renamed to `scope.level` (values: span→agent-span, trajectory→agent-session).
-  // Catch stale configs so the old key doesn't silently fall back to the default level.
-  if ((config.scope as { mode?: unknown } | undefined)?.mode !== undefined) {
-    issues.push('scope.mode has been renamed to scope.level (use "agent-span" or "agent-session")');
-  }
 
   const { strategy } = config.scope?.sampling ?? {};
   if (strategy && !['random', 'latest', 'errors-only'].includes(strategy)) {
