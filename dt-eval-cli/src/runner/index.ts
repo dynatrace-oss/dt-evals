@@ -188,7 +188,7 @@ export async function runEvals(
     errorsOnly: evalConfig.scope.sampling?.strategy === 'errors-only',
     spanFields: evalConfig.scope.spanFields,
     operationNames: evalConfig.scope.operationNames,
-    mode: evalConfig.scope.mode,
+    level: evalConfig.scope.level,
     maxConversations: evalConfig.scope.maxConversations,
   });
   logger.debug(`DQL query:\n${query}`);
@@ -199,12 +199,12 @@ export async function runEvals(
   logger.timing('DQL fetch', dqlMs, { rawRecords: (rawRecords as unknown[]).length });
 
   const t0Parse = Date.now();
-  const parsedSpans = parseSpanResults(rawRecords, { spanFields: evalConfig.scope.spanFields, mode: evalConfig.scope.mode, keepPartTypes: evalConfig.scope.keepPartTypes, maxMessages: evalConfig.scope.maxMessages });
+  const parsedSpans = parseSpanResults(rawRecords, { spanFields: evalConfig.scope.spanFields, level: evalConfig.scope.level, keepPartTypes: evalConfig.scope.keepPartTypes, maxMessages: evalConfig.scope.maxMessages });
   // Safety net: re-apply the operation-name keep-list at the parser layer so a DQL
   // change or unexpected extra records can't leak non-keep-listed operation spans
   // into evaluation.
   const filteredSpans = filterSpansByOperationName(parsedSpans, evalConfig.scope.operationNames);
-  const allSpans = evalConfig.scope.mode === 'trajectory'
+  const allSpans = evalConfig.scope.level === 'agent-session'
     ? selectTrajectorySpans(filteredSpans, evalConfig.scope.maxConversations)
     : filteredSpans;
   logger.timing('Parse spans', Date.now() - t0Parse, {

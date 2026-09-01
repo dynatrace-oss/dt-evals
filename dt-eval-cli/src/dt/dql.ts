@@ -12,7 +12,7 @@ export interface DqlQueryOptions {
   spanFields?: SpanFieldsMap;
   /** GenAI operation names to keep. Empty array disables this filter. */
   operationNames?: string[];
-  mode?: "span" | "trajectory";
+  level?: "agent-span" | "agent-session";
   maxConversations?: number;
 }
 
@@ -83,10 +83,10 @@ export function filterSpansByOperationName(spans: GenAiSpan[], operationNames?: 
 }
 
 export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
-  const { app, since, limit = 1000, errorsOnly = false, spanFields, mode, maxConversations = DEFAULT_MAX_CONVERSATIONS } = opts;
+  const { app, since, limit = 1000, errorsOnly = false, spanFields, level, maxConversations = DEFAULT_MAX_CONVERSATIONS } = opts;
   const operationNames = resolveOperationNames(opts.operationNames);
   const fields = resolveFields(spanFields);
-  const isTrajectory = mode === 'trajectory';
+  const isTrajectory = level === 'agent-session';
 
   // Use explicit from:/to: timeframe — a filter alone leaves Grail's default
   // ~2h analysis window in effect even when the filter asks for longer.
@@ -160,7 +160,7 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
 
 export interface ParseSpanOptions {
   spanFields?: SpanFieldsMap;
-  mode?: "span" | "trajectory";
+  level?: "agent-span" | "agent-session";
   keepPartTypes?: string[];
   maxMessages?: number;
 }
@@ -316,7 +316,7 @@ export function parseSpanResults(
       systemInstruction ??= inputRoles.system;
       userPrompt ??= inputRoles.user;
       if (inputMatch?.key === DEFAULT_INPUT_FIELDS[0]) {
-        if (options.mode === 'trajectory' && input) {
+        if (options.level === 'agent-session' && input) {
           const filtered = extractFullHistory(input, options.keepPartTypes, options.maxMessages);
           if (filtered && filtered !== '[]') input = filtered;
         } else if (inputRoles.user) {

@@ -78,14 +78,20 @@ export interface ScopeConfig {
   };
   /** Custom span attribute mapping. Defaults handle OTel + OpenLLMetry. */
   spanFields?: SpanFieldsMap;
-  mode?: "span" | "trajectory";
+  /**
+   * Evaluation granularity.
+   * - `agent-span`: evaluate each span (one LLM call / operation) individually.
+   * - `agent-session`: group spans by conversation (`gen_ai.conversation.id`, falling back
+   *   to trace id) and evaluate one representative span per conversation.
+   */
+  level?: "agent-span" | "agent-session";
   keepPartTypes?: string[];
   /**
-   * Fetch/selection cap for trajectory mode: how many conversation groups to consider before
+   * Fetch/selection cap for `agent-session` level: how many conversation groups to consider before
    * `sampling` is applied (default: random @ 5%). Increase to widen coverage, decrease to cut cost.
    */
   maxConversations?: number;
-  /** Maximum number of messages to keep per trajectory (oldest are dropped). Only used in trajectory mode. */
+  /** Maximum number of messages to keep per conversation (oldest are dropped). Only used at `agent-session` level. */
   maxMessages?: number;
 }
 

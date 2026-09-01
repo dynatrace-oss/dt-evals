@@ -388,9 +388,9 @@ export function validateConfig(config: DtEvalConfig): void {
     }
   }
 
-  const mode = config.scope?.mode as unknown;
-  if (mode !== undefined && mode !== 'span' && mode !== 'trajectory') {
-    issues.push(`scope.mode must be "span" or "trajectory" (got "${mode}")`);
+  const level = config.scope?.level as unknown;
+  if (level !== undefined && level !== 'agent-span' && level !== 'agent-session') {
+    issues.push(`scope.level must be "agent-span" or "agent-session" (got "${level}")`);
   }
 
   const { strategy } = config.scope?.sampling ?? {};
