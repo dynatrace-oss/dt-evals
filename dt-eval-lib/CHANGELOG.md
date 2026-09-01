@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.18-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.17-alpha...dt-eval-lib-v0.0.18-alpha) (2026-09-01)
+
+
+### 🐛 Bug Fixes
+
+* **dt-eval-lib:** exact_match takes its expected value from config only ([#222](https://github.com/dynatrace-oss/dt-evals/issues/222)) ([5d0cc84](https://github.com/dynatrace-oss/dt-evals/commit/5d0cc8405e69343ca659f5e835f346060decef56))
+
 ## [0.0.17-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.16-alpha...dt-eval-lib-v0.0.17-alpha) (2026-08-20)
 
 
