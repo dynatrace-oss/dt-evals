@@ -10,6 +10,9 @@
 
 ![dt-evals welcome](../assets/dt-evals-welcome.gif)
 
+> 📺 **See it in action:** [How to Run LLM Evaluations with dt-evals](https://www.youtube.com/watch?v=64WwV4K287g) —
+> a hands-on walkthrough of pulling production traces, scoring them with an LLM judge, and reading the results back in Dynatrace.
+
 `dt-evals` is for teams shipping chat, RAG, copilots, and agent workflows who want evals to run on real traffic, not just curated test sets.
 
 Today, the CLI uses Dynatrace as both the trace source and the evaluation result store. It pulls gen_ai.* spans from your live environment, masks sensitive data in memory, scores real production interactions with an LLM judge, detects score drift over time, and writes structured evaluation results back to Dynatrace as business events.
