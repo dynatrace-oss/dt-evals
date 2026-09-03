@@ -8,10 +8,9 @@
 [![License](https://img.shields.io/badge/license-Apache_2.0-blue?style=flat-square)](LICENSE)
 [![Node](https://img.shields.io/node/v/@dynatrace-oss/dt-evals/alpha?style=flat-square)](package.json)
 
-![dt-evals welcome](../assets/dt-evals-welcome.gif)
-
-> 📺 **See it in action:** [How to Run LLM Evaluations with dt-evals](https://www.youtube.com/watch?v=64WwV4K287g) —
-> a hands-on walkthrough of pulling production traces, scoring them with an LLM judge, and reading the results back in Dynatrace.
+> [![Watch the video](../assets/dt-evals-welcome.gif)](https://www.youtube.com/watch?v=64WwV4K287g)
+>
+> 📺 **See it in action:** [How to Run LLM Evaluations with dt-evals](https://www.youtube.com/watch?v=64WwV4K287g) — a hands-on walkthrough of pulling production traces, scoring them with an LLM judge, and reading the results back in Dynatrace.
 
 `dt-evals` is for teams shipping chat, RAG, copilots, and agent workflows who want evals to run on real traffic, not just curated test sets.
 
