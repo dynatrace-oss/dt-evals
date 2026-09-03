@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.1-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.3.0-alpha...v0.3.1-alpha) (2026-09-03)
+
+
+### ✨ New Features
+
+* **dt-eval-lib:** add output-prompt-injection evaluator for agent-emitted injection ([#224](https://github.com/dynatrace-oss/dt-evals/issues/224)) ([bc7074c](https://github.com/dynatrace-oss/dt-evals/commit/bc7074c40587f854e3a07766109be8364938d888))
+
+
+### 🐛 Bug Fixes
+
+* **dt-eval-cli:** update playground dashboard link (AI-230) ([#230](https://github.com/dynatrace-oss/dt-evals/issues/230)) ([9be39a2](https://github.com/dynatrace-oss/dt-evals/commit/9be39a28e48694f8ce7b9420291cf184d3fb691f))
+
+
+### 📚 Documentation
+
+* **dt-eval-cli:** add demo video link to README ([#231](https://github.com/dynatrace-oss/dt-evals/issues/231)) ([9504838](https://github.com/dynatrace-oss/dt-evals/commit/9504838b729a4a4f190478fa531b70daa2d42981))
+
 ## [0.3.0-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.2.26-alpha...v0.3.0-alpha) (2026-09-01)
 
 
