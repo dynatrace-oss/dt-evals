@@ -11,6 +11,7 @@ import { redactSecrets } from '../../ui/format.js';
 import { logger } from '../../logger/index.js';
 import { printBanner } from '../../ui/banner.js';
 import { listPrompts, DRIFT_METRIC_ID } from '@dynatrace-oss/dt-eval-lib';
+import type { DeterministicParams } from '@dynatrace-oss/dt-eval-lib';
 import { DynatraceClient } from '../../dt/client.js';
 
 // Per-million-token pricing [input, output] in USD
@@ -169,20 +170,43 @@ async function testServiceSpans(
   }
 }
 
+/** Deterministic ("code-based") evaluator methods the wizard can scaffold. */
+export type CodeCheckMethod =
+  | 'exact_match'
+  | 'regex'
+  | 'must_not_match'
+  | 'must_contain'
+  | 'must_not_contain'
+  | 'json_schema';
+
 /**
- * Append a runnable starter deterministic check when the user opts in. The entry
- * is a valid `must_contain` metric with a placeholder keyword so the config runs
- * as-is; the user edits the id/method/params (see README "Deterministic
- * evaluators"). No-op when not requested.
+ * Runnable placeholder entries for each deterministic method. Params use a
+ * `REPLACE_ME` sentinel so the config is valid and runs as-is; the user edits
+ * id/params afterwards (see README "Deterministic evaluators").
  */
-export function buildEnabledMetrics(base: MetricEntry[], addCodeCheck: boolean): MetricEntry[] {
-  if (!addCodeCheck) return base;
-  const stub: MetricEntry = {
-    id: 'example-keyword-check',
-    method: 'must_contain',
-    params: { keywords: ['REPLACE_ME'], mode: 'any' },
-  };
-  return [...base, stub];
+const CODE_CHECK_STUBS: Record<CodeCheckMethod, Extract<MetricEntry, { id: string }>> = {
+  exact_match:      { id: 'example-exact-match',      method: 'exact_match',      params: { expectedOutput: 'REPLACE_ME' } as DeterministicParams },
+  regex:            { id: 'example-regex',            method: 'regex',            params: { pattern: 'REPLACE_ME' } },
+  must_not_match:   { id: 'example-must-not-match',   method: 'must_not_match',   params: { pattern: 'REPLACE_ME' } },
+  must_contain:     { id: 'example-must-contain',     method: 'must_contain',     params: { keywords: ['REPLACE_ME'], mode: 'any' } },
+  must_not_contain: { id: 'example-must-not-contain', method: 'must_not_contain', params: { keywords: ['REPLACE_ME'], mode: 'any' } },
+  json_schema:      { id: 'example-json-schema',      method: 'json_schema',      params: { schema: { type: 'object' } } },
+};
+
+/** Checkbox choices for the deterministic starter checks (nothing selected by default). */
+const CODE_CHECK_CHOICES: Array<{ name: string; value: CodeCheckMethod }> = [
+  { name: 'must_contain       (output includes a keyword)',        value: 'must_contain' },
+  { name: 'must_not_contain   (output excludes a keyword / blocklist)', value: 'must_not_contain' },
+  { name: 'exact_match        (output equals an expected string)',  value: 'exact_match' },
+  { name: 'regex              (output matches a pattern)',          value: 'regex' },
+  { name: 'must_not_match     (output does not match a pattern)',   value: 'must_not_match' },
+  { name: 'json_schema        (output is valid JSON for a schema)', value: 'json_schema' },
+];
+
+/** Append a placeholder entry for each selected deterministic method. No-op when none selected. */
+export function buildEnabledMetrics(base: MetricEntry[], codeCheckMethods: CodeCheckMethod[]): MetricEntry[] {
+  if (codeCheckMethods.length === 0) return base;
+  return [...base, ...codeCheckMethods.map((m) => CODE_CHECK_STUBS[m])];
 }
 
 export function createConfigureCommand(): Command {
@@ -410,13 +434,13 @@ export function createConfigureCommand(): Command {
       });
 
       // ── Deterministic / code-based checks ────────────────
-      // Deterministic evals (exact match, regex, keyword, JSON schema) are
-      // authored per-check with method-specific params, so instead of a full
-      // form we drop in one runnable starter entry the user can edit — see the
-      // README "Deterministic evaluators" section.
-      const addCodeCheck = await confirm({
-        message: 'Add a starter code-based check? (deterministic: exact match / regex / keyword / JSON schema — edit it after, see README)',
-        default: false,
+      // Deterministic evals are authored per-check with method-specific params.
+      // Rather than a full form, offer a checkbox that scaffolds a runnable
+      // placeholder entry per selected method for the user to edit afterwards
+      // (see README "Deterministic evaluators"). Nothing is selected by default.
+      const codeCheckMethods = await checkbox<CodeCheckMethod>({
+        message: 'Add placeholders for code-based (deterministic) evals  (optional — pick any; edit params after, see README)',
+        choices: CODE_CHECK_CHOICES,
       });
 
       // ── Scope level ────────────────────────────────────────
@@ -485,7 +509,7 @@ export function createConfigureCommand(): Command {
         metrics: {
           enabled: buildEnabledMetrics(
             selectedMetrics.length > 0 ? selectedMetrics : enabledMetricIds,
-            addCodeCheck,
+            codeCheckMethods,
           ),
         },
         alerts: existing.alerts,
@@ -502,8 +526,9 @@ export function createConfigureCommand(): Command {
         saveConfig(updated, outputPath);
         logger.success(`Config saved to ${outputPath}`);
         persistSecretsToEnv(updated, (msg) => logger.info(msg));
-        if (addCodeCheck) {
-          logger.info(`Added a starter code-based check "example-keyword-check" — edit its keywords/method in ${basename(outputPath)} (see README "Deterministic evaluators")`);
+        if (codeCheckMethods.length > 0) {
+          const ids = codeCheckMethods.map((m) => CODE_CHECK_STUBS[m].id).join(', ');
+          logger.info(`Added placeholder code-based ${codeCheckMethods.length === 1 ? 'check' : 'checks'} (${ids}) — replace the REPLACE_ME params in ${basename(outputPath)} (see README "Deterministic evaluators")`);
         }
       } catch (err) {
         logger.error(`Failed to save config: ${(err as Error).message}`);
