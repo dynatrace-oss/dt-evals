@@ -403,6 +403,16 @@ export function createConfigureCommand(): Command {
         },
       });
 
+      // ── Scope level ────────────────────────────────────────
+      const level = await select<'agent-span' | 'agent-session'>({
+        message: 'Scope level — what should each evaluation run over?',
+        choices: [
+          { name: 'agent-span  (evaluate individual agent spans)', value: 'agent-span' },
+          { name: 'agent-session  (group spans into conversations/sessions)', value: 'agent-session' },
+        ],
+        default: existing.scope?.level ?? 'agent-span',
+      });
+
       const since = await input({
         message: 'Default time window',
         default: existing.scope?.since ?? '1h',
@@ -440,6 +450,7 @@ export function createConfigureCommand(): Command {
         scope: {
           service: serviceName.trim(),
           since,
+          level,
           sampling: {
             strategy: 'random',
             percent: parseInt(sampleStr, 10),
