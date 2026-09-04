@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { join, basename } from 'node:path';
 import { loadConfig, saveConfig, validateConfig } from '../../config/index.js';
 import { updateEnvFile } from '../../config/env-file.js';
-import type { DtEvalConfig } from '../../config/schema.js';
+import type { DtEvalConfig, MetricEntry } from '../../config/schema.js';
 import { metricId } from '../../config/schema.js';
 import { DEFAULT_JUDGE_MODELS, suggestModelForProvider } from '../../config/defaults.js';
 import { stringify as stringifyYaml } from 'yaml';
@@ -167,6 +167,22 @@ async function testServiceSpans(
   } catch {
     return null;
   }
+}
+
+/**
+ * Append a runnable starter deterministic check when the user opts in. The entry
+ * is a valid `must_contain` metric with a placeholder keyword so the config runs
+ * as-is; the user edits the id/method/params (see README "Deterministic
+ * evaluators"). No-op when not requested.
+ */
+export function buildEnabledMetrics(base: MetricEntry[], addCodeCheck: boolean): MetricEntry[] {
+  if (!addCodeCheck) return base;
+  const stub: MetricEntry = {
+    id: 'example-keyword-check',
+    method: 'must_contain',
+    params: { keywords: ['REPLACE_ME'], mode: 'any' },
+  };
+  return [...base, stub];
 }
 
 export function createConfigureCommand(): Command {
@@ -393,6 +409,16 @@ export function createConfigureCommand(): Command {
         ],
       });
 
+      // ── Deterministic / code-based checks ────────────────
+      // Deterministic evals (exact match, regex, keyword, JSON schema) are
+      // authored per-check with method-specific params, so instead of a full
+      // form we drop in one runnable starter entry the user can edit — see the
+      // README "Deterministic evaluators" section.
+      const addCodeCheck = await confirm({
+        message: 'Add a starter code-based check? (deterministic: exact match / regex / keyword / JSON schema — edit it after, see README)',
+        default: false,
+      });
+
       // ── Scope level ────────────────────────────────────────
       const level = await select<'agent-span' | 'agent-session'>({
         message: 'Scope level — what should each evaluation run over?',
@@ -457,7 +483,10 @@ export function createConfigureCommand(): Command {
           },
         },
         metrics: {
-          enabled: selectedMetrics.length > 0 ? selectedMetrics : enabledMetricIds,
+          enabled: buildEnabledMetrics(
+            selectedMetrics.length > 0 ? selectedMetrics : enabledMetricIds,
+            addCodeCheck,
+          ),
         },
         alerts: existing.alerts,
       };
@@ -473,6 +502,9 @@ export function createConfigureCommand(): Command {
         saveConfig(updated, outputPath);
         logger.success(`Config saved to ${outputPath}`);
         persistSecretsToEnv(updated, (msg) => logger.info(msg));
+        if (addCodeCheck) {
+          logger.info(`Added a starter code-based check "example-keyword-check" — edit its keywords/method in ${basename(outputPath)} (see README "Deterministic evaluators")`);
+        }
       } catch (err) {
         logger.error(`Failed to save config: ${(err as Error).message}`);
         process.exit(1);
