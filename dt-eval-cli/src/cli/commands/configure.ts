@@ -180,10 +180,10 @@ export type CodeCheckMethod =
   | 'json_schema';
 
 /** Concrete object-form metric entry (deterministic checks are always object-form). */
-type CodeEvalEntry = Extract<MetricEntry, { id: string }>;
+export type CodeEvalEntry = Extract<MetricEntry, { id: string }>;
 
 /** Sentinel the sub-menu returns when the user is done adding code evals. */
-const CODE_EVAL_DONE = '__done__' as const;
+export const CODE_EVAL_DONE = '__done__' as const;
 
 /** Main-menu choices: one per deterministic method. */
 const CODE_CHECK_METHOD_CHOICES: Array<{ name: string; value: CodeCheckMethod }> = [
@@ -204,7 +204,7 @@ function uniqueCodeEvalId(base: string, existing: CodeEvalEntry[]): string {
 }
 
 /** Collect the mandatory (and a couple of common optional) params for one method. */
-async function collectCodeEvalParams(
+export async function collectCodeEvalParams(
   method: CodeCheckMethod,
   inq: typeof import('@inquirer/prompts'),
 ): Promise<DeterministicParams> {
@@ -235,7 +235,7 @@ async function collectCodeEvalParams(
       });
       const caseSensitive = await confirm({ message: '    Case-sensitive?', default: true });
       const trim = await confirm({ message: '    Trim whitespace before comparing?', default: true });
-      return { expectedOutput, caseSensitive, trim } as DeterministicParams;
+      return { expectedOutput, caseSensitive, trim };
     }
     case 'regex':
     case 'must_not_match': {
@@ -271,7 +271,7 @@ async function collectCodeEvalParams(
  * Returns `null` when the user leaves the id blank, which the menu treats as
  * "go back" (discard this check and return to the method list).
  */
-async function authorCodeEval(
+export async function authorCodeEval(
   method: CodeCheckMethod,
   inq: typeof import('@inquirer/prompts'),
   existing: CodeEvalEntry[],
@@ -551,6 +551,33 @@ export function createConfigureCommand(): Command {
 
       const resolvedApiKey = resolveConfiguredApiKey(existing.judge, provider, apiKey);
 
+      // ── Scope: level, sampling, time window ──────────────
+      // Scope shapes what every evaluator runs over, so it comes before the
+      // evaluator pickers. `level` sits next to `sampling` since both control
+      // which/how many spans are drawn.
+      const level = await select<'agent-span' | 'agent-session'>({
+        message: 'Scope level — what should each evaluation run over?',
+        choices: [
+          { name: 'agent-span  (evaluate individual agent spans)', value: 'agent-span' },
+          { name: 'agent-session  (evaluate at session level using conversation id, trace id as fallback)', value: 'agent-session' },
+        ],
+        default: existing.scope?.level ?? 'agent-span',
+      });
+
+      const sampleStr = await input({
+        message: 'Sampling — % of traces to evaluate per run  (range: 1–100, default 5 recommended to control costs)',
+        default: String(existing.scope?.sampling?.percent ?? 5),
+        validate: (v) => {
+          const n = parseInt(v, 10);
+          return (n >= 1 && n <= 100) ? true : 'Enter a number between 1 and 100';
+        },
+      });
+
+      const since = await input({
+        message: 'Default time window',
+        default: existing.scope?.since ?? '1h',
+      });
+
       // ── Evaluators ───────────────────────────────────────
       const enabledMetricIds = (existing.metrics?.enabled ?? allMetricIds).map(metricId);
       const selectedMetrics = await checkbox({
@@ -565,31 +592,6 @@ export function createConfigureCommand(): Command {
       // Looping sub-flow: pick a method, fill in its mandatory fields, return to
       // the menu to add more or finish. Runs as pure functions (no LLM).
       const codeEvals = await collectCodeEvals(inquirer);
-
-      // ── Scope level ────────────────────────────────────────
-      const level = await select<'agent-span' | 'agent-session'>({
-        message: 'Scope level — what should each evaluation run over?',
-        choices: [
-          { name: 'agent-span  (evaluate individual agent spans)', value: 'agent-span' },
-          { name: 'agent-session  (evaluate at session level using conversation id, trace id as fallback)', value: 'agent-session' },
-        ],
-        default: existing.scope?.level ?? 'agent-span',
-      });
-
-      // ── Sampling ─────────────────────────────────────────
-      const sampleStr = await input({
-        message: 'Sampling — % of traces to evaluate per run  (range: 1–100, default 5 recommended to control costs)',
-        default: String(existing.scope?.sampling?.percent ?? 5),
-        validate: (v) => {
-          const n = parseInt(v, 10);
-          return (n >= 1 && n <= 100) ? true : 'Enter a number between 1 and 100';
-        },
-      });
-
-      const since = await input({
-        message: 'Default time window',
-        default: existing.scope?.since ?? '1h',
-      });
 
       const updated: DtEvalConfig = {
         schemaVersion: existing.schemaVersion ?? 1,
