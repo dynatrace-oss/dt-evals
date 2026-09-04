@@ -393,6 +393,16 @@ export function createConfigureCommand(): Command {
         ],
       });
 
+      // ── Scope level ────────────────────────────────────────
+      const level = await select<'agent-span' | 'agent-session'>({
+        message: 'Scope level — what should each evaluation run over?',
+        choices: [
+          { name: 'agent-span  (evaluate individual agent spans)', value: 'agent-span' },
+          { name: 'agent-session  (evaluate at session level using conversation id, trace id as fallback)', value: 'agent-session' },
+        ],
+        default: existing.scope?.level ?? 'agent-span',
+      });
+
       // ── Sampling ─────────────────────────────────────────
       const sampleStr = await input({
         message: 'Sampling — % of traces to evaluate per run  (range: 1–100, default 5 recommended to control costs)',
@@ -401,16 +411,6 @@ export function createConfigureCommand(): Command {
           const n = parseInt(v, 10);
           return (n >= 1 && n <= 100) ? true : 'Enter a number between 1 and 100';
         },
-      });
-
-      // ── Scope level ────────────────────────────────────────
-      const level = await select<'agent-span' | 'agent-session'>({
-        message: 'Scope level — what should each evaluation run over?',
-        choices: [
-          { name: 'agent-span  (evaluate individual agent spans)', value: 'agent-span' },
-          { name: 'agent-session  (group spans into conversations/sessions)', value: 'agent-session' },
-        ],
-        default: existing.scope?.level ?? 'agent-span',
       });
 
       const since = await input({
