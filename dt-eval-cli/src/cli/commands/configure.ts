@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { join, basename } from 'node:path';
 import { loadConfig, saveConfig, validateConfig } from '../../config/index.js';
 import { updateEnvFile } from '../../config/env-file.js';
-import type { DtEvalConfig } from '../../config/schema.js';
+import type { DtEvalConfig, MetricEntry } from '../../config/schema.js';
 import { metricId } from '../../config/schema.js';
 import { DEFAULT_JUDGE_MODELS, suggestModelForProvider } from '../../config/defaults.js';
 import { stringify as stringifyYaml } from 'yaml';
@@ -11,6 +11,7 @@ import { redactSecrets } from '../../ui/format.js';
 import { logger } from '../../logger/index.js';
 import { printBanner } from '../../ui/banner.js';
 import { listPrompts, DRIFT_METRIC_ID } from '@dynatrace-oss/dt-eval-lib';
+import type { DeterministicParams } from '@dynatrace-oss/dt-eval-lib';
 import { DynatraceClient } from '../../dt/client.js';
 
 // Per-million-token pricing [input, output] in USD
@@ -167,6 +168,173 @@ async function testServiceSpans(
   } catch {
     return null;
   }
+}
+
+/** Deterministic ("code-based") evaluator methods the wizard can author. */
+export type CodeCheckMethod =
+  | 'exact_match'
+  | 'regex'
+  | 'must_not_match'
+  | 'must_contain'
+  | 'must_not_contain'
+  | 'json_schema';
+
+/** Concrete object-form metric entry (deterministic checks are always object-form). */
+export type CodeEvalEntry = Extract<MetricEntry, { id: string }>;
+
+/** Sentinel the sub-menu returns when the user is done adding code evals. */
+export const CODE_EVAL_DONE = '__done__' as const;
+
+/** Main-menu choices: one per deterministic method. */
+const CODE_CHECK_METHOD_CHOICES: Array<{ name: string; value: CodeCheckMethod }> = [
+  { name: 'must_contain       (output includes a keyword)',            value: 'must_contain' },
+  { name: 'must_not_contain   (output excludes a keyword / blocklist)', value: 'must_not_contain' },
+  { name: 'exact_match        (output equals an expected string)',     value: 'exact_match' },
+  { name: 'regex              (output matches a pattern)',             value: 'regex' },
+  { name: 'must_not_match     (output does not match a pattern)',      value: 'must_not_match' },
+  { name: 'json_schema        (output is valid JSON for a schema)',    value: 'json_schema' },
+];
+
+/** Suffix a base id with -2, -3, … until it is unique among already-added entries. */
+function uniqueCodeEvalId(base: string, existing: CodeEvalEntry[]): string {
+  if (!existing.some((e) => e.id === base)) return base;
+  let n = 2;
+  while (existing.some((e) => e.id === `${base}-${n}`)) n++;
+  return `${base}-${n}`;
+}
+
+/** Collect the mandatory (and a couple of common optional) params for one method. */
+export async function collectCodeEvalParams(
+  method: CodeCheckMethod,
+  inq: typeof import('@inquirer/prompts'),
+): Promise<DeterministicParams> {
+  const { input, select, confirm } = inq;
+  switch (method) {
+    case 'must_contain':
+    case 'must_not_contain': {
+      const raw = await input({
+        message: '    Keywords (comma-separated)',
+        validate: (v) => (v.split(',').some((s) => s.trim()) ? true : 'Enter at least one keyword'),
+      });
+      const keywords = raw.split(',').map((s) => s.trim()).filter(Boolean);
+      const mode = await select<'any' | 'all'>({
+        message: '    Match mode',
+        choices: [
+          { name: 'any  (constraint holds for ≥1 keyword)', value: 'any' },
+          { name: 'all  (constraint holds for every keyword)', value: 'all' },
+        ],
+        default: 'any',
+      });
+      const caseSensitive = await confirm({ message: '    Case-sensitive?', default: false });
+      return { keywords, mode, caseSensitive };
+    }
+    case 'exact_match': {
+      const expectedOutput = await input({
+        message: '    Expected output (exact string)',
+        validate: (v) => (v.length > 0 ? true : 'Expected output is required'),
+      });
+      const caseSensitive = await confirm({ message: '    Case-sensitive?', default: true });
+      const trim = await confirm({ message: '    Trim whitespace before comparing?', default: true });
+      return { expectedOutput, caseSensitive, trim };
+    }
+    case 'regex':
+    case 'must_not_match': {
+      const pattern = await input({
+        message: '    Regex pattern',
+        validate: (v) => (v.trim().length > 0 ? true : 'Pattern is required'),
+      });
+      const flags = await input({ message: '    Regex flags (optional, e.g. i, m, s)', default: '' });
+      return flags.trim() ? { pattern, flags: flags.trim() } : { pattern };
+    }
+    case 'json_schema': {
+      const raw = await input({
+        message: '    JSON schema (a JSON object)',
+        default: '{"type":"object"}',
+        validate: (v) => {
+          try {
+            const parsed = JSON.parse(v);
+            return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+              ? true
+              : 'Must be a JSON object';
+          } catch {
+            return 'Invalid JSON';
+          }
+        },
+      });
+      return { schema: JSON.parse(raw) };
+    }
+  }
+}
+
+/**
+ * Author a single deterministic check: id → mandatory params → field to check.
+ * Returns `null` when the user leaves the id blank, which the menu treats as
+ * "go back" (discard this check and return to the method list).
+ */
+export async function authorCodeEval(
+  method: CodeCheckMethod,
+  inq: typeof import('@inquirer/prompts'),
+  existing: CodeEvalEntry[],
+): Promise<CodeEvalEntry | null> {
+  const { input, select } = inq;
+  const defaultId = uniqueCodeEvalId(`${method.replace(/_/g, '-')}-check`, existing);
+  const id = await input({
+    message: `    Name / id for this ${method} check  (leave blank to go back)`,
+    default: defaultId,
+    validate: (v) => {
+      const t = v.trim();
+      if (!t) return true; // blank ⇒ back
+      return existing.some((e) => e.id === t) ? 'An entry with this id already exists' : true;
+    },
+  });
+  if (!id.trim()) return null;
+
+  const params = await collectCodeEvalParams(method, inq);
+
+  const target = await select<'output' | 'input' | 'context'>({
+    message: '    Which span field should this check run against?',
+    choices: [
+      { name: 'output   (model response — default)', value: 'output' },
+      { name: 'input    (user / request text)', value: 'input' },
+      { name: 'context  (retrieved context)', value: 'context' },
+    ],
+    default: 'output',
+  });
+
+  const entry: CodeEvalEntry = { id: id.trim(), method, params };
+  if (target !== 'output') entry.inputs = { output: target };
+  return entry;
+}
+
+/**
+ * Interactive sub-flow: a looping menu where the user picks a deterministic
+ * method, fills in its fields, and returns to the menu to add more or finish.
+ * Returns the authored entries (empty when the user skips).
+ */
+export async function collectCodeEvals(
+  inq: typeof import('@inquirer/prompts'),
+): Promise<CodeEvalEntry[]> {
+  const { select } = inq;
+  const added: CodeEvalEntry[] = [];
+  for (;;) {
+    const choice = await select<CodeCheckMethod | typeof CODE_EVAL_DONE>({
+      message:
+        added.length > 0
+          ? `Code evals (deterministic evals) — ${added.length} added; add another or finish`
+          : 'Code evals (deterministic evals) — pure-function checks, no LLM (optional)',
+      choices: [
+        ...CODE_CHECK_METHOD_CHOICES,
+        {
+          name: added.length > 0 ? '✓ Done adding code evals' : '↵ Skip — no code evals',
+          value: CODE_EVAL_DONE,
+        },
+      ],
+    });
+    if (choice === CODE_EVAL_DONE) break;
+    const entry = await authorCodeEval(choice, inq, added);
+    if (entry) added.push(entry); // null ⇒ user went back; loop shows the menu again
+  }
+  return added;
 }
 
 export function createConfigureCommand(): Command {
@@ -383,17 +551,19 @@ export function createConfigureCommand(): Command {
 
       const resolvedApiKey = resolveConfiguredApiKey(existing.judge, provider, apiKey);
 
-      // ── Evaluators ───────────────────────────────────────
-      const enabledMetricIds = (existing.metrics?.enabled ?? allMetricIds).map(metricId);
-      const selectedMetrics = await checkbox({
-        message: `Evaluators to run  (${allMetricIds.length - 1} built-in + drift detection)`,
+      // ── Scope: level, sampling, time window ──────────────
+      // Scope shapes what every evaluator runs over, so it comes before the
+      // evaluator pickers. `level` sits next to `sampling` since both control
+      // which/how many spans are drawn.
+      const level = await select<'agent-span' | 'agent-session'>({
+        message: 'Scope level — what should each evaluation run over?',
         choices: [
-          ...availablePrompts.map(p => ({ name: p.id, value: p.id, checked: enabledMetricIds.includes(p.id) })),
-          { name: `${DRIFT_METRIC_ID}  (population-level, compares score distributions vs 7d baseline)`, value: DRIFT_METRIC_ID, checked: enabledMetricIds.includes(DRIFT_METRIC_ID) },
+          { name: 'agent-span  (evaluate individual agent spans)', value: 'agent-span' },
+          { name: 'agent-session  (evaluate at session level using conversation id, trace id as fallback)', value: 'agent-session' },
         ],
+        default: existing.scope?.level ?? 'agent-span',
       });
 
-      // ── Sampling ─────────────────────────────────────────
       const sampleStr = await input({
         message: 'Sampling — % of traces to evaluate per run  (range: 1–100, default 5 recommended to control costs)',
         default: String(existing.scope?.sampling?.percent ?? 5),
@@ -407,6 +577,21 @@ export function createConfigureCommand(): Command {
         message: 'Default time window',
         default: existing.scope?.since ?? '1h',
       });
+
+      // ── Evaluators ───────────────────────────────────────
+      const enabledMetricIds = (existing.metrics?.enabled ?? allMetricIds).map(metricId);
+      const selectedMetrics = await checkbox({
+        message: `LLM-as-judge evaluators  (${allMetricIds.length - 1} built-in + drift detection)`,
+        choices: [
+          ...availablePrompts.map(p => ({ name: p.id, value: p.id, checked: enabledMetricIds.includes(p.id) })),
+          { name: `${DRIFT_METRIC_ID}  (population-level, compares score distributions vs 7d baseline)`, value: DRIFT_METRIC_ID, checked: enabledMetricIds.includes(DRIFT_METRIC_ID) },
+        ],
+      });
+
+      // ── Code evals (deterministic evals) ─────────────────
+      // Looping sub-flow: pick a method, fill in its mandatory fields, return to
+      // the menu to add more or finish. Runs as pure functions (no LLM).
+      const codeEvals = await collectCodeEvals(inquirer);
 
       const updated: DtEvalConfig = {
         schemaVersion: existing.schemaVersion ?? 1,
@@ -440,13 +625,17 @@ export function createConfigureCommand(): Command {
         scope: {
           service: serviceName.trim(),
           since,
+          level,
           sampling: {
             strategy: 'random',
             percent: parseInt(sampleStr, 10),
           },
         },
         metrics: {
-          enabled: selectedMetrics.length > 0 ? selectedMetrics : enabledMetricIds,
+          enabled: [
+            ...(selectedMetrics.length > 0 ? selectedMetrics : enabledMetricIds),
+            ...codeEvals,
+          ],
         },
         alerts: existing.alerts,
       };
@@ -462,6 +651,10 @@ export function createConfigureCommand(): Command {
         saveConfig(updated, outputPath);
         logger.success(`Config saved to ${outputPath}`);
         persistSecretsToEnv(updated, (msg) => logger.info(msg));
+        if (codeEvals.length > 0) {
+          const ids = codeEvals.map((e) => e.id).join(', ');
+          logger.info(`Added ${codeEvals.length} code eval${codeEvals.length === 1 ? '' : 's'} (${ids})`);
+        }
       } catch (err) {
         logger.error(`Failed to save config: ${(err as Error).message}`);
         process.exit(1);
