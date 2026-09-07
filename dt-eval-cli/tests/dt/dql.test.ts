@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildGenAiSpanQuery, parseSpanResults, filterSpansByOperationName } from '../../src/dt/dql.js';
+import { buildGenAiSpanQuery, parseSpanResults, filterSpansByOperationName, spanFetchLimit, isSpanFetchTruncated } from '../../src/dt/dql.js';
 import type { GenAiSpan } from '../../src/dt/types.js';
 
 describe('buildGenAiSpanQuery', () => {
@@ -610,5 +610,41 @@ describe('filterSpansByOperationName', () => {
     const kept = filterSpansByOperationName(spans, [' chat ']);
 
     expect(kept.map(s => s.operationName)).toEqual(['chat']);
+  });
+});
+
+describe('spanFetchLimit', () => {
+  it('defaults to 1000 for span mode', () => {
+    expect(spanFetchLimit({})).toBe(1000);
+    expect(spanFetchLimit({ level: 'agent-span' })).toBe(1000);
+  });
+
+  it('honours an explicit limit in span mode', () => {
+    expect(spanFetchLimit({ limit: 500 })).toBe(500);
+  });
+
+  it('scales by maxConversations at agent-session level', () => {
+    expect(spanFetchLimit({ level: 'agent-session', maxConversations: 200 })).toBe(4000);
+    expect(spanFetchLimit({ level: 'agent-session', maxConversations: 10 })).toBe(200);
+  });
+
+  it('matches the limit emitted into the query', () => {
+    expect(buildGenAiSpanQuery({ since: '1h' })).toContain(`limit ${spanFetchLimit({})}`);
+    expect(buildGenAiSpanQuery({ since: '1h', level: 'agent-session', maxConversations: 10 }))
+      .toContain(`limit ${spanFetchLimit({ level: 'agent-session', maxConversations: 10 })}`);
+  });
+});
+
+describe('isSpanFetchTruncated', () => {
+  it('is true only when the returned rows reach the cap', () => {
+    expect(isSpanFetchTruncated(999, {})).toBe(false);
+    expect(isSpanFetchTruncated(1000, {})).toBe(true);
+    expect(isSpanFetchTruncated(1001, {})).toBe(true);
+  });
+
+  it('respects the agent-session cap', () => {
+    const opts = { level: 'agent-session' as const, maxConversations: 10 }; // cap 200
+    expect(isSpanFetchTruncated(199, opts)).toBe(false);
+    expect(isSpanFetchTruncated(200, opts)).toBe(true);
   });
 });

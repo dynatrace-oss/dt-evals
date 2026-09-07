@@ -4,7 +4,7 @@ import type { DynatraceClient } from '../dt/client.js';
 import type { DtEvalConfig, MetricEntry, MetricInputs, CanonicalSpanField } from '../config/schema.js';
 import { metricId, metricInputs, metricMethod, metricParams } from '../config/schema.js';
 import type { GenAiSpan, BizeventPayload } from '../dt/types.js';
-import { buildGenAiSpanQuery, parseSpanResults, filterSpansByOperationName, selectTrajectorySpans } from '../dt/dql.js';
+import { buildGenAiSpanQuery, parseSpanResults, filterSpansByOperationName, selectTrajectorySpans, spanFetchLimit, isSpanFetchTruncated } from '../dt/dql.js';
 import { BizeventWriter, buildBizeventPayload } from '../dt/bizevent.js';
 import { DRIFT_METRIC_ID, runDriftDetection, buildDriftBizevents } from './drift.js';
 import { applySampling } from './sampler.js';
@@ -203,6 +203,20 @@ export async function runEvals(
   const rawRecords = await readClient.executeDql(query) as unknown[];
   const dqlMs = Date.now() - t0Dql;
   logger.timing('DQL fetch', dqlMs, { rawRecords: (rawRecords as unknown[]).length });
+
+  // The span fetch has a fixed row cap and no pagination. If it comes back
+  // full, older spans in the window were silently dropped — and because the
+  // cap is applied before sampling, the run then samples from that truncated
+  // subset rather than the full window. Surface it instead of failing silently.
+  const fetchLimitOpts = { level: evalConfig.scope.level, maxConversations: evalConfig.scope.maxConversations };
+  if (isSpanFetchTruncated(rawRecords.length, fetchLimitOpts)) {
+    const cap = spanFetchLimit(fetchLimitOpts);
+    logger.warn(
+      `Span fetch hit the ${cap}-row cap; older spans in this window were dropped before sampling, so coverage is incomplete. ` +
+        `Narrow --since, scope to a service / operationNames, or (agent-session level) lower maxConversations.`,
+      { fetched: rawRecords.length, cap },
+    );
+  }
 
   const t0Parse = Date.now();
   const parsedSpans = parseSpanResults(rawRecords, { spanFields: evalConfig.scope.spanFields, level: evalConfig.scope.level, keepPartTypes: evalConfig.scope.keepPartTypes, maxMessages: evalConfig.scope.maxMessages });
