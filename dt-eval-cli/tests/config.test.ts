@@ -528,19 +528,6 @@ describe('config', () => {
       expect(() => validateConfig(config)).not.toThrow();
     });
 
-    it('throws when scope.filters has an invalid attribute key', () => {
-      const config = makeValidConfig();
-      (config.scope as unknown as { filters: unknown }).filters = { 'foo; drop': 'x' };
-
-      expect(() => validateConfig(config)).toThrowError(ConfigValidationError);
-      try {
-        validateConfig(config);
-      } catch (err) {
-        const issues = (err as InstanceType<typeof ConfigValidationError>).issues;
-        expect(issues).toContain('scope.filters keys must be span attribute names like "gen_ai.agent.name" (got "foo; drop")');
-      }
-    });
-
     it('throws when scope.filters has a blank string or empty array value', () => {
       const config = makeValidConfig();
       (config.scope as unknown as { filters: unknown }).filters = { 'gen_ai.agent.name': '', other: [] };

@@ -133,13 +133,9 @@ describe('buildGenAiSpanQuery', () => {
     expect(query).toContain('| filter gen_ai.agent.name == "weird\\"name"');
   });
 
-  it('throws on an invalid attribute key', () => {
-    expect(() =>
-      buildGenAiSpanQuery({ since: '1h', filters: { 'foo; drop': 'x' } }),
-    ).toThrow();
-    expect(() =>
-      buildGenAiSpanQuery({ since: '1h', filters: { '1bad': 'x' } }),
-    ).toThrow();
+  it('passes attribute keys through verbatim, leaving DQL validity to the server', () => {
+    const query = buildGenAiSpanQuery({ since: '1h', filters: { '`odd-field name`': 'x' } });
+    expect(query).toContain('| filter `odd-field name` == "x"');
   });
 
   it('does not add a filter clause for absent or empty filters', () => {

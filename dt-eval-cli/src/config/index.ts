@@ -394,9 +394,6 @@ export function validateConfig(config: DtEvalConfig): void {
       issues.push('scope.filters must be an object mapping span attribute names to values');
     } else {
       for (const [key, value] of Object.entries(filters as Record<string, unknown>)) {
-        if (!/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z0-9_]+)*$/.test(key)) {
-          issues.push(`scope.filters keys must be span attribute names like "gen_ai.agent.name" (got "${key}")`);
-        }
         const isNonEmptyString = (v: unknown) => typeof v === 'string' && v.trim().length > 0;
         if (!isNonEmptyString(value) && !(Array.isArray(value) && value.length > 0 && value.every(isNonEmptyString))) {
           issues.push(`scope.filters["${key}"] must be a non-empty string or an array of non-empty strings`);
