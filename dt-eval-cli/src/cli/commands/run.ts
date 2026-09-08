@@ -72,12 +72,14 @@ export function buildEvaluationResultRows(metrics: string[], result: RunResult):
   return metrics.map(m => {
     const metricResult = byMetric.get(m);
     const total = metricResult?.total ?? 0;
-    const successes = metricResult?.successes ?? 0;
-    const passPercentage = total === 0 ? 0 : Math.round((successes / total) * 100);
+    const passes = metricResult?.passes ?? 0;
+    const errors = metricResult?.errors ?? 0;
+    const passPercentage = total === 0 ? 0 : Math.round((passes / total) * 100);
+    const errorSuffix = errors > 0 ? `, ${errors} error${errors === 1 ? '' : 's'}` : '';
 
     return [
       m,
-      `${successes}/${total} (${passPercentage}% passed)`,
+      `${passes}/${total} (${passPercentage}% passed)${errorSuffix}`,
       formatDuration(metricResult?.avgDurationMs ?? 0),
     ];
   });
