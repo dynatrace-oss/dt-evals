@@ -64,8 +64,9 @@ function dqlStringLiteral(value: string): string {
   return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 }
 
-// Attribute keys become raw DQL identifiers (unquoted), so they can't be escaped
-// like values — reject anything that isn't a plain dotted identifier to prevent DQL injection.
+// Attribute keys become raw DQL identifiers (unquoted), so unlike values they can't be
+// escaped. validateConfig rejects malformed keys first; this is a safety net at the
+// interpolation boundary so a future caller can't inject DQL by skipping validation.
 const ATTRIBUTE_KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z0-9_]+)*$/;
 
 function assertValidAttributeKey(key: string): void {
@@ -131,7 +132,7 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
   for (const [key, value] of Object.entries(opts.filters ?? {})) {
     assertValidAttributeKey(key);
     if (Array.isArray(value)) {
-      if (value.length === 0) continue;
+      if (value.length === 0) continue; // rejected by validateConfig; never emit an empty in()
       const values = value.map(dqlStringLiteral).join(', ');
       lines.push(`| filter in(${key}, array(${values}))`);
     } else {
