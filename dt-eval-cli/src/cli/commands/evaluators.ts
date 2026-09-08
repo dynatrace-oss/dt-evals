@@ -1,11 +1,77 @@
+import { readFileSync } from 'node:fs';
 import { Command } from 'commander';
 import { listPrompts, getPrompt, createCustomPrompt, deleteCustomPrompt, evaluate } from '@dynatrace-oss/dt-eval-lib';
-import type { EvalConfig, Provider } from '@dynatrace-oss/dt-eval-lib';
+import type { EvalConfig, Provider, PromptDefinition } from '@dynatrace-oss/dt-eval-lib';
 import { loadConfig } from '../../config/index.js';
 import { renderTable } from '../../ui/table.js';
 import { Spinner } from '../../ui/spinner.js';
 import { logger } from '../../logger/index.js';
 import { buildCustomScoring } from './custom-scoring.js';
+
+const REQUIRED_FIELD_VALUES = ['input', 'output', 'context', 'expectedOutput'];
+const SCORING_TYPE_VALUES = ['binary', 'continuous', 'likert'];
+
+/**
+ * Validates a parsed custom evaluator definition before handing it to
+ * `createCustomPrompt`, which performs no validation of its own.
+ * Returns a list of human-readable problems; an empty list means the
+ * definition is valid.
+ */
+export function validatePromptDefinition(def: unknown): string[] {
+  const errors: string[] = [];
+
+  if (typeof def !== 'object' || def === null) {
+    return ['Evaluator definition must be a JSON object'];
+  }
+
+  const d = def as Record<string, unknown>;
+
+  for (const field of ['id', 'name', 'version', 'description']) {
+    if (typeof d[field] !== 'string' || d[field] === '') {
+      errors.push(`"${field}" must be a non-empty string`);
+    }
+  }
+
+  if (!Array.isArray(d['requiredFields']) || d['requiredFields'].length === 0) {
+    errors.push('"requiredFields" must be a non-empty array');
+  } else if (!d['requiredFields'].every((f) => REQUIRED_FIELD_VALUES.includes(f as string))) {
+    errors.push(`"requiredFields" entries must be one of: ${REQUIRED_FIELD_VALUES.join(', ')}`);
+  }
+
+  const scoring = d['scoring'];
+  if (typeof scoring !== 'object' || scoring === null) {
+    errors.push('"scoring" must be an object');
+  } else {
+    const s = scoring as Record<string, unknown>;
+    if (!SCORING_TYPE_VALUES.includes(s['type'] as string)) {
+      errors.push(`"scoring.type" must be one of: ${SCORING_TYPE_VALUES.join(', ')}`);
+    }
+    if (typeof s['threshold'] !== 'number') {
+      errors.push('"scoring.threshold" must be a number');
+    }
+    if (
+      !Array.isArray(s['range']) ||
+      s['range'].length !== 2 ||
+      !s['range'].every((v) => typeof v === 'number')
+    ) {
+      errors.push('"scoring.range" must be a 2-element numeric array');
+    }
+  }
+
+  const hasPrompt = typeof d['prompt'] === 'string' && d['prompt'] !== '';
+  const hasMethod = typeof d['method'] === 'string' && d['method'] !== '';
+  if (!hasPrompt && !hasMethod) {
+    errors.push('Definition must have either "prompt" (LLM judge) or "method" (deterministic check)');
+  }
+  if (hasPrompt) {
+    const prompt = d['prompt'] as string;
+    if (!prompt.includes('{{input}}') && !prompt.includes('{{output}}')) {
+      errors.push('"prompt" must contain at least one of the {{input}} or {{output}} placeholders');
+    }
+  }
+
+  return errors;
+}
 
 export function createEvaluatorsCommand(): Command {
   const cmd = new Command('evaluators');
@@ -62,8 +128,46 @@ export function createEvaluatorsCommand(): Command {
   // evaluators add
   const addCmd = new Command('add');
   addCmd.description('Add a custom evaluator (interactive wizard)');
+  addCmd.option('--from-file <path>', 'Create a custom evaluator from a JSON PromptDefinition file, skipping the interactive wizard');
 
-  addCmd.action(async () => {
+  addCmd.action(async (opts: { fromFile?: string }) => {
+    if (opts.fromFile) {
+      let raw: string;
+      try {
+        raw = readFileSync(opts.fromFile, 'utf-8');
+      } catch (err) {
+        logger.error(`Failed to read file "${opts.fromFile}": ${(err as Error).message}`);
+        process.exit(1);
+        return;
+      }
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(raw);
+      } catch (err) {
+        logger.error(`Failed to parse "${opts.fromFile}" as JSON: ${(err as Error).message}`);
+        process.exit(1);
+        return;
+      }
+
+      const errors = validatePromptDefinition(parsed);
+      if (errors.length > 0) {
+        logger.error(`Invalid evaluator definition in "${opts.fromFile}":\n  - ${errors.join('\n  - ')}`);
+        process.exit(1);
+        return;
+      }
+
+      const definition = parsed as PromptDefinition;
+      try {
+        await createCustomPrompt(definition);
+        logger.success(`Custom evaluator "${definition.id}" created`);
+      } catch (err) {
+        logger.error(`Failed to create evaluator: ${(err as Error).message}`);
+        process.exit(1);
+      }
+      return;
+    }
+
     let input: typeof import('@inquirer/prompts');
     try {
       input = await import('@inquirer/prompts');

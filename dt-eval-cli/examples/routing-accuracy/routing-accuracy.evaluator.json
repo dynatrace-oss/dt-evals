@@ -1,0 +1,18 @@
+{
+  "id": "routing-accuracy",
+  "name": "Routing Accuracy",
+  "version": "1",
+  "description": "Judges one orchestrator routing step: was each delegated sub-task given to an agent that owns it?",
+  "requiredFields": [
+    "output"
+  ],
+  "scoring": {
+    "type": "binary",
+    "range": [
+      0,
+      1
+    ],
+    "threshold": 1
+  },
+  "prompt": "Reply with one JSON object only: {\"scoreValue\": <0 or 1>, \"summary\": \"<brief>\", \"reasoning\": \"<max 2 sentences>\"}\n\nDECISION contains one or more tool calls named handoff_to_<agent>. Each carries an\narguments.query: the sub-task delegated to that agent.\n\nAGENTS \u2014 replace with your own roster.\n- route_planner: available routes, carriers, distances, transit times. Not costs.\n- pricing: shipping costs, fuel surcharges, tariffs, price breakdowns.\n- shipment: look up existing shipments, list active ones, create formal quotes.\n- weather_risk: weather and environmental risk affecting a shipment.\n\nFor each tool call, decide whether the named agent owns its arguments.query.\nscoreValue = 1 if every sub-task went to an agent that owns it.\nscoreValue = 0 if any agent was given a sub-task it does not own.\n\n<decision>\n{{output}}\n</decision>\n"
+}

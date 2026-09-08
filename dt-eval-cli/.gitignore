@@ -14,3 +14,7 @@ dist/
 # Project-specific eval configs (contain credentials — use example.dt-eval.yaml as a template)
 *.dt-eval.yaml
 !example.dt-eval.yaml
+# Shipped examples under examples/ are credential-free templates; re-include the
+# whole directory, but keep any stray .env files there ignored (last-match wins).
+!examples/**
+examples/**/.env*
