@@ -14,6 +14,8 @@ export interface DqlQueryOptions {
   operationNames?: string[];
   level?: "agent-span" | "agent-session";
   maxConversations?: number;
+  /** Arbitrary span-attribute equality filters. */
+  filters?: Record<string, string | string[]>;
 }
 
 export type DqlResult = GenAiSpan[];
@@ -60,6 +62,16 @@ function resolveFields(spanFields: SpanFieldsMap | undefined): ResolvedFields {
 
 function dqlStringLiteral(value: string): string {
   return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
+// Attribute keys become raw DQL identifiers (unquoted), so they can't be escaped
+// like values — reject anything that isn't a plain dotted identifier to prevent DQL injection.
+const ATTRIBUTE_KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z0-9_]+)*$/;
+
+function assertValidAttributeKey(key: string): void {
+  if (!ATTRIBUTE_KEY_PATTERN.test(key)) {
+    throw new Error(`Invalid span attribute key in scope.filters: "${key}"`);
+  }
 }
 
 /**
@@ -114,6 +126,17 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
       `| filter service.name == "${app}"` +
       ` or dt.service.name == "${app}"`,
     );
+  }
+
+  for (const [key, value] of Object.entries(opts.filters ?? {})) {
+    assertValidAttributeKey(key);
+    if (Array.isArray(value)) {
+      if (value.length === 0) continue;
+      const values = value.map(dqlStringLiteral).join(', ');
+      lines.push(`| filter in(${key}, array(${values}))`);
+    } else {
+      lines.push(`| filter ${key} == ${dqlStringLiteral(value)}`);
+    }
   }
 
   if (errorsOnly) {

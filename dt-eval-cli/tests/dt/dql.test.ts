@@ -117,6 +117,39 @@ describe('buildGenAiSpanQuery', () => {
     expect(query).toContain('gen_ai.prompt.0.content');
     expect(query).toContain('gen_ai.completion.0.content');
   });
+
+  it('adds an equality filter for a string filter value', () => {
+    const query = buildGenAiSpanQuery({ since: '1h', filters: { 'gen_ai.agent.name': 'router' } });
+    expect(query).toContain('| filter gen_ai.agent.name == "router"');
+  });
+
+  it('adds an in() filter for an array filter value', () => {
+    const query = buildGenAiSpanQuery({ since: '1h', filters: { 'gen_ai.agent.name': ['router', 'planner'] } });
+    expect(query).toContain('| filter in(gen_ai.agent.name, array("router", "planner"))');
+  });
+
+  it('escapes double quotes in filter values', () => {
+    const query = buildGenAiSpanQuery({ since: '1h', filters: { 'gen_ai.agent.name': 'weird"name' } });
+    expect(query).toContain('| filter gen_ai.agent.name == "weird\\"name"');
+  });
+
+  it('throws on an invalid attribute key', () => {
+    expect(() =>
+      buildGenAiSpanQuery({ since: '1h', filters: { 'foo; drop': 'x' } }),
+    ).toThrow();
+    expect(() =>
+      buildGenAiSpanQuery({ since: '1h', filters: { '1bad': 'x' } }),
+    ).toThrow();
+  });
+
+  it('does not add a filter clause for absent or empty filters', () => {
+    const query = buildGenAiSpanQuery({ since: '1h' });
+    expect(query).not.toContain('| filter gen_ai.agent.name');
+
+    const queryEmpty = buildGenAiSpanQuery({ since: '1h', filters: { 'gen_ai.agent.name': [] } });
+    expect(queryEmpty).not.toContain('gen_ai.agent.name ==');
+    expect(queryEmpty).not.toContain('in(gen_ai.agent.name');
+  });
 });
 
 describe('parseSpanResults', () => {
