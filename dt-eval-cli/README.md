@@ -428,7 +428,7 @@ non-null value wins, with the built-in defaults appended as fallback.
 scope:
   service: pydantic-ai-music-agent
   spanFields:
-    output: `gen_ai.completion.0.content
+    output: gen_ai.completion.0.content
 ```
 
 The default output mapping uses `gen_ai.output.messages`. `spanFields` lets
@@ -450,6 +450,41 @@ OpenInference usually stores chat turns in `llm.input_messages` /
 `llm.output_messages` and plain-text payloads in `input.value` /
 `output.value`, so listing both keeps the mapping resilient across
 instrumentations.
+
+### Filtering spans by attribute
+
+`scope.filters` narrows the DQL fetch to spans carrying specific attribute
+values. Keys are span attribute names; each value is a single value or a
+list. Separate keys are ANDed together, and a list of values for one key is
+ORed via `in()`. Filtering happens in Grail, so excluded spans are never
+transferred or judged.
+
+**Example 1 — isolate the orchestrator in a multi-agent service**:
+
+```yaml
+scope:
+  service: support-orchestrator
+  filters:
+    gen_ai.agent.name: router
+```
+
+`service` alone cannot separate an orchestrator from the sub-agents it
+invokes when both run in the same service and emit the same
+`gen_ai.operation.name`.
+
+**Example 2 — restrict to tagged production traffic**:
+
+```yaml
+scope:
+  service: travel-assistant
+  filters:
+    deployment.environment: production
+    gen_ai.request.model: [gpt-4.1, gpt-4.1-mini]
+```
+
+Attribute names are passed to DQL verbatim, so an unknown or malformed
+attribute surfaces as a DQL error from Grail rather than being validated
+locally.
 
 ### Per-metric input routing
 

@@ -93,6 +93,8 @@ export interface ScopeConfig {
   maxConversations?: number;
   /** Maximum number of messages to keep per conversation (oldest are dropped). Only used at `agent-session` level. */
   maxMessages?: number;
+  /** Arbitrary span-attribute equality filters, e.g. `{ "gen_ai.agent.name": "router" }`. */
+  filters?: Record<string, string | string[]>;
 }
 
 /**

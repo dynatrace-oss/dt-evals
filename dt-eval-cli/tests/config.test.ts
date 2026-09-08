@@ -516,6 +516,31 @@ describe('config', () => {
       }
     });
 
+    it('allows scope.filters with string and array values', () => {
+      const config = makeValidConfig({
+        scope: {
+          since: '1h',
+          filters: { 'gen_ai.agent.name': 'router', 'dt.service.name': ['a', 'b'] },
+          sampling: { strategy: 'random', percent: 100 },
+        },
+      });
+
+      expect(() => validateConfig(config)).not.toThrow();
+    });
+
+    it('throws when scope.filters has a blank string or empty array value', () => {
+      const config = makeValidConfig();
+      (config.scope as unknown as { filters: unknown }).filters = { 'gen_ai.agent.name': '', other: [] };
+
+      expect(() => validateConfig(config)).toThrowError(ConfigValidationError);
+      try {
+        validateConfig(config);
+      } catch (err) {
+        const issues = (err as InstanceType<typeof ConfigValidationError>).issues;
+        expect(issues).toContain('scope.filters["gen_ai.agent.name"] must be a non-empty string or an array of non-empty strings');
+      }
+    });
+
     it('passes when only origin/destination are set (no top-level url)', async () => {
       const { resolveEndpoints } = await import('../src/config/schema.js');
       const config = makeValidConfig();
