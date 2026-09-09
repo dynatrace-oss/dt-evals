@@ -1,0 +1,45 @@
+# Agent-session: group a multi-step conversation into one unit and judge the
+# whole transcript once, instead of scoring each span in isolation.
+schemaVersion: 3
+name: agent-session
+dynatrace:
+  environmentUrl: https://<tenant>.apps.dynatrace.com/
+  apiToken: ${DT_API_TOKEN}
+judge:
+  provider: bedrock
+  region: us-east-1
+  model: us.anthropic.claude-haiku-4-5-20251001-v1:0
+  timeout: 60000
+  maxRetries: 2
+  concurrency: 3
+scope:
+  service: your-agent-service
+  since: 24h
+  # This is the whole point of the example: evaluate one representative span per
+  # conversation, with the full transcript as context, instead of per span.
+  level: agent-session
+  # If sub-agents share the service, filter to the orchestrator so each session
+  # is anchored on one conversation owner.
+  filters:
+    gen_ai.agent.name: your-orchestrator
+  # Conversations are grouped by gen_ai.conversation.id, falling back to trace.id.
+  maxConversations: 5
+  # Keep the last N messages per conversation; oldest are dropped first.
+  maxMessages: 20
+  # Which message parts to keep in the transcript handed to the judge.
+  keepPartTypes:
+    - text
+    - tool_call
+  sampling:
+    strategy: random
+    percent: 100
+metrics:
+  # answer-completeness reads input + output and asks whether every part of the
+  # user's request was resolved across the conversation — a natural session-level
+  # question that per-span scoring cannot answer.
+  enabled:
+    - answer-completeness
+
+# Set to true to store the rendered transcript and judge response in the bizevent
+# when debugging a score you disagree with.
+storeEvaluatedPrompt: false
