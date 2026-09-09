@@ -753,6 +753,17 @@ dt-evals evaluators test answer-style
 
 Use it when you care about regressions that show up gradually, not just single-run threshold breaches.
 
+## Examples
+
+Runnable, documented example configs live under [`examples/`](examples/). Each
+folder has its own README explaining when to use it and how to adapt it.
+
+| Example | Demonstrates |
+|---------|--------------|
+| [`code-evals`](examples/code-evals/README.md) | Deterministic pass/fail checks (`regex`, `must_contain`, `json_schema`, …) that run in-process with no LLM judge |
+| [`agent-session`](examples/agent-session/README.md) | `scope.level: agent-session` — grouping a multi-step conversation and judging the whole transcript once |
+| [`routing-accuracy`](examples/routing-accuracy/README.md) | Scoring multi-agent handovers — was each request routed to the agent that owns it |
+
 ## TypeScript Library
 
 The repository also includes [`dt-eval-lib`](../dt-eval-lib/README.md) — a standalone TypeScript package for running the same judge-based metrics directly in code, tests, and CI pipelines without the CLI. It supports all six providers and the full built-in evaluator catalog.
