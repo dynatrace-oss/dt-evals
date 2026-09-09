@@ -1,0 +1,19 @@
+{
+  "id": "tool-call-accuracy",
+  "name": "Tool Call Accuracy",
+  "version": "1",
+  "description": "Judges one leaf tool-call step: given the task delegated to this agent, was the right tool chosen and are its arguments faithful to the entities/parameters named in the task?",
+  "requiredFields": [
+    "input",
+    "output"
+  ],
+  "scoring": {
+    "type": "binary",
+    "range": [
+      0,
+      1
+    ],
+    "threshold": 1
+  },
+  "prompt": "Reply with one JSON object only: {\"scoreValue\": <0 or 1>, \"summary\": \"<brief>\", \"reasoning\": \"<max 2 sentences>\"}\n\nREQUEST is the task delegated to this agent, plus any tool results it has already gathered.\nTOOL_CALL is the next tool this agent chose to call, with its arguments.\n\nTOOLS — replace with your own roster.\n- calculate_distance: arguments.origin, arguments.destination — distance between two locations.\n- search_routes: arguments.origin, arguments.destination — available shipping routes between two locations.\n- list_carriers: no required arguments — all carriers and their base rates.\n- lookup_shipment: arguments.shipment_id — look up one existing shipment.\n- list_active_shipments: no required arguments — list active shipments.\n- create_shipment_quote: arguments for the shipment being quoted — create a formal quote.\n\nscoreValue = 1 if TOOL_CALL's tool is appropriate for what REQUEST still needs AND every argument value faithfully matches an entity or parameter named in REQUEST (nothing missing, fabricated, or swapped).\nscoreValue = 0 if the wrong tool was chosen, or any argument is missing, fabricated, or does not match REQUEST (e.g. wrong origin/destination, invented shipment id).\n\n<request>\n{{input}}\n</request>\n\n<tool_call>\n{{output}}\n</tool_call>\n"
+}
