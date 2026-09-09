@@ -1,0 +1,61 @@
+# Code evals: deterministic, in-process checks. No LLM judge, no `judge:` block,
+# no cost. Each check scores the span output as pass (1.0) or fail (0.0).
+schemaVersion: 3
+name: code-evals
+dynatrace:
+  environmentUrl: https://<tenant>.apps.dynatrace.com/
+  apiToken: ${DT_API_TOKEN}
+scope:
+  service: your-agent-service
+  since: 24h
+  level: agent-span
+  # Score the agent's final answers, not its intermediate tool-call spans.
+  filters:
+    gen_ai.response.finish_reasons:
+      - stop
+  sampling:
+    strategy: latest
+    count: 10
+metrics:
+  enabled:
+    # regex — pass only when the output MATCHES the pattern (e.g. quotes a price).
+    - id: quotes-a-price
+      method: regex
+      params:
+        pattern: "\\$[0-9,]+\\.[0-9]{2}"
+
+    # must_contain — require an expected phrase. mode: any = one is enough.
+    - id: discloses-estimate
+      method: must_contain
+      params:
+        keywords: ["estimate", "not a formal quote"]
+        mode: any
+
+    # must_not_contain — fail if a forbidden phrase appears (case-insensitive).
+    # Here: templating bugs that should never reach a user-facing answer.
+    - id: no-render-bug
+      method: must_not_contain
+      params:
+        keywords: ["undefined", "[object Object]", "NaN km"]
+        mode: any
+
+    # must_not_match — fail if the output MATCHES the pattern (e.g. a leaked stack
+    # trace). Keep patterns simple: complex ones are rejected by the ReDoS guard.
+    - id: no-raw-error-leak
+      method: must_not_match
+      params:
+        pattern: "Traceback|Exception|NullPointerException|stack trace"
+
+    # json_schema — require bare, well-formed JSON. Only for agents that answer in
+    # JSON; a response wrapped in ```json fences will not parse. Needs the optional
+    # `ajv` dependency.
+    # - id: valid-response-object
+    #   method: json_schema
+    #   params:
+    #     schema:
+    #       type: object
+    #       required: [answer]
+
+# Set to true to store the rendered output and check result in the bizevent
+# when debugging a score you disagree with.
+storeEvaluatedPrompt: false
