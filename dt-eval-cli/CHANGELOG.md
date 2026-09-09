@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.2-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.3.1-alpha...v0.3.2-alpha) (2026-09-09)
+
+
+### ✨ New Features
+
+* **dt-eval-cli:** add evaluators --from-file and routing examples ([#234](https://github.com/dynatrace-oss/dt-evals/issues/234)) ([762817d](https://github.com/dynatrace-oss/dt-evals/commit/762817d49f9702c9368757fe26d4baaca77c4304))
+* **dt-eval-cli:** filter spans by arbitrary attributes ([#233](https://github.com/dynatrace-oss/dt-evals/issues/233)) ([3c3d287](https://github.com/dynatrace-oss/dt-evals/commit/3c3d2870d980cc7be18923a6ac6ea250d8810e57))
+
 ## [0.3.1-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.3.0-alpha...v0.3.1-alpha) (2026-09-07)
 
 
