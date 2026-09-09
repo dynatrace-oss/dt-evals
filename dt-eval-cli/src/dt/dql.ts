@@ -14,6 +14,8 @@ export interface DqlQueryOptions {
   operationNames?: string[];
   level?: "agent-span" | "agent-session";
   maxConversations?: number;
+  /** Arbitrary span-attribute equality filters. */
+  filters?: Record<string, string | string[]>;
 }
 
 export type DqlResult = GenAiSpan[];
@@ -114,6 +116,16 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
       `| filter service.name == "${app}"` +
       ` or dt.service.name == "${app}"`,
     );
+  }
+
+  for (const [key, value] of Object.entries(opts.filters ?? {})) {
+    if (Array.isArray(value)) {
+      if (value.length === 0) continue;
+      const values = value.map(dqlStringLiteral).join(', ');
+      lines.push(`| filter in(${key}, array(${values}))`);
+    } else {
+      lines.push(`| filter ${key} == ${dqlStringLiteral(value)}`);
+    }
   }
 
   if (errorsOnly) {

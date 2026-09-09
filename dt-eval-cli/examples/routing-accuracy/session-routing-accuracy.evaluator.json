@@ -1,0 +1,19 @@
+{
+  "id": "session-routing-accuracy",
+  "name": "Session Routing Accuracy",
+  "version": "1",
+  "description": "Judges a whole conversation's routing: were the right agents used, and none clearly required left out?",
+  "requiredFields": [
+    "input",
+    "output"
+  ],
+  "scoring": {
+    "type": "binary",
+    "range": [
+      0,
+      1
+    ],
+    "threshold": 1
+  },
+  "prompt": "Reply with one JSON object only: {\"scoreValue\": <0 or 1>, \"summary\": \"<brief>\", \"reasoning\": \"<max 2 sentences>\"}\n\nTRANSCRIPT is an orchestrator's message history. Its assistant tool_call parts are the\nrouting decisions \u2014 typically named handoff_to_<agent> or transfer_to_<agent>. Judge\nthose decisions only, not the quality or accuracy of any answer.\n\nAGENTS \u2014 replace with your own roster.\n- route_planner: available routes, carriers, distances, transit times. Not costs.\n- pricing: shipping costs, fuel surcharges, tariffs, price breakdowns.\n- shipment: look up existing shipments, list active ones, create formal quotes.\n- weather_risk: weather and environmental risk affecting a shipment.\n\nscoreValue = 1 if every handoff went to an agent that owns the work it was given, and no\nagent the query clearly required was left out. Otherwise 0.\nIf the transcript contains no handoff, score 1 only when the query plainly needed no\nspecialist.\n\n<transcript>\n{{input}}\n</transcript>\n\n<final_answer>\n{{output}}\n</final_answer>\n"
+}

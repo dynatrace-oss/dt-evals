@@ -195,6 +195,7 @@ export async function runEvals(
     operationNames: evalConfig.scope.operationNames,
     level: evalConfig.scope.level,
     maxConversations: evalConfig.scope.maxConversations,
+    filters: evalConfig.scope.filters,
   });
   logger.debug(`DQL query:\n${query}`);
 

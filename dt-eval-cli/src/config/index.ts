@@ -388,6 +388,20 @@ export function validateConfig(config: DtEvalConfig): void {
     }
   }
 
+  const filters = config.scope?.filters as unknown;
+  if (filters !== undefined) {
+    if (typeof filters !== 'object' || filters === null || Array.isArray(filters)) {
+      issues.push('scope.filters must be an object mapping span attribute names to values');
+    } else {
+      for (const [key, value] of Object.entries(filters as Record<string, unknown>)) {
+        const isNonEmptyString = (v: unknown) => typeof v === 'string' && v.trim().length > 0;
+        if (!isNonEmptyString(value) && !(Array.isArray(value) && value.length > 0 && value.every(isNonEmptyString))) {
+          issues.push(`scope.filters["${key}"] must be a non-empty string or an array of non-empty strings`);
+        }
+      }
+    }
+  }
+
   const level = config.scope?.level as unknown;
   if (level !== undefined && level !== 'agent-span' && level !== 'agent-session') {
     issues.push(`scope.level must be "agent-span" or "agent-session" (got "${level}")`);
