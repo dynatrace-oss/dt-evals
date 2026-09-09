@@ -131,6 +131,16 @@ describe('buildBizeventPayload', () => {
     expect(new Date(payload.timestamp!).toISOString()).toBe(payload.timestamp);
   });
 
+  // The AI Observability app's Evals grid selects rows by event type and lets
+  // you filter them by Run ID. These two fields are the contract the README's
+  // "filter by Run ID" step relies on — keep them stable.
+  it('carries the fields the AI Observability Evals grid filters on', () => {
+    const runId = 'run-2026-09-09T08-09-24-6d42664f';
+    const payload = buildBizeventPayload(makeSpan(), 'routing-accuracy', 'Routing Accuracy', makeEvalResult(), runId, 'llm_as_judge', 'bedrock', 'claude-haiku');
+    expect(payload['event.type']).toBe('gen_ai.evaluation.result');
+    expect(payload['dt.eval.run_id']).toBe(runId);
+  });
+
   describe('storeEvaluatedPrompt', () => {
     it('omits the evaluated question/answer/system_prompt by default', () => {
       const span = makeSpan({ systemInstruction: 'be helpful' });

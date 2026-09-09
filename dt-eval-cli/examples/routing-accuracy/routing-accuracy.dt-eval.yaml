@@ -1,0 +1,35 @@
+# Per-decision routing accuracy. Best for single-shot routers: one query in,
+# one agent chosen. See README.md for the multi-step alternative.
+schemaVersion: 3
+name: routing-accuracy
+
+dynatrace:
+  environmentUrl: https://<tenant-id>.apps.dynatrace.com
+
+judge:
+  provider: openai
+  model: gpt-5-mini
+
+scope:
+  service: <orchestrator-service-name>
+  since: 24h
+  level: agent-span
+  filters:
+    # Isolate the orchestrator from sub-agents sharing its service.
+    gen_ai.agent.name: <orchestrator-agent-name>
+    # Keep only the spans that chose an agent, dropping the ones that returned
+    # a final answer. List form is required: finish_reasons is an array
+    # attribute, and the scalar form matches nothing without erroring.
+    gen_ai.response.finish_reasons:
+      - tool_call
+  sampling:
+    strategy: latest
+    count: 50
+
+metrics:
+  enabled:
+    - routing-accuracy
+
+# Set to true to store the rendered prompt and judge response in the bizevent
+# when debugging a score you disagree with.
+storeEvaluatedPrompt: false

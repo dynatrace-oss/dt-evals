@@ -1,0 +1,35 @@
+# Whole-conversation routing accuracy: coverage and sequencing. Best for
+# multi-step planners that fan one query out across several handoffs.
+schemaVersion: 3
+name: session-routing-accuracy
+
+dynatrace:
+  environmentUrl: https://<tenant-id>.apps.dynatrace.com
+
+judge:
+  provider: openai
+  model: gpt-5-mini
+
+scope:
+  service: <orchestrator-service-name>
+  since: 24h
+  # Keeps the orchestrator's full history, including the handoff tool calls.
+  level: agent-session
+  keepPartTypes:
+    - text
+    - tool_call
+  filters:
+    gen_ai.agent.name: <orchestrator-agent-name>
+  maxConversations: 20
+  maxMessages: 20
+  sampling:
+    strategy: latest
+    count: 20
+
+metrics:
+  enabled:
+    - session-routing-accuracy
+
+# Set to true to store the rendered prompt and judge response in the bizevent
+# when debugging a score you disagree with.
+storeEvaluatedPrompt: false
