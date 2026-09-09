@@ -20,10 +20,19 @@ describe('buildGenAiSpanQuery', () => {
     expect(query6h).toContain('from:now() - 6h, to:now()');
   });
 
-  it('filters on both gen_ai.system and gen_ai.provider.name', () => {
+  it('keeps GenAI spans by system, provider name, or tool name', () => {
     const query = buildGenAiSpanQuery({ since: '1h' });
     expect(query).toContain('isNotNull(gen_ai.system)');
     expect(query).toContain('isNotNull(gen_ai.provider.name)');
+    // execute_tool spans carry neither system nor provider name — only
+    // gen_ai.tool.name — so the guard must accept that too.
+    expect(query).toContain('isNotNull(gen_ai.tool.name)');
+  });
+
+  it('reaches execute_tool spans when scoped to that operation', () => {
+    const query = buildGenAiSpanQuery({ since: '1h', operationNames: ['execute_tool'] });
+    expect(query).toContain('isNotNull(gen_ai.tool.name)');
+    expect(query).toContain('| filter in(gen_ai.operation.name, array("execute_tool"))');
   });
 
   it('filters to chat and text generation operation names by default', () => {

@@ -94,8 +94,12 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
   // ~2h analysis window in effect even when the filter asks for longer.
   const lines: string[] = [`fetch spans, from:now() - ${since}, to:now()`];
 
-  // Support both OTel GenAI semconv (gen_ai.system) and OpenLLMetry (gen_ai.provider.name)
-  lines.push('| filter isNotNull(gen_ai.system) or isNotNull(gen_ai.provider.name)');
+  // Keep only GenAI spans. Chat spans set gen_ai.system or gen_ai.provider.name;
+  // execute_tool spans set neither but always set gen_ai.tool.name (Required by
+  // the OTel GenAI semconv), so accept that too.
+  lines.push(
+    '| filter isNotNull(gen_ai.system) or isNotNull(gen_ai.provider.name) or isNotNull(gen_ai.tool.name)',
+  );
 
   if (operationNames.length > 0) {
     const names = operationNames.map(dqlStringLiteral).join(', ');
