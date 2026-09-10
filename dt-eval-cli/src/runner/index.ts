@@ -62,6 +62,7 @@ export interface RunResult {
 export interface EvaluatorRunResult {
   metric: string;
   successes: number;
+  passes: number;
   total: number;
   errors: number;
   avgDurationMs: number;
@@ -138,18 +139,22 @@ interface EvalTaskResult {
 interface EvaluatorRunStats {
   metric: string;
   successes: number;
+  passes: number;
   total: number;
   errors: number;
   durationMs: number;
 }
 
-function recordEvaluatorOutcome(stats: EvaluatorRunStats | undefined, succeeded: boolean, durationMs: number): void {
+function recordEvaluatorOutcome(stats: EvaluatorRunStats | undefined, succeeded: boolean, durationMs: number, passed?: boolean): void {
   if (!stats) return;
 
   stats.total++;
   stats.durationMs += durationMs;
   if (succeeded) {
     stats.successes++;
+    if (passed) {
+      stats.passes++;
+    }
   } else {
     stats.errors++;
   }
@@ -251,7 +256,7 @@ export async function runEvals(
   const evaluatorStats = new Map<string, EvaluatorRunStats>();
   for (const entry of evalEntries) {
     const id = metricId(entry);
-    evaluatorStats.set(id, { metric: id, successes: 0, total: 0, errors: 0, durationMs: 0 });
+    evaluatorStats.set(id, { metric: id, successes: 0, passes: 0, total: 0, errors: 0, durationMs: 0 });
   }
 
   if (opts.dryRun) {
@@ -267,6 +272,7 @@ export async function runEvals(
       evaluatorResults: [...evaluatorStats.values()].map(s => ({
         metric: s.metric,
         successes: s.successes,
+        passes: s.passes,
         total: s.total,
         errors: s.errors,
         avgDurationMs: 0,
@@ -317,7 +323,7 @@ export async function runEvals(
         evalCount++;
         const elapsed = Date.now() - t0;
         logger.debug(`eval [${evalCount}/${tasks.length}] ${task.metric} ${task.method} trace=${task.span.traceId.slice(0, 8)}… ${elapsed}ms score=${evalResult.score.value}`);
-        recordEvaluatorOutcome(evaluatorStats.get(task.metric), true, elapsed);
+        recordEvaluatorOutcome(evaluatorStats.get(task.metric), true, elapsed, evalResult.score.label === 'pass');
         emit?.({
           phase: 'eval-completed',
           completed: evalCount,
@@ -376,6 +382,7 @@ export async function runEvals(
   const evaluatorResults: EvaluatorRunResult[] = [...evaluatorStats.values()].map(s => ({
     metric: s.metric,
     successes: s.successes,
+    passes: s.passes,
     total: s.total,
     errors: s.errors,
     avgDurationMs: s.total > 0 ? Math.round(s.durationMs / s.total) : 0,

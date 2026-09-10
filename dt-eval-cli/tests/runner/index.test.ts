@@ -342,8 +342,39 @@ describe('runEvals', () => {
     expect(result.resultsWritten).toBe(1);
     expect(result.errors).toBe(1);
     expect(result.evaluatorResults).toEqual([
-      expect.objectContaining({ metric: 'toxicity', successes: 1, total: 1, errors: 0 }),
-      expect.objectContaining({ metric: 'relevance', successes: 0, total: 1, errors: 1 }),
+      expect.objectContaining({ metric: 'toxicity', successes: 1, passes: 1, total: 1, errors: 0 }),
+      expect.objectContaining({ metric: 'relevance', successes: 0, passes: 0, total: 1, errors: 1 }),
+    ]);
+  });
+
+  it('does not count a completed-but-failing judge score as a pass', async () => {
+    // Reproduces the reported bug: the judge call completes without throwing
+    // (no error), but the score label is 'fail'. That must not be counted as
+    // a pass just because the evaluation "succeeded" (i.e. didn't error).
+    let callCount = 0;
+    evaluate.mockImplementation(() => {
+      callCount++;
+      // 4 pass, 1 fails on score — none of them throw.
+      const label = callCount === 5 ? 'fail' : 'pass';
+      return Promise.resolve({
+        score: { value: label === 'pass' ? 0.9 : 0, label },
+        explanation: { summary: label },
+      });
+    });
+
+    const spans = Array.from({ length: 5 }, (_, i) => makeSpan({ traceId: `trace-${i}` }));
+    const dtClient = makeDtClient(spans);
+    const config = makeConfig({ metrics: { enabled: ['routing-accuracy'] } });
+
+    const result = await runEvals(
+      dtClient as unknown as import('../../src/dt/client.js').DynatraceClient,
+      config,
+      { since: '1h' },
+    );
+
+    expect(result.errors).toBe(0);
+    expect(result.evaluatorResults).toEqual([
+      expect.objectContaining({ metric: 'routing-accuracy', successes: 5, passes: 4, total: 5, errors: 0 }),
     ]);
   });
 
