@@ -643,22 +643,33 @@ Drift results are written back as the same event type with `gen_ai.evaluation.ty
 | `toxicity` | Harmful, offensive, or unsafe output | `output` |
 | `user-frustration` | Frustration signals in the user's message | `input` |
 
-### Deterministic evaluators (code checks)
+### Deterministic evaluators (code evals)
 
 Not every check needs an LLM. Add a `method` to a metric entry in
-`metrics.enabled` to run a fast, reproducible, zero-cost code check instead of
-an LLM judge. Each check scores the span output as pass (`1.0`) or fail
-(`0.0`). Omitting `method` keeps the default LLM-as-judge behavior, so existing
-configs are unaffected.
+`metrics.enabled` to run a fast, reproducible, zero-cost **code eval** (a
+deterministic check) instead of an LLM judge. Each one scores the span output
+as pass (`1.0`) or fail (`0.0`). Omitting `method` keeps the default
+LLM-as-judge behavior, so existing configs are unaffected.
 
 Available methods: `exact_match`, `regex`, `must_not_match`, `must_contain`,
 `must_not_contain`, and `json_schema`.
 
-**`must_contain` — require an expected keyword to be present**
+**`exact_match` — require the output to equal an expected string**
 
 ```yaml
 metrics:
   enabled:
+    - id: matches-canonical-answer
+      method: exact_match
+      params:
+        expectedOutput: "APPROVED"
+        trim: true            # strip surrounding whitespace before comparing
+        caseSensitive: false  # default true; set false to ignore case
+```
+
+**`must_contain` — require an expected keyword to be present**
+
+```yaml
     - id: cites-a-source
       method: must_contain
       params:
@@ -686,8 +697,15 @@ metrics:
         pattern: "\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b"
 ```
 
-> Use `regex` for the opposite check — pass only when the output **does** match
-> the pattern.
+**`regex` — the opposite of `must_not_match`: pass only when the output matches**
+
+```yaml
+    - id: starts-with-ticket-id
+      method: regex
+      params:
+        pattern: "^[A-Z]+-\\d+:"   # e.g. "AI-465: summary…"
+        flags: "m"                 # ^ anchors each line, not just the string
+```
 
 **`json_schema` — require valid, well-structured JSON**
 
@@ -704,6 +722,12 @@ metrics:
 > JSON — a response wrapped in markdown fences (` ```json … ``` `) will not
 > parse. `json_schema` needs the optional `ajv` dependency, and `regex` /
 > `must_not_match` need the optional `recheck` dependency (for ReDoS safety).
+
+**Example configs:** [`code-evals`](examples/code-evals/README.md) applies these
+methods as format and policy gates on an agent's final answer;
+[`tool-call-accuracy`](examples/tool-call-accuracy/README.md) points them at a
+tool call instead — `json_schema` over the arguments, `must_not_match` over the
+result — with an LLM judge alongside for argument fidelity.
 
 ### Custom evaluators
 
@@ -747,6 +771,29 @@ dt-evals evaluators show answer-style
 dt-evals evaluators test answer-style
 ```
 
+### Evaluation levels (agent trajectory)
+
+By default every span is scored on its own (`scope.level: agent-span`) — one
+verdict per step. Set `scope.level: agent-session` to evaluate the **whole agent
+trajectory** instead: spans are grouped into one conversation (by
+`gen_ai.conversation.id`, falling back to `trace.id`) and a single judge call
+runs over the joined transcript.
+
+| `scope.level` | Unit scored | Answers |
+|---|---|---|
+| `agent-span` (default) | one span / step | was this individual step correct? |
+| `agent-session` | one conversation / trajectory | did the agent resolve the whole request, recover after a failed tool, stay coherent across turns? |
+
+Completion, recovery, and coherence only exist across steps — score each span
+alone and they are invisible. Any evaluator, built-in or custom, can run at
+either level; at session level `keepPartTypes`, `maxMessages`, and
+`maxConversations` shape the transcript.
+
+**Example configs:** [`agent-session`](examples/agent-session/README.md) judges
+whole-conversation completeness;
+[`session-routing-accuracy`](examples/routing-accuracy/README.md) lifts routing
+accuracy to the trajectory level.
+
 ### Drift detection
 
 `drift` compares current score distributions against a 7 day baseline of prior evaluation events.
@@ -761,8 +808,9 @@ folder has its own README explaining when to use it and how to adapt it.
 | Example | Demonstrates |
 |---------|--------------|
 | [`code-evals`](examples/code-evals/README.md) | Deterministic pass/fail checks (`regex`, `must_contain`, `json_schema`, …) that run in-process with no LLM judge |
-| [`agent-session`](examples/agent-session/README.md) | `scope.level: agent-session` — grouping a multi-step conversation and judging the whole transcript once |
+| [`agent-session`](examples/agent-session/README.md) | `scope.level: agent-session` — grouping a multi-step conversation (agent trajectory) and judging the whole transcript once |
 | [`routing-accuracy`](examples/routing-accuracy/README.md) | Scoring multi-agent handovers — was each request routed to the agent that owns it |
+| [`tool-call-accuracy`](examples/tool-call-accuracy/README.md) | Checking a tool call — `json_schema`/`must_not_match` on its arguments and result, plus an LLM judge for whether the right tool was called with faithful arguments |
 
 ## TypeScript Library
 

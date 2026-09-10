@@ -1,0 +1,37 @@
+# Argument fidelity, judged. One LLM call per leaf tool-call step: given the
+# task delegated to this agent, was the right tool chosen and are its arguments
+# faithful to the task? Scores what json_schema cannot — whether the values are
+# *correct*, not just *well-formed*. See README.md.
+schemaVersion: 3
+name: tool-call-accuracy
+
+dynatrace:
+  environmentUrl: https://<tenant-id>.apps.dynatrace.com
+
+judge:
+  provider: openai
+  model: gpt-5-mini
+
+scope:
+  service: <agent-service-name>
+  since: 24h
+  level: agent-span
+  filters:
+    # Keep the specialist agent's LLM spans that chose a tool, dropping the ones
+    # that returned a final answer. This span carries both the delegated task
+    # (input) and the chosen tool call with its arguments (output), which is
+    # what the judge needs. List form is required: finish_reasons is an array
+    # attribute, and the scalar form silently matches nothing.
+    gen_ai.response.finish_reasons:
+      - tool_call
+  sampling:
+    strategy: latest
+    count: 10
+
+metrics:
+  enabled:
+    - tool-call-accuracy
+
+# Set to true to store the rendered prompt and judge response in the bizevent
+# when debugging a score you disagree with.
+storeEvaluatedPrompt: false

@@ -1,0 +1,68 @@
+# Deterministic tool-call checks: no LLM judge, no cost. Two rules over the
+# leaf tool-call spans a specialist agent emits (gen_ai.operation.name =
+# execute_tool). Each check scores one span pass (1.0) or fail (0.0). See
+# README.md.
+schemaVersion: 3
+name: tool-call-validation
+
+dynatrace:
+  environmentUrl: https://<tenant-id>.apps.dynatrace.com
+
+scope:
+  service: <agent-service-name>
+  since: 24h
+  level: agent-span
+  # execute_tool spans are excluded from the default operation keep-list, so
+  # opt them in explicitly — this is the layer where the actual tool call and
+  # its arguments live, not the LLM chat span that decided to call it.
+  operationNames:
+    - execute_tool
+  filters:
+    # One tool at a time: its argument shape and its "no result" text are
+    # tool-specific, so the checks below are written for a single tool.
+    gen_ai.tool.name: <tool-name>
+  # execute_tool spans carry no input/output messages — the data lives on
+  # dedicated attributes. Map the canonical slots onto them. A span is dropped
+  # unless both input and output resolve, so input is mapped too.
+  spanFields:
+    input: gen_ai.tool.name
+    output: gen_ai.tool.call.arguments   # the JSON arguments object
+    context: gen_ai.tool.call.result     # the tool's returned text
+  sampling:
+    strategy: latest
+    count: 10
+
+metrics:
+  enabled:
+    # json_schema — parse the arguments JSON and require the fields this tool
+    # needs. Fails on a malformed or incomplete call (a missing origin, a
+    # non-string value, a templating bug that emptied a field).
+    - id: args-well-formed
+      method: json_schema
+      params:
+        schema:
+          type: object
+          required: [origin, destination]
+          properties:
+            origin: { type: string, minLength: 1 }
+            destination: { type: string, minLength: 1 }
+
+    # must_not_match — read the result text (mapped above to context, routed in
+    # here as this check's output) and fail only when the tool genuinely
+    # failed: an empty/blank result (^\s*$) or an error signal. Do NOT list
+    # business "no data" phrases here ("No routes found", "not found") — those
+    # are correct answers to a valid question, not tool failures, and flagging
+    # them would penalise the agent for the tool doing its job. There is no
+    # structured error field on the span; the outcome only shows in the text,
+    # so match the error wording your tools actually emit on a fault.
+    - id: tool-returned-data
+      method: must_not_match
+      inputs:
+        output: context
+      params:
+        pattern: '^\s*$|error|exception|timed out'
+        flags: "i"
+
+# Set to true to store the arguments/result and check outcome in the bizevent
+# when debugging a score you disagree with.
+storeEvaluatedPrompt: false
