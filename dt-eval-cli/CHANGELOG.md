@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.3-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.3.2-alpha...v0.3.3-alpha) (2026-09-10)
+
+
+### ✨ New Features
+
+* **dt-eval-cli:** add code-evals and agent-session example templates ([#237](https://github.com/dynatrace-oss/dt-evals/issues/237)) ([9068577](https://github.com/dynatrace-oss/dt-evals/commit/90685775922dc84d4b7fe4c6cee1dca1791c9093))
+* **dt-eval-cli:** add tool-call-accuracy example templates ([#240](https://github.com/dynatrace-oss/dt-evals/issues/240)) ([6653304](https://github.com/dynatrace-oss/dt-evals/commit/6653304f838fbdf5624ff32593a8d2dfd451a43f))
+
+
+### 🐛 Bug Fixes
+
+* **dt-eval-cli:** keep execute_tool spans in the genai-span filter ([#239](https://github.com/dynatrace-oss/dt-evals/issues/239)) ([3ce51d7](https://github.com/dynatrace-oss/dt-evals/commit/3ce51d726e429a1b74b3619d7a3666cedd818cb4))
+* **dt-eval-cli:** report pass rate from scores, not completions ([#236](https://github.com/dynatrace-oss/dt-evals/issues/236)) ([6ffbe51](https://github.com/dynatrace-oss/dt-evals/commit/6ffbe516bb006e9a316b5620ea7936d318d8559b))
+
 ## [0.3.2-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.3.1-alpha...v0.3.2-alpha) (2026-09-09)
 
 
