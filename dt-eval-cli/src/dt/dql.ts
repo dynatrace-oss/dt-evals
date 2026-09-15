@@ -24,9 +24,33 @@ export type DqlResult = GenAiSpan[];
 // (gen_ai.prompt.0.content, gen_ai.prompt.1.content, ...)
 const PROMPT_SLOTS = 3;
 
+const DEFAULT_SPAN_LIMIT = 1000;
 const TRAJECTORY_SPANS_PER_CONVERSATION = 20;
 const DEFAULT_MAX_CONVERSATIONS = 200;
 const DEFAULT_MAX_MESSAGES = 50;
+
+/** Options that determine how many rows the span fetch will ask Grail for. */
+type SpanFetchLimitOptions = Pick<DqlQueryOptions, 'limit' | 'level' | 'maxConversations'>;
+
+/**
+ * The row cap applied by {@link buildGenAiSpanQuery}. Exposed so callers can
+ * detect truncation: the query has no pagination, so a fetch that returns this
+ * many rows has almost certainly dropped older spans in the window.
+ */
+export function spanFetchLimit(opts: SpanFetchLimitOptions): number {
+  const { limit = DEFAULT_SPAN_LIMIT, level, maxConversations = DEFAULT_MAX_CONVERSATIONS } = opts;
+  return level === 'agent-session' ? maxConversations * TRAJECTORY_SPANS_PER_CONVERSATION : limit;
+}
+
+/**
+ * True when a fetch that returned `fetchedCount` rows likely hit the row cap
+ * and therefore silently dropped older spans. Because the cap is applied
+ * *before* sampling, a truncated fetch means sampled runs are drawn from an
+ * arbitrary truncated subset of the window rather than the full window.
+ */
+export function isSpanFetchTruncated(fetchedCount: number, opts: SpanFetchLimitOptions): boolean {
+  return fetchedCount >= spanFetchLimit(opts);
+}
 
 // Built-in candidate attribute lists per canonical field. User-supplied
 // candidates are prepended to these so the user's choice wins, but the
@@ -85,7 +109,7 @@ export function filterSpansByOperationName(spans: GenAiSpan[], operationNames?: 
 }
 
 export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
-  const { app, since, limit = 1000, errorsOnly = false, spanFields, level, maxConversations = DEFAULT_MAX_CONVERSATIONS } = opts;
+  const { app, since, limit = DEFAULT_SPAN_LIMIT, errorsOnly = false, spanFields, level, maxConversations = DEFAULT_MAX_CONVERSATIONS } = opts;
   const operationNames = resolveOperationNames(opts.operationNames);
   const fields = resolveFields(spanFields);
   const isTrajectory = level === 'agent-session';
@@ -169,7 +193,7 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
 
   lines.push(`| fields ${baseFields}, ${promptFields}`);
   lines.push(isTrajectory ? '| sort end_time desc' : '| sort start_time desc');
-  lines.push(isTrajectory ? `| limit ${maxConversations * TRAJECTORY_SPANS_PER_CONVERSATION}` : `| limit ${limit}`);
+  lines.push(`| limit ${spanFetchLimit({ limit, level, maxConversations })}`);
 
   return lines.join('\n');
 }
