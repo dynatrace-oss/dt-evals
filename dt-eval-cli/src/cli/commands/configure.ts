@@ -555,11 +555,12 @@ export function createConfigureCommand(): Command {
       // Scope shapes what every evaluator runs over, so it comes before the
       // evaluator pickers. `level` sits next to `sampling` since both control
       // which/how many spans are drawn.
-      const level = await select<'agent-span' | 'agent-session'>({
+      const level = await select<'agent-span' | 'agent-session' | 'agent-trajectory'>({
         message: 'Scope level — what should each evaluation run over?',
         choices: [
           { name: 'agent-span  (evaluate individual agent spans)', value: 'agent-span' },
           { name: 'agent-session  (evaluate at session level using conversation id, trace id as fallback)', value: 'agent-session' },
+          { name: 'agent-trajectory  (reconstruct the full span tree / turns for a trace)', value: 'agent-trajectory' },
         ],
         default: existing.scope?.level ?? 'agent-span',
       });

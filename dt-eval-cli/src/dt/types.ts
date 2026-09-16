@@ -18,6 +18,24 @@ export interface GenAiSpan {
   isError?: boolean;
   conversationId?: string;   // gen_ai.conversation.id
   finishReasons?: string;    // gen_ai.response.finish_reasons (raw string from DQL)
+
+  // ── agent-trajectory (span-tree) additions — optional, additive only ──────
+  /** Parent span id within the same trace. Only populated at `agent-trajectory` level. */
+  parentId?: string;
+  /** Coarse span classification, derived from gen_ai.operation.name. */
+  kind?: 'chat' | 'tool' | 'agent' | 'other';
+  /** gen_ai.tool.name — set on `execute_tool` spans. */
+  toolName?: string;
+  /** gen_ai.tool.call.id */
+  toolCallId?: string;
+  /** gen_ai.tool.type */
+  toolType?: string;
+  /** Serialized tool-call arguments (gen_ai.tool.call.arguments). */
+  toolArguments?: string;
+  /** Serialized tool-call result (gen_ai.tool.call.result). */
+  toolResult?: string;
+  /** Child spans in the reconstructed span tree. Only populated at `agent-trajectory` level. */
+  children?: GenAiSpan[];
 }
 
 export interface BizeventPayload {

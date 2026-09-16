@@ -83,8 +83,12 @@ export interface ScopeConfig {
    * - `agent-span`: evaluate each span (one LLM call / operation) individually.
    * - `agent-session`: group spans by conversation (`gen_ai.conversation.id`, falling back
    *   to trace id) and evaluate one representative span per conversation.
+   * - `agent-trajectory`: reconstruct the full span tree for a trace (chat, tool,
+   *   and agent spans, linked by parent/child) and segment it into turns, so a
+   *   trajectory-aware evaluation can see the whole run rather than one span or
+   *   one flattened conversation transcript.
    */
-  level?: "agent-span" | "agent-session";
+  level?: "agent-span" | "agent-session" | "agent-trajectory";
   keepPartTypes?: string[];
   /**
    * Fetch/selection cap for `agent-session` level: how many conversation groups to consider before

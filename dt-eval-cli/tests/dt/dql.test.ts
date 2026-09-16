@@ -146,6 +146,100 @@ describe('buildGenAiSpanQuery', () => {
     expect(queryEmpty).not.toContain('gen_ai.agent.name ==');
     expect(queryEmpty).not.toContain('in(gen_ai.agent.name');
   });
+
+  describe('agent-trajectory level (span-tree reconstruction)', () => {
+    it('adds the parent-span-id and tool attribute fields only for agent-trajectory', () => {
+      const query = buildGenAiSpanQuery({ since: '1h', level: 'agent-trajectory' });
+      expect(query).toContain('span.parent_id');
+      expect(query).toContain('gen_ai.tool.name');
+      expect(query).toContain('gen_ai.tool.call.id');
+      expect(query).toContain('gen_ai.tool.type');
+      expect(query).toContain('gen_ai.tool.call.arguments');
+      expect(query).toContain('gen_ai.tool.call.result');
+    });
+
+    it('includes both tool-result attribute names in the fields projection (two SDKs, complementary coverage)', () => {
+      const query = buildGenAiSpanQuery({ since: '1h', level: 'agent-trajectory' });
+      const fieldsLine = query.split('\n').find(l => l.startsWith('| fields'))!;
+      expect(fieldsLine).toContain('gen_ai.tool.result');
+      expect(fieldsLine).toContain('gen_ai.tool.call.result');
+    });
+
+    it('does not add trajectory-only conversation fields for agent-trajectory', () => {
+      const query = buildGenAiSpanQuery({ since: '1h', level: 'agent-trajectory' });
+      expect(query).not.toContain('gen_ai.conversation.id');
+      expect(query).not.toContain('gen_ai.response.finish_reasons');
+    });
+
+    it('uses the same sort/limit shape as agent-span (start_time desc, plain limit)', () => {
+      const query = buildGenAiSpanQuery({ since: '1h', level: 'agent-trajectory', limit: 777 });
+      expect(query).toContain('| sort start_time desc');
+      expect(query).toContain('| limit 777');
+    });
+
+    it('skips the operation-name keep-list entirely so tool/agent spans are fetchable', () => {
+      const query = buildGenAiSpanQuery({ since: '1h', level: 'agent-trajectory' });
+      expect(query).not.toContain('in(gen_ai.operation.name');
+    });
+
+    it('skips the operation-name keep-list even when operationNames is explicitly configured', () => {
+      const query = buildGenAiSpanQuery({ since: '1h', level: 'agent-trajectory', operationNames: ['chat'] });
+      expect(query).not.toContain('in(gen_ai.operation.name');
+    });
+
+    it('still applies the operation-name keep-list for agent-span and agent-session (unchanged)', () => {
+      const spanQuery = buildGenAiSpanQuery({ since: '1h', level: 'agent-span' });
+      expect(spanQuery).toContain('in(gen_ai.operation.name');
+
+      const sessionQuery = buildGenAiSpanQuery({ since: '1h', level: 'agent-session' });
+      expect(sessionQuery).toContain('in(gen_ai.operation.name');
+    });
+
+    it('accepts gen_ai.tool.name in the presence filter so tool-only spans pass through', () => {
+      const query = buildGenAiSpanQuery({ since: '1h', level: 'agent-trajectory' });
+      expect(query).toContain('isNotNull(gen_ai.tool.name)');
+    });
+
+    it('does not widen the presence filter for agent-span/agent-session', () => {
+      const spanQuery = buildGenAiSpanQuery({ since: '1h', level: 'agent-span' });
+      expect(spanQuery).not.toContain('isNotNull(gen_ai.tool.name)');
+
+      const sessionQuery = buildGenAiSpanQuery({ since: '1h', level: 'agent-session' });
+      expect(sessionQuery).not.toContain('isNotNull(gen_ai.tool.name)');
+    });
+
+    it('leaves the agent-span query byte-for-byte free of span-tree fields', () => {
+      const query = buildGenAiSpanQuery({ since: '1h', level: 'agent-span' });
+      expect(query).not.toContain('span.parent_id');
+      expect(query).not.toContain('gen_ai.tool.name');
+      expect(query).not.toContain('gen_ai.tool.call.id');
+      expect(query).not.toContain('gen_ai.tool.type');
+      expect(query).not.toContain('gen_ai.tool.call.arguments');
+      expect(query).not.toContain('gen_ai.tool.call.result');
+      expect(query).not.toContain('gen_ai.tool.result');
+    });
+
+    it('leaves the agent-session query byte-for-byte free of span-tree fields', () => {
+      const query = buildGenAiSpanQuery({ since: '1h', level: 'agent-session' });
+      expect(query).not.toContain('span.parent_id');
+      expect(query).not.toContain('gen_ai.tool.name');
+      expect(query).not.toContain('gen_ai.tool.call.id');
+      expect(query).not.toContain('gen_ai.tool.type');
+      expect(query).not.toContain('gen_ai.tool.call.arguments');
+      expect(query).not.toContain('gen_ai.tool.call.result');
+      expect(query).not.toContain('gen_ai.tool.result');
+    });
+
+    it('produces identical agent-span and agent-session queries to before this change (no level regression)', () => {
+      const spanQuery = buildGenAiSpanQuery({ since: '1h' });
+      const explicitSpanQuery = buildGenAiSpanQuery({ since: '1h', level: 'agent-span' });
+      expect(spanQuery).toBe(explicitSpanQuery);
+
+      const sessionQuery = buildGenAiSpanQuery({ since: '1h', level: 'agent-session' });
+      expect(sessionQuery).toContain('gen_ai.conversation.id');
+      expect(sessionQuery).toContain('| sort end_time desc');
+    });
+  });
 });
 
 describe('parseSpanResults', () => {

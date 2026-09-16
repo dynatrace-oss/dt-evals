@@ -5,6 +5,7 @@ import type { DtEvalConfig, MetricEntry, MetricInputs, CanonicalSpanField } from
 import { metricId, metricInputs, metricMethod, metricParams } from '../config/schema.js';
 import type { GenAiSpan, BizeventPayload } from '../dt/types.js';
 import { buildGenAiSpanQuery, parseSpanResults, filterSpansByOperationName, selectTrajectorySpans } from '../dt/dql.js';
+import { parseSpanTreeRecords, selectSpanTrees } from '../dt/span-tree.js';
 import { BizeventWriter, buildBizeventPayload } from '../dt/bizevent.js';
 import { DRIFT_METRIC_ID, runDriftDetection, buildDriftBizevents } from './drift.js';
 import { applySampling } from './sampler.js';
@@ -205,17 +206,36 @@ export async function runEvals(
   logger.timing('DQL fetch', dqlMs, { rawRecords: (rawRecords as unknown[]).length });
 
   const t0Parse = Date.now();
-  const parsedSpans = parseSpanResults(rawRecords, { spanFields: evalConfig.scope.spanFields, level: evalConfig.scope.level, keepPartTypes: evalConfig.scope.keepPartTypes, maxMessages: evalConfig.scope.maxMessages });
-  // Safety net: re-apply the operation-name keep-list at the parser layer so a DQL
-  // change or unexpected extra records can't leak non-keep-listed operation spans
-  // into evaluation.
-  const filteredSpans = filterSpansByOperationName(parsedSpans, evalConfig.scope.operationNames);
-  const allSpans = evalConfig.scope.level === 'agent-session'
-    ? selectTrajectorySpans(filteredSpans, evalConfig.scope.maxConversations)
-    : filteredSpans;
+  const parseOptions = { spanFields: evalConfig.scope.spanFields, level: evalConfig.scope.level, keepPartTypes: evalConfig.scope.keepPartTypes, maxMessages: evalConfig.scope.maxMessages };
+  let allSpans: GenAiSpan[];
+  let totalParsed: number;
+  if (evalConfig.scope.level === 'agent-trajectory') {
+    // agent-trajectory: keep tool spans (dropped by parseSpanResults) and
+    // reconstruct a span tree per trace. One representative root per trace
+    // (with its `.children` tree attached) flows through the rest of the
+    // pipeline unchanged — see src/dt/span-tree.ts.
+    const treeSpans = parseSpanTreeRecords(rawRecords, parseOptions);
+    // Unlike agent-span/agent-session, trajectory mode does NOT re-apply the
+    // operation-name keep-list here: a full trajectory needs every span kind
+    // (chat, execute_tool, invoke_agent, ...), not just the chat-only
+    // default keep-list. buildGenAiSpanQuery already skips the op-name
+    // filter for this level for the same reason.
+    allSpans = selectSpanTrees(treeSpans);
+    totalParsed = treeSpans.length;
+  } else {
+    const parsedSpans = parseSpanResults(rawRecords, parseOptions);
+    // Safety net: re-apply the operation-name keep-list at the parser layer so a DQL
+    // change or unexpected extra records can't leak non-keep-listed operation spans
+    // into evaluation.
+    const filteredSpans = filterSpansByOperationName(parsedSpans, evalConfig.scope.operationNames);
+    allSpans = evalConfig.scope.level === 'agent-session'
+      ? selectTrajectorySpans(filteredSpans, evalConfig.scope.maxConversations)
+      : filteredSpans;
+    totalParsed = parsedSpans.length;
+  }
   logger.timing('Parse spans', Date.now() - t0Parse, {
     spans: allSpans.length,
-    dropped: parsedSpans.length - allSpans.length,
+    dropped: totalParsed - allSpans.length,
   });
   emit?.({ phase: 'fetched', spans: allSpans.length, durationMs: dqlMs });
 

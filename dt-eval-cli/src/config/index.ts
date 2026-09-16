@@ -403,8 +403,8 @@ export function validateConfig(config: DtEvalConfig): void {
   }
 
   const level = config.scope?.level as unknown;
-  if (level !== undefined && level !== 'agent-span' && level !== 'agent-session') {
-    issues.push(`scope.level must be "agent-span" or "agent-session" (got "${level}")`);
+  if (level !== undefined && level !== 'agent-span' && level !== 'agent-session' && level !== 'agent-trajectory') {
+    issues.push(`scope.level must be "agent-span", "agent-session", or "agent-trajectory" (got "${level}")`);
   }
 
   const { strategy } = config.scope?.sampling ?? {};

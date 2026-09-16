@@ -12,7 +12,7 @@ export interface DqlQueryOptions {
   spanFields?: SpanFieldsMap;
   /** GenAI operation names to keep. Empty array disables this filter. */
   operationNames?: string[];
-  level?: "agent-span" | "agent-session";
+  level?: "agent-span" | "agent-session" | "agent-trajectory";
   maxConversations?: number;
   /** Arbitrary span-attribute equality filters. */
   filters?: Record<string, string | string[]>;
@@ -22,7 +22,7 @@ export type DqlResult = GenAiSpan[];
 
 // Number of prompt slots to probe for the OpenLLMetry convention
 // (gen_ai.prompt.0.content, gen_ai.prompt.1.content, ...)
-const PROMPT_SLOTS = 3;
+export const PROMPT_SLOTS = 3;
 
 const TRAJECTORY_SPANS_PER_CONVERSATION = 20;
 const DEFAULT_MAX_CONVERSATIONS = 200;
@@ -37,7 +37,24 @@ const DEFAULT_CONTEXT_FIELDS: string[] = [];
 const DEFAULT_SYSTEM_INSTRUCTION_FIELDS = ['gen_ai.system_instruction'];
 const DEFAULT_MODEL_FIELDS = ['gen_ai.request.model'];
 
-interface ResolvedFields {
+// ── agent-trajectory (span-tree) field names ────────────────────────────────
+// Only added to the query / parsed when scope.level === 'agent-trajectory'.
+// Confirmed against live spans on the guu84124 tenant (AI-524): present on
+// 100% of chat/tool/agent spans. A `span.alternate_parent_id` field also
+// exists on that tenant; we intentionally use the primary `span.parent_id`.
+export const PARENT_ID_FIELD = 'span.parent_id';
+export const TOOL_NAME_FIELD = 'gen_ai.tool.name';
+// 0% coverage on the guu84124 tenant, but it's spec-defined — keep it.
+export const TOOL_CALL_ID_FIELD = 'gen_ai.tool.call.id';
+export const TOOL_TYPE_FIELD = 'gen_ai.tool.type';
+export const TOOL_ARGUMENTS_FIELD = 'gen_ai.tool.call.arguments';
+// Two different SDKs emit the tool result under different attribute names —
+// gen_ai.tool.result (67% on guu84124, e.g. traceloop) and
+// gen_ai.tool.call.result (32%, the other instrumentation style). Try both,
+// primary first, so neither SDK's spans lose their tool result.
+export const TOOL_RESULT_FIELDS = ['gen_ai.tool.result', 'gen_ai.tool.call.result'];
+
+export interface ResolvedFields {
   input: string[];
   output: string[];
   context: string[];
@@ -45,12 +62,12 @@ interface ResolvedFields {
   model: string[];
 }
 
-interface FieldMatch {
+export interface FieldMatch {
   key: string;
   value: string;
 }
 
-function resolveFields(spanFields: SpanFieldsMap | undefined): ResolvedFields {
+export function resolveFields(spanFields: SpanFieldsMap | undefined): ResolvedFields {
   return {
     input: [...toCandidateList(spanFields?.input), ...DEFAULT_INPUT_FIELDS],
     output: [...toCandidateList(spanFields?.output), ...DEFAULT_OUTPUT_FIELDS],
@@ -89,15 +106,27 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
   const operationNames = resolveOperationNames(opts.operationNames);
   const fields = resolveFields(spanFields);
   const isTrajectory = level === 'agent-session';
+  const isTrajectoryTree = level === 'agent-trajectory';
 
   // Use explicit from:/to: timeframe — a filter alone leaves Grail's default
   // ~2h analysis window in effect even when the filter asks for longer.
   const lines: string[] = [`fetch spans, from:now() - ${since}, to:now()`];
 
-  // Support both OTel GenAI semconv (gen_ai.system) and OpenLLMetry (gen_ai.provider.name)
-  lines.push('| filter isNotNull(gen_ai.system) or isNotNull(gen_ai.provider.name)');
+  // Support both OTel GenAI semconv (gen_ai.system) and OpenLLMetry (gen_ai.provider.name).
+  // In agent-trajectory mode also accept gen_ai.tool.name: execute_tool spans set
+  // neither gen_ai.system nor gen_ai.provider.name, only gen_ai.tool.name, and the
+  // whole point of trajectory mode is to keep those spans in the tree.
+  lines.push(
+    isTrajectoryTree
+      ? '| filter isNotNull(gen_ai.system) or isNotNull(gen_ai.provider.name) or isNotNull(gen_ai.tool.name)'
+      : '| filter isNotNull(gen_ai.system) or isNotNull(gen_ai.provider.name)',
+  );
 
-  if (operationNames.length > 0) {
+  // agent-span/agent-session evaluate chat-only spans, so the operation-name
+  // keep-list narrows to those. agent-trajectory needs the *whole* span tree —
+  // chat, execute_tool, invoke_agent, etc. — so the keep-list is skipped
+  // entirely; the presence filter above is the only gate.
+  if (!isTrajectoryTree && operationNames.length > 0) {
     const names = operationNames.map(dqlStringLiteral).join(', ');
     lines.push(`| filter in(gen_ai.operation.name, array(${names}))`);
   }
@@ -161,6 +190,14 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
     fieldSet.add('gen_ai.conversation.id');
     fieldSet.add('gen_ai.response.finish_reasons');
   }
+  if (isTrajectoryTree) {
+    fieldSet.add(PARENT_ID_FIELD);
+    fieldSet.add(TOOL_NAME_FIELD);
+    fieldSet.add(TOOL_CALL_ID_FIELD);
+    fieldSet.add(TOOL_TYPE_FIELD);
+    fieldSet.add(TOOL_ARGUMENTS_FIELD);
+    for (const field of TOOL_RESULT_FIELDS) fieldSet.add(field);
+  }
   const baseFields = [...fieldSet].join(', ');
 
   lines.push(`| fields ${baseFields}, ${promptFields}`);
@@ -172,7 +209,7 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
 
 export interface ParseSpanOptions {
   spanFields?: SpanFieldsMap;
-  level?: "agent-span" | "agent-session";
+  level?: "agent-span" | "agent-session" | "agent-trajectory";
   keepPartTypes?: string[];
   maxMessages?: number;
 }
@@ -182,7 +219,7 @@ export interface ParseSpanOptions {
  * value together with its source key. Handles strings, numbers, booleans,
  * and JSON-encodable objects.
  */
-function pickFirstMatch(record: Record<string, unknown>, candidates: string[]): FieldMatch | undefined {
+export function pickFirstMatch(record: Record<string, unknown>, candidates: string[]): FieldMatch | undefined {
   for (const key of candidates) {
     const value = asString(record[key]);
     if (value) return { key, value };
@@ -203,7 +240,7 @@ function pickFirstMatch(record: Record<string, unknown>, candidates: string[]): 
  * a valid JSON array of role-tagged messages; otherwise `undefined` so the
  * caller falls through to the default treatment.
  */
-function extractRolesFromJsonMessages(value: string | undefined):
+export function extractRolesFromJsonMessages(value: string | undefined):
   | { system?: string; user?: string; assistant?: string }
   | undefined {
   if (!value) return undefined;
@@ -415,7 +452,7 @@ export function selectTrajectorySpans(spans: GenAiSpan[], maxConversations = DEF
   return selected;
 }
 
-function asString(value: unknown): string | undefined {
+export function asString(value: unknown): string | undefined {
   if (value === null || value === undefined) return undefined;
   if (typeof value === 'string') return value;
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
