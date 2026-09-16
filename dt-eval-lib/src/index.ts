@@ -10,6 +10,7 @@ export type {
   ExactMatchParams,
   JsonSchemaParams,
   RegexParams,
+  ToolCalledParams,
 } from "./engine/deterministic/types";
 // Main eval function
 export { evaluate } from "./engine/index";
@@ -20,6 +21,7 @@ export type {
   Provider,
   ProviderOptions,
   ScoringOptions,
+  ToolCallView,
 } from "./engine/types";
 // Errors
 export {

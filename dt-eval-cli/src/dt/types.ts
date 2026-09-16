@@ -57,7 +57,7 @@ export interface BizeventPayload {
   'gen_ai.evaluation.explanation': string;
   /** Detailed judge rationale; only present when the evaluator produced one. */
   'gen_ai.evaluation.reasoning'?: string;
-  'gen_ai.evaluation.method': 'llm_as_judge' | 'exact_match' | 'regex' | 'must_not_match' | 'json_schema' | 'must_contain' | 'must_not_contain';
+  'gen_ai.evaluation.method': 'llm_as_judge' | 'exact_match' | 'regex' | 'must_not_match' | 'json_schema' | 'must_contain' | 'must_not_contain' | 'tool_called' | 'tool_not_called';
   /** Only present when `storeEvaluatedPrompt` is enabled. */
   'gen_ai.evaluation.input.question'?: string;
   /** Only present when `storeEvaluatedPrompt` is enabled. */

@@ -34,9 +34,22 @@ export interface JsonSchemaParams {
   schema: object;
 }
 
+/**
+ * Params for the tool_called / tool_not_called methods.
+ * - `mode: "any"` (default) — tool_called passes when ≥1 listed tool was called;
+ *   tool_not_called passes when none of them were called.
+ * - `mode: "all"` — tool_called passes when all listed tools were called;
+ *   tool_not_called passes unless all of them were called.
+ */
+export interface ToolCalledParams {
+  tools: string[];
+  mode?: "any" | "all";
+}
+
 /** Parameters accepted by the deterministic methods. */
 export type DeterministicParams =
   | ExactMatchParams
   | RegexParams
   | ContainsParams
-  | JsonSchemaParams;
+  | JsonSchemaParams
+  | ToolCalledParams;

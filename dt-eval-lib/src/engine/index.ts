@@ -6,4 +6,5 @@ export type {
   Provider,
   ProviderOptions,
   ScoringOptions,
+  ToolCallView,
 } from "./types";

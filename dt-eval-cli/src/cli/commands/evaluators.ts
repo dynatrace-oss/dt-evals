@@ -8,7 +8,7 @@ import { Spinner } from '../../ui/spinner.js';
 import { logger } from '../../logger/index.js';
 import { buildCustomScoring } from './custom-scoring.js';
 
-const REQUIRED_FIELD_VALUES = ['input', 'output', 'context', 'expectedOutput'];
+const REQUIRED_FIELD_VALUES = ['input', 'output', 'context', 'expectedOutput', 'trajectory', 'toolCalls'];
 const SCORING_TYPE_VALUES = ['binary', 'continuous', 'likert'];
 
 /**

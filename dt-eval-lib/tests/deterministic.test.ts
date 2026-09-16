@@ -267,4 +267,110 @@ describe("deterministic evaluators", () => {
       run({ method: "regex", params: { pattern: "x" } }, { output: "x" }),
     ).resolves.toBeDefined();
   });
+
+  it("tool_called: mode any → pass when one listed tool was called", async () => {
+    const r = await run(
+      { method: "tool_called", params: { tools: ["search", "get_weather"], mode: "any" } },
+      { toolCalls: [{ name: "get_weather" }] },
+    );
+    expect(r.score.label).toBe("pass");
+  });
+
+  it("tool_called: mode any → fail when none of the listed tools were called", async () => {
+    const r = await run(
+      { method: "tool_called", params: { tools: ["search"], mode: "any" } },
+      { toolCalls: [{ name: "get_weather" }] },
+    );
+    expect(r.score.label).toBe("fail");
+  });
+
+  it("tool_called: mode all → fail when one listed tool is missing", async () => {
+    const r = await run(
+      { method: "tool_called", params: { tools: ["search", "get_weather"], mode: "all" } },
+      { toolCalls: [{ name: "get_weather" }] },
+    );
+    expect(r.score.label).toBe("fail");
+  });
+
+  it("tool_called: mode all → pass when every listed tool was called", async () => {
+    const r = await run(
+      { method: "tool_called", params: { tools: ["search", "get_weather"], mode: "all" } },
+      { toolCalls: [{ name: "get_weather" }, { name: "search" }] },
+    );
+    expect(r.score.label).toBe("pass");
+  });
+
+  it("tool_called: empty toolCalls → fail-closed", async () => {
+    const r = await run(
+      { method: "tool_called", params: { tools: ["search"] } },
+      { toolCalls: [] },
+    );
+    expect(r.score.label).toBe("fail");
+  });
+
+  it("tool_called: missing toolCalls field → fail-closed", async () => {
+    const r = await run({ method: "tool_called", params: { tools: ["search"] } }, {});
+    expect(r.score.label).toBe("fail");
+  });
+
+  it("tool_called: rejects a missing/empty 'tools' array", async () => {
+    await expect(run({ method: "tool_called", params: {} }, { toolCalls: [] })).rejects.toThrow(
+      /tools/,
+    );
+    await expect(
+      run({ method: "tool_called", params: { tools: [] } }, { toolCalls: [] }),
+    ).rejects.toThrow(/tools/);
+  });
+
+  it("tool_called: rejects an unsupported mode at runtime", async () => {
+    await expect(
+      run(
+        { method: "tool_called", params: { tools: ["search"], mode: "invalid" } },
+        { toolCalls: [{ name: "search" }] },
+      ),
+    ).rejects.toThrow(/mode/);
+  });
+
+  it("tool_not_called: mode any → pass when none of the listed tools were called", async () => {
+    const r = await run(
+      { method: "tool_not_called", params: { tools: ["delete_account"], mode: "any" } },
+      { toolCalls: [{ name: "get_weather" }] },
+    );
+    expect(r.score.label).toBe("pass");
+  });
+
+  it("tool_not_called: mode any → fail when a listed tool was called", async () => {
+    const r = await run(
+      { method: "tool_not_called", params: { tools: ["delete_account"], mode: "any" } },
+      { toolCalls: [{ name: "delete_account" }] },
+    );
+    expect(r.score.label).toBe("fail");
+  });
+
+  it("tool_not_called: empty toolCalls → pass", async () => {
+    const r = await run(
+      { method: "tool_not_called", params: { tools: ["delete_account"] } },
+      { toolCalls: [] },
+    );
+    expect(r.score.label).toBe("pass");
+  });
+
+  it("tool_not_called: missing toolCalls field → pass", async () => {
+    const r = await run({ method: "tool_not_called", params: { tools: ["delete_account"] } }, {});
+    expect(r.score.label).toBe("pass");
+  });
+
+  it("tool_not_called: mode all → pass unless every listed tool was called", async () => {
+    const r = await run(
+      { method: "tool_not_called", params: { tools: ["a", "b"], mode: "all" } },
+      { toolCalls: [{ name: "a" }] },
+    );
+    expect(r.score.label).toBe("pass");
+  });
+
+  it("tool_not_called: rejects a missing/empty 'tools' array", async () => {
+    await expect(run({ method: "tool_not_called", params: {} }, { toolCalls: [] })).rejects.toThrow(
+      /tools/,
+    );
+  });
 });
