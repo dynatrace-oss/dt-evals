@@ -115,10 +115,17 @@ export function buildGenAiSpanQuery(opts: DqlQueryOptions): string {
   // Support both OTel GenAI semconv (gen_ai.system) and OpenLLMetry (gen_ai.provider.name).
   // In agent-trajectory mode also accept gen_ai.tool.name: execute_tool spans set
   // neither gen_ai.system nor gen_ai.provider.name, only gen_ai.tool.name, and the
-  // whole point of trajectory mode is to keep those spans in the tree.
+  // whole point of trajectory mode is to keep those spans in the tree. Likewise,
+  // an `invoke_agent`/`create_agent` internal span (OTel GenAI semconv) requires
+  // only gen_ai.operation.name — gen_ai.provider.name is required solely on the
+  // *client* variant — so without these clauses those spans (and gen_ai.agent.name,
+  // which is commonly set alongside them) would never be fetched, even though their
+  // fetched chat/tool children point span.parent_id at them, producing dangling
+  // parents (see buildSpanTree).
   lines.push(
     isTrajectoryTree
-      ? '| filter isNotNull(gen_ai.system) or isNotNull(gen_ai.provider.name) or isNotNull(gen_ai.tool.name)'
+      ? '| filter isNotNull(gen_ai.system) or isNotNull(gen_ai.provider.name) or isNotNull(gen_ai.tool.name)' +
+        ' or isNotNull(gen_ai.agent.name) or in(gen_ai.operation.name, array("invoke_agent", "create_agent"))'
       : '| filter isNotNull(gen_ai.system) or isNotNull(gen_ai.provider.name)',
   );
 

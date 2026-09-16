@@ -155,6 +155,49 @@ describe('parseSpanTreeRecords', () => {
     const spans = parseSpanTreeRecords(fixtureRecords());
     expect(spans).toHaveLength(4);
   });
+
+  it('keeps a structural invoke_agent span with no input/output (agent-kind, no chat content)', () => {
+    const records = [
+      {
+        'trace.id': 'trace-agent-only',
+        'span.id': 'agent-only',
+        'gen_ai.operation.name': 'invoke_agent',
+        'gen_ai.agent.name': 'router',
+      },
+    ];
+    const spans = parseSpanTreeRecords(records);
+    expect(spans).toHaveLength(1);
+    expect(spans[0]!.kind).toBe('agent');
+    expect(spans[0]!.input).toBe('');
+    expect(spans[0]!.output).toBe('');
+  });
+
+  it('populates tool fields on a span that also carries chat content', () => {
+    const records = [
+      {
+        'trace.id': 'trace-mixed',
+        'span.id': 'mixed-span',
+        'gen_ai.operation.name': 'execute_tool',
+        'gen_ai.tool.name': 'search',
+        'gen_ai.tool.call.id': 'call-xyz',
+        'gen_ai.tool.type': 'function',
+        'gen_ai.tool.call.arguments': '{"q":"weather"}',
+        'gen_ai.tool.call.result': '{"ok":true}',
+        'gen_ai.input.messages': '[{"role":"user","content":"search weather"}]',
+        'gen_ai.output.messages': 'Found it.',
+      },
+    ];
+    const spans = parseSpanTreeRecords(records);
+    expect(spans).toHaveLength(1);
+    const span = spans[0]!;
+    expect(span.kind).toBe('tool');
+    expect(span.input).toBeTruthy();
+    expect(span.output).toBe('Found it.');
+    expect(span.toolName).toBe('search');
+    expect(span.toolCallId).toBe('call-xyz');
+    expect(span.toolArguments).toBe('{"q":"weather"}');
+    expect(span.toolResult).toBe('{"ok":true}');
+  });
 });
 
 describe('groupSpansByTrace', () => {
@@ -190,15 +233,37 @@ describe('buildSpanTree', () => {
     expect(roots).toHaveLength(2);
   });
 
-  it('throws on a parentId pointing to a missing ancestor', () => {
+  it('promotes a span with an unresolvable parentId to a root instead of throwing', () => {
     const orphan: GenAiSpan = { traceId: 't', spanId: 'child', parentId: 'does-not-exist', input: 'i', output: 'o' };
-    expect(() => buildSpanTree([orphan])).toThrow(/missing parent/);
+    const roots = buildSpanTree([orphan]);
+    expect(roots).toHaveLength(1);
+    expect(roots[0]!.spanId).toBe('child');
+    expect(roots[0]!.children).toEqual([]);
   });
 
   it('throws on a parent/child cycle', () => {
     const a: GenAiSpan = { traceId: 't', spanId: 'a', parentId: 'b', input: 'i', output: 'o' };
     const b: GenAiSpan = { traceId: 't', spanId: 'b', parentId: 'a', input: 'i', output: 'o' };
     expect(() => buildSpanTree([a, b])).toThrow(/cycle detected/);
+  });
+
+  it('throws on a 3-node cycle with no root', () => {
+    const a: GenAiSpan = { traceId: 't', spanId: 'a', parentId: 'c', input: 'i', output: 'o' };
+    const b: GenAiSpan = { traceId: 't', spanId: 'b', parentId: 'a', input: 'i', output: 'o' };
+    const c: GenAiSpan = { traceId: 't', spanId: 'c', parentId: 'b', input: 'i', output: 'o' };
+    expect(() => buildSpanTree([a, b, c])).toThrow(/cycle detected/);
+  });
+
+  it('promotes a child to a root when an intermediate parent is missing, retaining its subtree', () => {
+    // grandchild -> child -> missing-parent (never fetched, e.g. filtered
+    // invoke_agent span). child should become a root and keep grandchild.
+    const child: GenAiSpan = { traceId: 't', spanId: 'child', parentId: 'missing-parent', input: 'i', output: 'o' };
+    const grandchild: GenAiSpan = { traceId: 't', spanId: 'grandchild', parentId: 'child', input: 'i', output: 'o' };
+    const roots = buildSpanTree([child, grandchild]);
+    expect(roots).toHaveLength(1);
+    expect(roots[0]!.spanId).toBe('child');
+    expect(roots[0]!.children).toHaveLength(1);
+    expect(roots[0]!.children![0]!.spanId).toBe('grandchild');
   });
 });
 
@@ -278,6 +343,20 @@ describe('pickRepresentativeRoot', () => {
     const toolRoot: GenAiSpan = { traceId: 't', spanId: 'r1', input: '', output: '', kind: 'tool', endTime: '2026-01-01T00:00:10.000Z' };
     const rep = pickRepresentativeRoot([toolRoot]);
     expect(rep!.spanId).toBe('r1');
+  });
+
+  it('picks the earliest-starting root among multiple qualifying roots (the trajectory entry span)', () => {
+    const early: GenAiSpan = { traceId: 't', spanId: 'entry', input: '', output: '', kind: 'agent', startTime: '2026-01-01T00:00:00.000Z' };
+    const later: GenAiSpan = { traceId: 't', spanId: 'later', input: 'i', output: 'o', kind: 'chat', startTime: '2026-01-01T00:05:00.000Z' };
+    const rep = pickRepresentativeRoot([later, early]);
+    expect(rep!.spanId).toBe('entry');
+  });
+
+  it('does not prefer a root with a missing/unparseable start time over one with a real time', () => {
+    const noTime: GenAiSpan = { traceId: 't', spanId: 'no-time', input: 'i', output: 'o', kind: 'chat' };
+    const realTime: GenAiSpan = { traceId: 't', spanId: 'real-time', input: 'i', output: 'o', kind: 'chat', startTime: '2026-01-01T00:00:01.000Z' };
+    const rep = pickRepresentativeRoot([noTime, realTime]);
+    expect(rep!.spanId).toBe('real-time');
   });
 });
 

@@ -178,18 +178,23 @@ describe('buildGenAiSpanQuery', () => {
     });
 
     it('skips the operation-name keep-list entirely so tool/agent spans are fetchable', () => {
+      // Note: the presence-filter line legitimately contains its own
+      // `in(gen_ai.operation.name, array("invoke_agent", "create_agent"))`
+      // clause (added to fetch agent-orchestration spans) — that's not the
+      // keep-list this test is about, so check for the dedicated
+      // `| filter in(gen_ai.operation.name` keep-list line specifically.
       const query = buildGenAiSpanQuery({ since: '1h', level: 'agent-trajectory' });
-      expect(query).not.toContain('in(gen_ai.operation.name');
+      expect(query).not.toContain('| filter in(gen_ai.operation.name');
     });
 
     it('skips the operation-name keep-list even when operationNames is explicitly configured', () => {
       const query = buildGenAiSpanQuery({ since: '1h', level: 'agent-trajectory', operationNames: ['chat'] });
-      expect(query).not.toContain('in(gen_ai.operation.name');
+      expect(query).not.toContain('| filter in(gen_ai.operation.name');
     });
 
     it('still applies the operation-name keep-list for agent-span and agent-session (unchanged)', () => {
       const spanQuery = buildGenAiSpanQuery({ since: '1h', level: 'agent-span' });
-      expect(spanQuery).toContain('in(gen_ai.operation.name');
+      expect(spanQuery).toContain('| filter in(gen_ai.operation.name');
 
       const sessionQuery = buildGenAiSpanQuery({ since: '1h', level: 'agent-session' });
       expect(sessionQuery).toContain('in(gen_ai.operation.name');
@@ -206,6 +211,28 @@ describe('buildGenAiSpanQuery', () => {
 
       const sessionQuery = buildGenAiSpanQuery({ since: '1h', level: 'agent-session' });
       expect(sessionQuery).not.toContain('isNotNull(gen_ai.tool.name)');
+    });
+
+    it('also fetches internal agent-orchestration spans (gen_ai.agent.name / invoke_agent / create_agent) for agent-trajectory only', () => {
+      const query = buildGenAiSpanQuery({ since: '1h', level: 'agent-trajectory' });
+      const filterLine = query.split('\n').find(l => l.startsWith('| filter isNotNull(gen_ai.system)'))!;
+      expect(filterLine).toContain('isNotNull(gen_ai.agent.name)');
+      expect(filterLine).toContain('in(gen_ai.operation.name, array("invoke_agent", "create_agent"))');
+
+      // agent-span/agent-session already include gen_ai.agent.name in the
+      // fields projection (unrelated, pre-existing), but must NOT gain the
+      // new presence-filter clauses or an invoke_agent/create_agent keep.
+      const spanQuery = buildGenAiSpanQuery({ since: '1h', level: 'agent-span' });
+      const spanFilterLine = spanQuery.split('\n').find(l => l.startsWith('| filter isNotNull(gen_ai.system)'))!;
+      expect(spanFilterLine).not.toContain('gen_ai.agent.name');
+      expect(spanQuery).not.toContain('invoke_agent');
+      expect(spanQuery).not.toContain('create_agent');
+
+      const sessionQuery = buildGenAiSpanQuery({ since: '1h', level: 'agent-session' });
+      const sessionFilterLine = sessionQuery.split('\n').find(l => l.startsWith('| filter isNotNull(gen_ai.system)'))!;
+      expect(sessionFilterLine).not.toContain('gen_ai.agent.name');
+      expect(sessionQuery).not.toContain('invoke_agent');
+      expect(sessionQuery).not.toContain('create_agent');
     });
 
     it('leaves the agent-span query byte-for-byte free of span-tree fields', () => {

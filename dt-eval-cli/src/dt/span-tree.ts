@@ -1,5 +1,6 @@
 import type { GenAiSpan } from './types.js';
 import type { ParseSpanOptions } from './dql.js';
+import { logger } from '../logger/index.js';
 import {
   resolveFields,
   pickFirstMatch,
@@ -100,12 +101,16 @@ export function parseSpanTreeRecords(
     }
 
     const hasChatContent = !!input && !!output;
-    const isToolSpan = !!toolName && !hasChatContent;
+    const isToolSpan = !!toolName;
+    const isAgentSpan = kind === 'agent';
 
-    // Drop spans with neither usable chat content nor a tool identity —
-    // mirrors parseSpanResults' `if (!input || !output) continue` net, but
-    // widened to let tool-only spans through.
-    if (!hasChatContent && !isToolSpan) continue;
+    // Drop spans with neither usable chat content, a tool identity, nor an
+    // agent-kind classification — mirrors parseSpanResults'
+    // `if (!input || !output) continue` net, but widened to let tool-only
+    // spans through, and further widened to keep agent-kind spans (e.g. an
+    // `invoke_agent` orchestration span with no input/output of its own):
+    // they're structural nodes that hold the reconstructed tree together.
+    if (!hasChatContent && !isToolSpan && !isAgentSpan) continue;
 
     const statusCode = asString(r['status.code']);
 
@@ -131,7 +136,7 @@ export function parseSpanTreeRecords(
       kind,
     };
 
-    if (isToolSpan) {
+    if (toolName) {
       span.toolName = toolName;
       span.toolCallId = asString(r[TOOL_CALL_ID_FIELD]);
       span.toolType = asString(r[TOOL_TYPE_FIELD]);
@@ -169,13 +174,20 @@ function timeMs(span: GenAiSpan): number {
 /**
  * Link a flat list of spans (expected to belong to a single trace — see
  * `groupSpansByTrace`) into a tree via `parentId`, and return the roots
- * (spans with no `parentId`).
+ * (spans with no `parentId`, plus any span whose `parentId` doesn't resolve
+ * to another span in the input list).
  *
- * Fails loud rather than silently dropping/misplacing spans:
- *  - a span whose `parentId` doesn't resolve to another span in the input
- *    list throws (a genuinely missing parent looks different from "no
- *    parent" — the latter is simply `parentId === undefined`);
- *  - a parent/child cycle throws.
+ * A `parentId` that doesn't resolve is promoted to a root rather than
+ * treated as an error: per OTel GenAI semconv, an `invoke_agent` *internal*
+ * span only requires `gen_ai.operation.name` (unlike its *client* variant,
+ * which also requires `gen_ai.provider.name`), so a spec-valid internal
+ * agent-orchestration span can legitimately be excluded by the DQL presence
+ * filter while its fetched chat/tool children still point `parentId` at it.
+ * That's an unfetched ancestor, not a data-integrity error — the subtree
+ * rooted at the child is still intact and worth keeping.
+ *
+ * A parent/child cycle still throws — that's a genuine structural error (see
+ * the cycle-detection pass below), not a missing-ancestor situation.
  *
  * Spans without a `spanId` can't be referenced as anyone's parent, so they
  * are always treated as roots.
@@ -197,9 +209,11 @@ export function buildSpanTree(spans: GenAiSpan[]): GenAiSpan[] {
     }
     const parent = byId.get(span.parentId);
     if (!parent) {
-      throw new Error(
-        `span-tree: span ${span.spanId ?? '<no id>'} references missing parent ${span.parentId} (trace ${span.traceId})`,
-      );
+      // Unresolvable parent (unfetched ancestor, e.g. a filtered-out
+      // invoke_agent span) — promote this span to a root instead of failing
+      // the whole run.
+      roots.push(node);
+      continue;
     }
     parent.children!.push(node);
   }
@@ -303,18 +317,27 @@ export function segmentTurns(root: GenAiSpan): SpanTurn[] {
 
 /**
  * Pick one representative root span per trace after tree reconstruction —
- * preferring a `chat`-kind root (or one with usable input+output) at the
- * latest end/start time, falling back to any root when none qualify. The
- * chosen root carries its `.children` (and therefore the whole tree) so
- * downstream consumers (e.g. PR2 trajectory judges) can walk it, while a
- * single `GenAiSpan` still flows through the existing sampling/masking/
- * scoring pipeline unchanged.
+ * preferring a `chat`- or `agent`-kind root (or one with usable
+ * input+output) at the *earliest* start time — i.e. the trajectory's entry
+ * span — falling back to any root when none qualify. An `invoke_agent` entry
+ * root is a valid representative even without input+output of its own,
+ * since it carries the whole `.children` tree. The chosen root carries its
+ * `.children` (and therefore the whole tree) so downstream consumers (e.g.
+ * PR2 trajectory judges) can walk it, while a single `GenAiSpan` still flows
+ * through the existing sampling/masking/scoring pipeline unchanged.
  */
 export function pickRepresentativeRoot(roots: GenAiSpan[]): GenAiSpan | undefined {
   if (roots.length === 0) return undefined;
-  const qualifies = (s: GenAiSpan) => s.kind === 'chat' || (!!s.input && !!s.output);
+  const qualifies = (s: GenAiSpan) => s.kind === 'chat' || s.kind === 'agent' || (!!s.input && !!s.output);
   const pool = roots.some(qualifies) ? roots.filter(qualifies) : roots;
-  return pool.reduce((a, b) => (timeMs(a) >= timeMs(b) ? a : b));
+  // Earliest valid start time wins; a span with no parseable start time
+  // (timeMs === 0) must never be preferred over one with a real time, so
+  // missing-time spans sort last rather than winning the "earliest" compare.
+  const effectiveTime = (s: GenAiSpan) => {
+    const t = timeMs(s);
+    return t === 0 ? Number.POSITIVE_INFINITY : t;
+  };
+  return pool.reduce((a, b) => (effectiveTime(a) <= effectiveTime(b) ? a : b));
 }
 
 /**
@@ -327,6 +350,16 @@ export function selectSpanTrees(spans: GenAiSpan[]): GenAiSpan[] {
   for (const traceSpans of groupSpansByTrace(spans).values()) {
     const roots = buildSpanTree(traceSpans);
     const rep = pickRepresentativeRoot(roots);
+    if (roots.length > 1) {
+      // More than one root means the tree was reconstructed from a partial
+      // fetch (e.g. an unfetched ancestor split the trace) and every root
+      // other than the chosen representative is being dropped from output —
+      // debug-only so this doesn't add stdout noise in the common case.
+      const traceId = traceSpans[0]?.traceId;
+      logger.debug(
+        `span-tree: trace ${traceId} produced ${roots.length} roots; picked ${rep?.spanId ?? '<none>'} as representative`,
+      );
+    }
     if (rep) representatives.push(rep);
   }
   return representatives;
