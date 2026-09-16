@@ -41,6 +41,13 @@ export interface EvalConfig {
   scoring?: ScoringOptions;
 }
 
+/** A single tool call made during an agent trajectory, for deterministic tool-based methods. */
+export interface ToolCallView {
+  name: string;
+  arguments?: string;
+  result?: string;
+}
+
 /** Input to an evaluation */
 export interface EvalInput {
   /** The input/question sent to the LLM */
@@ -51,6 +58,10 @@ export interface EvalInput {
   context?: string;
   /** Optional expected/reference output */
   expectedOutput?: string;
+  /** Serialized trajectory (turns + tool calls) for trajectory judges. */
+  trajectory?: string;
+  /** Structured tool calls made during the trajectory. */
+  toolCalls?: ToolCallView[];
 }
 
 /** Result of an evaluation */

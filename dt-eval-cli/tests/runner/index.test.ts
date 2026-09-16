@@ -584,6 +584,72 @@ describe('runEvals', () => {
     expect(payloads[0]!['gen_ai.request.model']).toBeUndefined();
   });
 
+  it('agent-trajectory mode: attaches trajectory/toolCalls to the EvalInput', async () => {
+    const records = [
+      {
+        'trace.id': 'trace-traj',
+        'span.id': 'root-agent',
+        'start_time': '2026-03-01T10:00:00.000Z',
+        'end_time': '2026-03-01T10:00:05.000Z',
+        'gen_ai.operation.name': 'invoke_agent',
+        'gen_ai.input.messages': '[{"role":"user","content":"Plan my trip"}]',
+        'gen_ai.output.messages': 'Here is your itinerary.',
+      },
+      {
+        'trace.id': 'trace-traj',
+        'span.id': 'tool-1',
+        'span.parent_id': 'root-agent',
+        'start_time': '2026-03-01T10:00:01.000Z',
+        'end_time': '2026-03-01T10:00:02.000Z',
+        'gen_ai.operation.name': 'execute_tool',
+        'gen_ai.tool.name': 'get_weather',
+        'gen_ai.tool.call.arguments': '{"city":"Paris"}',
+        'gen_ai.tool.call.result': '{"forecast":"sunny"}',
+      },
+    ];
+    const dtClient = {
+      executeDql: vi.fn().mockResolvedValue(records),
+      ingestBizevents: vi.fn().mockResolvedValue(undefined),
+      ingestMetrics: vi.fn().mockResolvedValue(undefined),
+    };
+    const config = makeConfig({
+      scope: { since: '1h', level: 'agent-trajectory', sampling: { strategy: 'random', percent: 100 } },
+      metrics: { enabled: ['tool_selection'] },
+    });
+
+    await runEvals(
+      dtClient as unknown as import('../../src/dt/client.js').DynatraceClient,
+      config,
+      { since: '1h' },
+    );
+
+    expect(evaluate).toHaveBeenCalledOnce();
+    const callArgs = evaluate.mock.calls[0] as unknown[];
+    const evalInput = callArgs[1] as { trajectory?: string; toolCalls?: { name: string }[] };
+    expect(evalInput.trajectory).toBeDefined();
+    expect(evalInput.trajectory).toContain('get_weather');
+    expect(evalInput.toolCalls).toEqual([
+      { name: 'get_weather', arguments: '{"city":"Paris"}', result: '{"forecast":"sunny"}' },
+    ]);
+  });
+
+  it('agent-span mode: EvalInput has no trajectory/toolCalls fields (unchanged behavior)', async () => {
+    const dtClient = makeDtClient([makeSpan()]);
+    const config = makeConfig({ metrics: { enabled: ['toxicity'] } });
+
+    await runEvals(
+      dtClient as unknown as import('../../src/dt/client.js').DynatraceClient,
+      config,
+      { since: '1h' },
+    );
+
+    const callArgs = evaluate.mock.calls[0] as unknown[];
+    const evalInput = callArgs[1] as Record<string, unknown>;
+    expect(evalInput.trajectory).toBeUndefined();
+    expect(evalInput.toolCalls).toBeUndefined();
+    expect(Object.keys(evalInput).sort()).toEqual(['context', 'input', 'output']);
+  });
+
   it('emits onProgress events for each phase in order', async () => {
     const spans = [makeSpan({ traceId: 'trace-a' }), makeSpan({ traceId: 'trace-b' })];
     const dtClient = makeDtClient(spans);

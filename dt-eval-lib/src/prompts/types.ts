@@ -17,6 +17,9 @@ export enum BuiltInMetric {
   Bias = "bias",
   SummarizationQuality = "summarization-quality",
   Conciseness = "conciseness",
+  ToolSelection = "tool_selection",
+  ToolInvocation = "tool_invocation",
+  ToolResponseHandling = "tool_response_handling",
 }
 
 /** Identifier for the population-level drift detection metric. */
@@ -30,7 +33,9 @@ export type EvaluatorMethod =
   | "must_not_match"
   | "json_schema"
   | "must_contain"
-  | "must_not_contain";
+  | "must_not_contain"
+  | "tool_called"
+  | "tool_not_called";
 
 export interface PromptDefinition {
   id: string;
@@ -40,12 +45,19 @@ export interface PromptDefinition {
   description: string;
   /** Evaluation method. The evaluation engine defaults to "llm_as_judge" when omitted. */
   method?: EvaluatorMethod;
-  /** The evaluation prompt template (LLM judge only) — uses {{input}}, {{output}}, {{context}}, {{expectedOutput}} placeholders */
+  /** The evaluation prompt template (LLM judge only) — uses {{input}}, {{output}}, {{context}}, {{expectedOutput}}, {{trajectory}} placeholders */
   prompt?: string;
-  /** Parameters for deterministic methods (exact_match, regex, must_contain, must_not_contain, json_schema) */
+  /** Parameters for deterministic methods (exact_match, regex, must_contain, must_not_contain, json_schema, tool_called, tool_not_called) */
   params?: DeterministicParams;
   /** Which input fields this evaluator requires */
-  requiredFields: ("input" | "output" | "context" | "expectedOutput")[];
+  requiredFields: (
+    | "input"
+    | "output"
+    | "context"
+    | "expectedOutput"
+    | "trajectory"
+    | "toolCalls"
+  )[];
   /** The scoring scale to use */
   scoring: ScoringScale;
 }
