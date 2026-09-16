@@ -278,6 +278,30 @@ describe("evaluate() — prompt rendering", () => {
     expect(capturedPrompt).not.toContain("{{context}}");
     expect(capturedPrompt).not.toContain("{{expectedOutput}}");
   });
+
+  it("replaces {{trajectory}} placeholder when present", async () => {
+    const input: EvalInput = {
+      ...baseInput,
+      trajectory: "Turn 1: - tool get_weather(city=Paris) -> sunny",
+    };
+    await evaluate(BuiltInMetric.ToolSelection, input, baseConfig);
+    expect(capturedPrompt).toContain("Turn 1: - tool get_weather(city=Paris) -> sunny");
+    expect(capturedPrompt).not.toContain("{{trajectory}}");
+  });
+
+  it("strips {{trajectory}} placeholder when trajectory is absent", async () => {
+    const customTrajPrompt: PromptDefinition = {
+      id: "traj-test",
+      name: "Traj Test",
+      version: "1.0.0",
+      description: "test",
+      prompt: "Input: {{input}} Trajectory: {{trajectory}}",
+      requiredFields: ["input"],
+      scoring: { type: "binary", range: [0, 1], threshold: 1 },
+    };
+    await evaluate(customTrajPrompt, baseInput, baseConfig);
+    expect(capturedPrompt).not.toContain("{{trajectory}}");
+  });
 });
 
 describe("evaluate() — input validation", () => {

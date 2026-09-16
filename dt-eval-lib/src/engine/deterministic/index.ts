@@ -7,12 +7,14 @@ import { exactMatch } from "./exact-match";
 import { jsonSchema } from "./json-schema";
 import { assertPatternSafe } from "./redos";
 import { regex } from "./regex";
+import { toolCalled } from "./tool-called";
 import type {
   ContainsParams,
   DeterministicOutcome,
   ExactMatchParams,
   JsonSchemaParams,
   RegexParams,
+  ToolCalledParams,
 } from "./types";
 
 /** True for every method except the LLM judge. */
@@ -53,6 +55,12 @@ export async function runScorer(
       break;
     case "json_schema":
       outcome = await jsonSchema(input, jsonSchemaParams(params));
+      break;
+    case "tool_called":
+      outcome = toolCalled(input, toolCalledParams(params, method), true);
+      break;
+    case "tool_not_called":
+      outcome = toolCalled(input, toolCalledParams(params, method), false);
       break;
     default:
       throw new EvalConfigError(`Unknown deterministic method "${method}"`);
@@ -112,6 +120,25 @@ function containsParams(params: Record<string, unknown>, method: string): Contai
     keywords,
     ...(mode !== undefined ? { mode } : {}),
     caseSensitive: optionalBoolean(params, "caseSensitive", method),
+  };
+}
+
+function toolCalledParams(params: Record<string, unknown>, method: string): ToolCalledParams {
+  const tools = params.tools;
+  if (
+    !Array.isArray(tools) ||
+    tools.length === 0 ||
+    tools.some((tool) => typeof tool !== "string" || tool.length === 0)
+  ) {
+    throw new EvalConfigError(`${method} requires a non-empty string 'tools' array`);
+  }
+  const mode = params.mode;
+  if (mode !== undefined && mode !== "any" && mode !== "all") {
+    throw new EvalConfigError(`${method} 'mode' must be "any" or "all"`);
+  }
+  return {
+    tools,
+    ...(mode !== undefined ? { mode } : {}),
   };
 }
 

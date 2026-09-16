@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { evaluate, getPrompt, BINARY_SCALE, type EvalConfig, type EvalInput, type EvalResult, type EvaluatorMethod, type DeterministicParams, type PromptDefinition } from '@dynatrace-oss/dt-eval-lib';
+import { evaluate, getPrompt, BINARY_SCALE, type EvalConfig, type EvalInput, type EvalResult, type EvaluatorMethod, type DeterministicParams, type PromptDefinition, type ToolCallView } from '@dynatrace-oss/dt-eval-lib';
 import type { DynatraceClient } from '../dt/client.js';
 import type { DtEvalConfig, MetricEntry, MetricInputs, CanonicalSpanField } from '../config/schema.js';
 import { metricId, metricInputs, metricMethod, metricParams } from '../config/schema.js';
 import type { GenAiSpan, BizeventPayload } from '../dt/types.js';
 import { buildGenAiSpanQuery, parseSpanResults, filterSpansByOperationName, selectTrajectorySpans } from '../dt/dql.js';
 import { parseSpanTreeRecords, selectSpanTrees } from '../dt/span-tree.js';
+import { serializeTrajectory } from '../dt/trajectory-view.js';
 import { BizeventWriter, buildBizeventPayload } from '../dt/bizevent.js';
 import { DRIFT_METRIC_ID, runDriftDetection, buildDriftBizevents } from './drift.js';
 import { applySampling } from './sampler.js';
@@ -87,6 +88,8 @@ function resolvePrompt(task: EvalTask): PromptDefinition {
   if (task.method === 'llm_as_judge') {
     return getPrompt(task.metric);
   }
+  const requiredFields: PromptDefinition['requiredFields'] =
+    task.method === 'tool_called' || task.method === 'tool_not_called' ? ['toolCalls'] : ['output'];
   return {
     id: task.metric,
     name: task.metric,
@@ -94,7 +97,7 @@ function resolvePrompt(task: EvalTask): PromptDefinition {
     description: `${task.method} evaluator`,
     method: task.method,
     params: task.params,
-    requiredFields: ['output'],
+    requiredFields,
     scoring: BINARY_SCALE,
   };
 }
@@ -116,14 +119,22 @@ function resolveCanonicalField(span: GenAiSpan, field: CanonicalSpanField): stri
 }
 
 /** Build the EvalInput passed to dt-eval-lib, applying any per-metric routing. */
-function buildEvalInput(span: GenAiSpan, inputs: MetricInputs | undefined): EvalInput {
+function buildEvalInput(
+  span: GenAiSpan,
+  inputs: MetricInputs | undefined,
+  trajectoryView?: { trajectory: string; toolCalls: ToolCallView[] },
+): EvalInput {
+  const trajectoryFields = trajectoryView
+    ? { trajectory: trajectoryView.trajectory, toolCalls: trajectoryView.toolCalls }
+    : {};
   if (!inputs) {
-    return { input: span.input, output: span.output, context: span.context };
+    return { input: span.input, output: span.output, context: span.context, ...trajectoryFields };
   }
   return {
     input: (inputs.input && resolveCanonicalField(span, inputs.input)) ?? span.input,
     output: (inputs.output && resolveCanonicalField(span, inputs.output)) ?? span.output,
     context: (inputs.context && resolveCanonicalField(span, inputs.context)) ?? span.context,
+    ...trajectoryFields,
   };
 }
 
@@ -279,6 +290,14 @@ export async function runEvals(
     evaluatorStats.set(id, { metric: id, successes: 0, passes: 0, total: 0, errors: 0, durationMs: 0 });
   }
 
+  // In agent-trajectory mode, precompute the serialized trajectory + tool
+  // calls per span so buildEvalInput can attach them to the EvalInput. In
+  // every other mode this map stays undefined and buildEvalInput behaves
+  // exactly as before.
+  const trajViews = evalConfig.scope.level === 'agent-trajectory'
+    ? new Map(maskedSpans.map(span => [span, serializeTrajectory(span)] as const))
+    : undefined;
+
   if (opts.dryRun) {
     console.log(JSON.stringify({ runId, tasks: tasks.length, spans: maskedSpans.length, metrics: metricIds }, null, 2));
     return {
@@ -336,7 +355,7 @@ export async function runEvals(
     tasks,
     async task => {
       const t0 = Date.now();
-      const input: EvalInput = buildEvalInput(task.span, task.inputs);
+      const input: EvalInput = buildEvalInput(task.span, task.inputs, trajViews?.get(task.span));
       try {
         const prompt = resolvePrompt(task);
         const evalResult = await evaluate(prompt, input, libConfig);

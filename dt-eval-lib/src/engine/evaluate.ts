@@ -89,6 +89,10 @@ function renderPrompt(template: string, input: EvalInput): string {
     const expected = input.expectedOutput;
     rendered = rendered.replace(/\{\{\s*expectedOutput\s*\}\}/g, () => expected);
   }
+  if (input.trajectory != null) {
+    const traj = input.trajectory;
+    rendered = rendered.replace(/\{\{\s*trajectory\s*\}\}/g, () => traj);
+  }
   rendered = rendered.replace(/\{\{\s*[\w_]+\s*\}\}/g, "");
   return rendered;
 }
