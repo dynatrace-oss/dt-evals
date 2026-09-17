@@ -47,6 +47,13 @@ describe('buildBizeventPayload', () => {
     expect(payload['gen_ai.evaluation.input.agent']).toBe('my-agent');
   });
 
+  it('emits the metric direction and defaults to "positive" when omitted', () => {
+    const negative = buildBizeventPayload(makeSpan(), 'toxicity', 'Toxicity', makeEvalResult(), 'run-1', 'llm_as_judge', 'openai', 'gpt-4o', undefined, undefined, false, undefined, 'negative');
+    expect(negative['gen_ai.evaluation.direction']).toBe('negative');
+    const defaulted = buildBizeventPayload(makeSpan(), 'relevance', 'Relevance', makeEvalResult(), 'run-1', 'llm_as_judge', 'openai', 'gpt-4o');
+    expect(defaulted['gen_ai.evaluation.direction']).toBe('positive');
+  });
+
   it('carries the eval name (config.name) when provided and omits it otherwise', () => {
     const named = buildBizeventPayload(makeSpan(), 'relevance', 'Relevance', makeEvalResult(), 'run-1', 'llm_as_judge', 'openai', 'gpt-4o', undefined, undefined, false, 'my-eval-config');
     expect(named['dt.eval.name']).toBe('my-eval-config');

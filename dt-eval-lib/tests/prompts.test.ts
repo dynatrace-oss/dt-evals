@@ -85,6 +85,29 @@ describe("prompt catalog", () => {
   });
 });
 
+describe("score direction", () => {
+  const negative = [
+    BuiltInMetric.Toxicity,
+    BuiltInMetric.Bias,
+    BuiltInMetric.Hallucination,
+    BuiltInMetric.PiiLeakage,
+    BuiltInMetric.PromptInjection,
+    BuiltInMetric.OutputPromptInjection,
+    BuiltInMetric.UserFrustration,
+  ] as const;
+
+  it.each(negative)("%s is negative (lower is better)", (id) => {
+    expect(getPrompt(id).direction).toBe("negative");
+  });
+
+  it("every other catalog metric is positive", () => {
+    const negativeIds = negative.map(String);
+    for (const p of listPrompts()) {
+      if (!negativeIds.includes(p.id)) expect(p.direction).toBe("positive");
+    }
+  });
+});
+
 describe("getPrompt", () => {
   it("returns prompt by id", () => {
     const p = getPrompt(BuiltInMetric.Toxicity);

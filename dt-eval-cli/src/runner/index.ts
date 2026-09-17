@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { evaluate, getPrompt, BINARY_SCALE, type EvalConfig, type EvalInput, type EvalResult, type EvaluatorMethod, type DeterministicParams, type PromptDefinition } from '@dynatrace-oss/dt-eval-lib';
+import { evaluate, getPrompt, BINARY_SCALE, type EvalConfig, type EvalInput, type EvalResult, type EvaluatorMethod, type DeterministicParams, type PromptDefinition, type ScoreDirection } from '@dynatrace-oss/dt-eval-lib';
 import type { DynatraceClient } from '../dt/client.js';
 import type { DtEvalConfig, MetricEntry, MetricInputs, CanonicalSpanField } from '../config/schema.js';
 import { metricId, metricInputs, metricMethod, metricParams } from '../config/schema.js';
@@ -130,6 +130,7 @@ interface EvalTaskResult {
   span: GenAiSpan;
   metricId: string;
   metricName: string;
+  direction?: ScoreDirection;
   method: EvaluatorMethod;
   evalResult: EvalResult;
   /** The exact input the judge was given — may be a routed subset of span fields. */
@@ -332,7 +333,7 @@ export async function runEvals(
           traceId: task.span.traceId,
           durationMs: elapsed,
         });
-        return { span: task.span, metricId: task.metric, metricName: prompt.name, method: task.method, evalResult, evalInput: input };
+        return { span: task.span, metricId: task.metric, metricName: prompt.name, direction: prompt.direction, method: task.method, evalResult, evalInput: input };
       } catch (err) {
         evalCount++;
         evalErrors++;
@@ -399,6 +400,7 @@ export async function runEvals(
       isLlm ? judgeProvider : undefined,
       isLlm ? judgeModel : undefined,
       evalConfig.scope.service, r.evalInput, storeEvaluatedPrompt, evalConfig.name,
+      r.direction,
     );
   });
   emit?.({ phase: 'writing', payloads: payloads.length });

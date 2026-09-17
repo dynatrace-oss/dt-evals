@@ -3,6 +3,7 @@ import type { PromptDefinition } from "./types";
 export const catalog = [
   {
     id: "answer-completeness",
+    direction: "positive",
     name: "Answer Completeness",
     version: "2.0.0",
     description: "Decides whether an answer fully addresses a question given a source context.",
@@ -17,6 +18,7 @@ export const catalog = [
   },
   {
     id: "bias",
+    direction: "negative",
     name: "Bias",
     version: "2.0.0",
     description:
@@ -32,6 +34,7 @@ export const catalog = [
   },
   {
     id: "conciseness",
+    direction: "positive",
     name: "Conciseness",
     version: "2.0.0",
     description: "Detects whether an AI assistant response is unnecessarily verbose or padded",
@@ -46,6 +49,7 @@ export const catalog = [
   },
   {
     id: "context-relevance",
+    direction: "positive",
     name: "Context Relevance",
     version: "1.0.0",
     description: "Measures how relevant the retrieved context is to the user's query",
@@ -60,6 +64,7 @@ export const catalog = [
   },
   {
     id: "factual-accuracy",
+    direction: "positive",
     name: "Factual Accuracy",
     version: "2.0.0",
     description:
@@ -75,6 +80,7 @@ export const catalog = [
   },
   {
     id: "faithfulness",
+    direction: "positive",
     name: "Faithfulness",
     version: "2.0.0",
     description:
@@ -90,6 +96,7 @@ export const catalog = [
   },
   {
     id: "fluency",
+    direction: "positive",
     name: "Fluency",
     version: "2.0.0",
     description:
@@ -105,6 +112,7 @@ export const catalog = [
   },
   {
     id: "hallucination",
+    direction: "negative",
     name: "Hallucination",
     version: "2.0.0",
     description: "Detects sentences in an answer that are not supported by the provided context.",
@@ -119,6 +127,7 @@ export const catalog = [
   },
   {
     id: "output-prompt-injection",
+    direction: "negative",
     name: "Output Prompt Injection",
     version: "1.0.0",
     description:
@@ -134,6 +143,7 @@ export const catalog = [
   },
   {
     id: "pii-leakage",
+    direction: "negative",
     name: "PII Leakage",
     version: "2.0.0",
     description: "Detects leaked personally identifiable information.",
@@ -148,6 +158,7 @@ export const catalog = [
   },
   {
     id: "prompt-injection",
+    direction: "negative",
     name: "Prompt Injection",
     version: "2.0.0",
     description:
@@ -163,6 +174,7 @@ export const catalog = [
   },
   {
     id: "relevance",
+    direction: "positive",
     name: "Relevance",
     version: "2.0.0",
     description: "Decides whether an answer addresses the user's request.",
@@ -177,6 +189,7 @@ export const catalog = [
   },
   {
     id: "summarization-quality",
+    direction: "positive",
     name: "Summarization Quality",
     version: "2.0.0",
     description: "Judges whether a machine-generated summary is high quality against the source",
@@ -191,6 +204,7 @@ export const catalog = [
   },
   {
     id: "toxicity",
+    direction: "negative",
     name: "Toxicity",
     version: "2.0.0",
     description:
@@ -206,6 +220,7 @@ export const catalog = [
   },
   {
     id: "user-frustration",
+    direction: "negative",
     name: "User Frustration",
     version: "2.0.0",
     description: "Detects whether a user's message expresses frustration. Frustration is",
