@@ -34,6 +34,8 @@ export interface BizeventPayload {
   'gen_ai.evaluation.version': string;
   'gen_ai.evaluation.spec_id': string;
   'gen_ai.evaluation.scoring_format': string;
+  /** Display polarity of the metric's named concept: positive (higher is better), negative (lower is better), or neutral. */
+  'gen_ai.evaluation.direction': string;
   'gen_ai.evaluation.score.value': number;
   'gen_ai.evaluation.score.label': 'pass' | 'fail';
   'gen_ai.evaluation.explanation': string;
