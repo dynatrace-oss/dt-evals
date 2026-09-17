@@ -22,6 +22,14 @@ export enum BuiltInMetric {
 /** Identifier for the population-level drift detection metric. */
 export const DRIFT_METRIC_ID = "drift";
 
+/**
+ * Display polarity of the metric's named concept. Presentation metadata only —
+ * scores stay canonical (high = pass) and pass/fail is unaffected.
+ * "positive" = higher is better, "negative" = lower is better (risk metrics).
+ * Absent is treated as "neutral", which defaults to higher-is-better.
+ */
+export type ScoreDirection = "positive" | "negative" | "neutral";
+
 /** Evaluation method. The evaluation engine defaults to "llm_as_judge" when omitted. */
 export type EvaluatorMethod =
   | "llm_as_judge"
@@ -48,4 +56,6 @@ export interface PromptDefinition {
   requiredFields: ("input" | "output" | "context" | "expectedOutput")[];
   /** The scoring scale to use */
   scoring: ScoringScale;
+  /** Display polarity of the metric's named concept. Defaults to higher-is-better when omitted. */
+  direction?: ScoreDirection;
 }

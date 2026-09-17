@@ -34,6 +34,7 @@ export type {
   EvaluatorMethod,
   PromptDefinition,
   PromptStore,
+  ScoreDirection,
 } from "./prompts/index";
 // Prompt catalog
 export {
