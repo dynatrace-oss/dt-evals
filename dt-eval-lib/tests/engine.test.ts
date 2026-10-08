@@ -60,6 +60,7 @@ vi.mock("@google/genai", () => {
   };
 });
 
+import OpenAI from "openai";
 import { evaluate } from "../src/engine/index";
 import { AnthropicProvider } from "../src/engine/providers/anthropic";
 import { AzureOpenAIProvider } from "../src/engine/providers/azure-openai";
@@ -915,5 +916,73 @@ describe("provider factory — bedrock", () => {
       maxRetries: 2,
     });
     expect(provider).toBeInstanceOf(BedrockProvider);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// temperature (openai / azure-openai)
+// ---------------------------------------------------------------------------
+
+describe("openai-compatible providers — temperature", () => {
+  // Both mocked clients share the same chat.completions.create mock.
+  const mockCreate = vi.mocked(new OpenAI().chat.completions.create);
+  const azureConfig = {
+    apiKey: "k",
+    model: "my-deployment",
+    timeout: 30000,
+    baseUrl: "https://my-resource.openai.azure.com/",
+    apiVersion: "2025-04-01-preview",
+  };
+
+  beforeEach(() => {
+    mockCreate.mockReset();
+    mockCreate.mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: '{"scoreValue":1,"summary":"s","reasoning":"r"}',
+          },
+        },
+      ],
+    } as never);
+  });
+
+  it("omits temperature for openai when not configured", async () => {
+    await new OpenAIProvider({
+      apiKey: "k",
+      model: "gpt-5-mini",
+      timeout: 30000,
+    }).call("p");
+    expect(mockCreate.mock.calls[0]?.[0]).not.toHaveProperty("temperature");
+  });
+
+  it("sends the configured temperature for openai", async () => {
+    await new OpenAIProvider({
+      apiKey: "k",
+      model: "gpt-4o",
+      timeout: 30000,
+      temperature: 0,
+    }).call("p");
+    expect(mockCreate.mock.calls[0]?.[0]).toHaveProperty("temperature", 0);
+  });
+
+  it("omits temperature for azure-openai when not configured", async () => {
+    await new AzureOpenAIProvider(azureConfig).call("p");
+    expect(mockCreate.mock.calls[0]?.[0]).not.toHaveProperty("temperature");
+  });
+
+  it("sends the configured temperature for azure-openai", async () => {
+    await new AzureOpenAIProvider({ ...azureConfig, temperature: 0.2 }).call("p");
+    expect(mockCreate.mock.calls[0]?.[0]).toHaveProperty("temperature", 0.2);
+  });
+
+  it("passes temperature from provider options through createProvider", async () => {
+    const provider = await createProvider({
+      provider: "openai",
+      apiKey: "k",
+      temperature: 0,
+    });
+    await provider.call("p");
+    expect(mockCreate.mock.calls[0]?.[0]).toHaveProperty("temperature", 0);
   });
 });

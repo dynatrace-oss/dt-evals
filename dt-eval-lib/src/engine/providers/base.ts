@@ -5,6 +5,7 @@ export abstract class BaseProvider implements LLMProvider {
   protected readonly model: string;
   protected readonly timeout: number;
   protected readonly baseUrl?: string;
+  protected readonly temperature?: number;
   protected readonly apiVersion?: string;
   protected readonly region?: string;
   protected readonly secretKey?: string;
@@ -14,6 +15,7 @@ export abstract class BaseProvider implements LLMProvider {
     this.model = config.model;
     this.timeout = config.timeout;
     this.baseUrl = config.baseUrl;
+    this.temperature = config.temperature;
     this.apiVersion = config.apiVersion;
     this.region = config.region;
     this.secretKey = config.secretKey;

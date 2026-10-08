@@ -108,7 +108,14 @@ export async function createProvider(options: ProviderOptions): Promise<LLMProvi
     }
 
     const { AzureOpenAIProvider } = await import("./azure-openai");
-    return new AzureOpenAIProvider({ apiKey, model, timeout, baseUrl, apiVersion });
+    return new AzureOpenAIProvider({
+      apiKey,
+      model,
+      timeout,
+      baseUrl,
+      apiVersion,
+      temperature: options.temperature,
+    });
   }
 
   // --- Bedrock ---
@@ -143,7 +150,13 @@ export async function createProvider(options: ProviderOptions): Promise<LLMProvi
   switch (provider) {
     case "openai": {
       const { OpenAIProvider } = await import("./openai");
-      return new OpenAIProvider({ apiKey, model, timeout, baseUrl });
+      return new OpenAIProvider({
+        apiKey,
+        model,
+        timeout,
+        baseUrl,
+        temperature: options.temperature,
+      });
     }
     case "anthropic": {
       const { AnthropicProvider } = await import("./anthropic");

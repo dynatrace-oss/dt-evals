@@ -31,8 +31,8 @@ export class AzureOpenAIProvider extends BaseProvider {
 
   async call(prompt: string): Promise<LLMJudgeResponse> {
     // Use json_object mode — Azure deployment model versions vary in structured-output support.
-    // temperature is omitted intentionally: reasoning models (o-series, gpt-5.x) only accept the
-    // default value and will reject an explicit 0.
+    // temperature is only sent when configured: reasoning models (o-series, gpt-5.x) only accept
+    // the default value and will reject an explicit 0.
     const response = await this.client.chat.completions.create({
       model: this.model,
       messages: [
@@ -44,6 +44,7 @@ export class AzureOpenAIProvider extends BaseProvider {
         { role: "user", content: prompt },
       ],
       response_format: { type: "json_object" },
+      ...(this.temperature !== undefined ? { temperature: this.temperature } : {}),
     });
 
     const content = response.choices?.[0]?.message?.content;
