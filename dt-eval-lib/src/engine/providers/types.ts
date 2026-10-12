@@ -12,6 +12,8 @@ export interface ProviderConfig {
   model: string;
   timeout: number;
   baseUrl?: string;
+  /** Sampling temperature (openai / azure-openai). Default 0, with fallback (see BaseProvider). */
+  temperature?: number;
   /** Azure OpenAI api-version (e.g. "2026-04-01-preview"). Only used for Azure endpoints. */
   apiVersion?: string;
   /** AWS region for Bedrock. */

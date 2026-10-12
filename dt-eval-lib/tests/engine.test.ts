@@ -60,6 +60,7 @@ vi.mock("@google/genai", () => {
   };
 });
 
+import OpenAI from "openai";
 import { evaluate } from "../src/engine/index";
 import { AnthropicProvider } from "../src/engine/providers/anthropic";
 import { AzureOpenAIProvider } from "../src/engine/providers/azure-openai";
@@ -915,5 +916,83 @@ describe("provider factory — bedrock", () => {
       maxRetries: 2,
     });
     expect(provider).toBeInstanceOf(BedrockProvider);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// temperature (openai / azure-openai)
+// ---------------------------------------------------------------------------
+
+describe("openai-compatible providers — temperature", () => {
+  // Both mocked clients share the same chat.completions.create mock. Each test uses its own model
+  // name because models that reject the default temperature are remembered across calls.
+  const mockCreate = vi.mocked(new OpenAI().chat.completions.create);
+  const okResponse = {
+    choices: [{ message: { content: '{"scoreValue":1,"summary":"s","reasoning":"r"}' } }],
+  } as never;
+  const temperatureError = Object.assign(
+    new Error("Unsupported value: 'temperature' does not support 0 with this model."),
+    { status: 400 },
+  );
+  const sentParams = () => mockCreate.mock.calls.map((call) => call[0]);
+  const azureConfig = {
+    apiKey: "k",
+    timeout: 30000,
+    baseUrl: "https://my-resource.openai.azure.com/",
+    apiVersion: "2025-04-01-preview",
+  };
+
+  beforeEach(() => {
+    mockCreate.mockReset();
+    mockCreate.mockResolvedValue(okResponse);
+  });
+
+  it("sends temperature 0 by default for openai", async () => {
+    await new OpenAIProvider({ apiKey: "k", model: "gpt-4o", timeout: 30000 }).call("p");
+    expect(sentParams()).toEqual([expect.objectContaining({ temperature: 0 })]);
+  });
+
+  it("sends temperature 0 by default for azure-openai", async () => {
+    await new AzureOpenAIProvider({ ...azureConfig, model: "my-gpt4o" }).call("p");
+    expect(sentParams()).toEqual([expect.objectContaining({ temperature: 0 })]);
+  });
+
+  it("retries without temperature when the model rejects the default, then skips it", async () => {
+    mockCreate.mockRejectedValueOnce(temperatureError);
+    const config = { apiKey: "k", model: "gpt-5-mini", timeout: 30000 };
+
+    await new OpenAIProvider(config).call("p");
+    expect(sentParams()[0]).toHaveProperty("temperature", 0);
+    expect(sentParams()[1]).not.toHaveProperty("temperature");
+
+    // A new provider instance (as created per evaluate() call) skips the failing request.
+    await new OpenAIProvider(config).call("p");
+    expect(mockCreate).toHaveBeenCalledTimes(3);
+    expect(sentParams()[2]).not.toHaveProperty("temperature");
+  });
+
+  it("does not retry on unrelated 400 errors", async () => {
+    mockCreate.mockRejectedValueOnce(Object.assign(new Error("Bad request"), { status: 400 }));
+    await expect(
+      new OpenAIProvider({ apiKey: "k", model: "gpt-4o-other", timeout: 30000 }).call("p"),
+    ).rejects.toThrow("Bad request");
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("never drops an explicitly configured temperature", async () => {
+    mockCreate.mockRejectedValueOnce(temperatureError);
+    const provider = new AzureOpenAIProvider({
+      ...azureConfig,
+      model: "my-gpt5-mini",
+      temperature: 0.2,
+    });
+    await expect(provider.call("p")).rejects.toBe(temperatureError);
+    expect(sentParams()).toEqual([expect.objectContaining({ temperature: 0.2 })]);
+  });
+
+  it("passes temperature from provider options through createProvider", async () => {
+    const provider = await createProvider({ provider: "openai", apiKey: "k", temperature: 0.5 });
+    await provider.call("p");
+    expect(sentParams()).toEqual([expect.objectContaining({ temperature: 0.5 })]);
   });
 });

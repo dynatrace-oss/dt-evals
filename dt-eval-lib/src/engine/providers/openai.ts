@@ -44,22 +44,24 @@ export class OpenAIProvider extends BaseProvider {
   }
 
   async call(prompt: string): Promise<LLMJudgeResponse> {
-    const response = await this.client.chat.completions.create({
-      model: this.model,
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are an expert LLM evaluation judge. Respond only with the requested JSON structure.",
+    const response = await this.withTemperature((temperature) =>
+      this.client.chat.completions.create({
+        model: this.model,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an expert LLM evaluation judge. Respond only with the requested JSON structure.",
+          },
+          { role: "user", content: prompt },
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: RESPONSE_SCHEMA,
         },
-        { role: "user", content: prompt },
-      ],
-      response_format: {
-        type: "json_schema",
-        json_schema: RESPONSE_SCHEMA,
-      },
-      temperature: 0,
-    });
+        ...(temperature !== undefined ? { temperature } : {}),
+      }),
+    );
 
     const content = response.choices?.[0]?.message?.content;
     if (!content) {

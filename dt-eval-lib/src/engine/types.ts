@@ -23,6 +23,11 @@ export interface ProviderOptions {
   location?: string;
   /** Model override — see DEFAULT_MODELS in src/engine/providers/index.ts for per-provider defaults */
   model?: string;
+  /**
+   * Sampling temperature. Only used for openai / azure-openai. Default 0; if the model rejects it
+   * (reasoning models such as o-series / gpt-5.x), the request is retried without temperature.
+   */
+  temperature?: number;
   /** Request timeout in ms — default 30000 */
   timeout?: number;
   /** Max retries on transient errors — default 2 */
