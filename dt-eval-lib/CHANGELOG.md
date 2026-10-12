@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.20-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.19-alpha...dt-eval-lib-v0.0.20-alpha) (2026-10-12)
+
+
+### 🐛 Bug Fixes
+
+* **dt-eval-lib:** default temperature to 0 with fallback for reasoning models (AI-1330) ([#248](https://github.com/dynatrace-oss/dt-evals/issues/248)) ([9ccf3fa](https://github.com/dynatrace-oss/dt-evals/commit/9ccf3fa7ec92220fc42e38f0629e66985c340645))
+
 ## [0.0.19-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.18-alpha...dt-eval-lib-v0.0.19-alpha) (2026-09-01)
 
 
