@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module';
 import type { DynatraceClient } from './client.js';
 import type { GenAiSpan, BizeventPayload } from './types.js';
-import type { EvalResult, EvaluatorMethod } from '@dynatrace-oss/dt-eval-lib';
+import type { EvalResult, EvaluatorMethod, ScoreDirection } from '@dynatrace-oss/dt-eval-lib';
 
 declare const __CLIENT_VERSION__: string | undefined;
 const CLIENT_NAME = 'dt-eval-cli';
@@ -48,6 +48,8 @@ export function buildBizeventPayload(
   judgeInputs?: JudgeInputs,
   storeEvaluatedPrompt = false,
   evalName?: string,
+  /** Metric display polarity; defaults to "positive" (higher is better) when omitted. */
+  direction?: ScoreDirection,
 ): BizeventPayload {
   const payload: BizeventPayload = {
     'event.type': 'gen_ai.evaluation.result',
@@ -61,6 +63,7 @@ export function buildBizeventPayload(
     'gen_ai.evaluation.version': 'v1.0',
     'gen_ai.evaluation.spec_id': metricId,
     'gen_ai.evaluation.scoring_format': scoringFormat(result.score.value),
+    'gen_ai.evaluation.direction': direction ?? 'positive',
     'gen_ai.evaluation.score.value': result.score.value,
     'gen_ai.evaluation.score.label': result.score.label,
     'gen_ai.evaluation.explanation': result.explanation.summary,
