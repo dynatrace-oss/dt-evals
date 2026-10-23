@@ -37,7 +37,7 @@ jobs:
 
       - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
-          node-version: "20"
+          node-version-file: "dt-eval-cli/.nvmrc"
 
       # Workaround for dynatrace-oss/dt-evals#69: the CLI's lib code
       # imports the openai SDK lazily for the azure-openai/openai providers,
