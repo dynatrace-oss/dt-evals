@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.3.3-alpha...v0.3.4-alpha) (2026-10-23)
+
+
+### 🐛 Bug Fixes
+
+* require Node.js patched for Brotli RCE (CVE-2026-111497) ([#251](https://github.com/dynatrace-oss/dt-evals/issues/251)) ([d7379de](https://github.com/dynatrace-oss/dt-evals/commit/d7379de87bf9d194ad810e28506d862056cf03a4))
+
 ## [0.3.3-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.3.2-alpha...v0.3.3-alpha) (2026-09-10)
 
 
