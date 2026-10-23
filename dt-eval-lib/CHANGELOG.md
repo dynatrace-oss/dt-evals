@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.21-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.20-alpha...dt-eval-lib-v0.0.21-alpha) (2026-10-23)
+
+
+### 🐛 Bug Fixes
+
+* require Node.js patched for Brotli RCE (CVE-2026-111497) ([#251](https://github.com/dynatrace-oss/dt-evals/issues/251)) ([d7379de](https://github.com/dynatrace-oss/dt-evals/commit/d7379de87bf9d194ad810e28506d862056cf03a4))
+
 ## [0.0.20-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.19-alpha...dt-eval-lib-v0.0.20-alpha) (2026-10-12)
 
 
