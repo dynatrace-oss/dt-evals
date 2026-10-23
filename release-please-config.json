@@ -1,6 +1,6 @@
 {
     "separate-pull-requests": true,
-    "last-release-sha": "d29e047d7417ab69fae727c2621931235fa0c147",
+    "last-release-sha": "e1c029ad42b8d8404b3d442473739c5def52d529",
     "bump-minor-pre-major": true,
     "bump-patch-for-minor-pre-major": true,
     "pull-request-title-pattern": "chore: release${component} ${version}",
