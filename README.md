@@ -7,6 +7,24 @@
 [![Node](https://img.shields.io/node/v/@dynatrace-oss/dt-evals/alpha?style=flat-square)](package.json)
 [![Lib on npm](https://img.shields.io/npm/v/@dynatrace-oss/dt-eval-lib/alpha?style=flat-square&label=lib&color=cb3837)](https://www.npmjs.com/package/@dynatrace-oss/dt-eval-lib)
 
+## ⚠️ DEPRECATION NOTICE
+
+> **This repository will be deprecated. Target date: January 1, 2027.**
+>
+> Until then, only security updates will be released — no new features or bug fixes. After the target date, no further updates will be made.
+
+Evals are moving to [Arize](https://app.arize.com). `dt-evals` and the Evals page in the Dynatrace AI Observability app are being retired. Use Arize AX platform to run and analyze evaluations of your LLM applications and agents going forward.
+
+| Use case                                                 | Recommended tool               |
+| -------------------------------------------------------- | ------------------------------ |
+| **Run and analyze evals** of LLM applications and agents | [Arize](https://app.arize.com) |
+
+Evaluation results already written to Dynatrace stay available as business events (`event.type == "gen_ai.evaluation.result"`) for as long as your bucket retention keeps them.
+
+The documentation below is kept for reference only.
+
+---
+
 End-to-end LLM evaluation toolkit for Dynatrace AI Observability.
 
 `dt-evals` is the main interface. It pulls live `gen_ai.*` spans from your Dynatrace environment, masks sensitive data in memory, scores real production interactions with an LLM judge, and writes structured evaluation results back to Dynatrace as business events — keeping evals, traces, metrics, alerts, and dashboards in one place.
@@ -26,8 +44,6 @@ End-to-end LLM evaluation toolkit for Dynatrace AI Observability.
 | [`dt-eval-lib`](dt-eval-lib) | TypeScript library — run judge-based evals in code, tests, and CI |
 | [`dt-eval-deploy`](dt-eval-deploy) | Deployment resources — Docker image and serverless runners |
 | [`dt-ai-ingest`](dt-ai-ingest) | Python library — ingest 3rd party LLM spans and eval results into Dynatrace |
-
-> **Early Development**: This project is in active development. If you encounter any bugs or issues, please [file a GitHub issue](https://github.com/dynatrace-oss/dt-evals/issues/new). Contributions and feedback are welcome!
 
 ## Requirements
 
