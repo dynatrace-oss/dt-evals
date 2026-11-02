@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.22-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.21-alpha...dt-eval-lib-v0.0.22-alpha) (2026-11-02)
+
+
+### 🐛 Bug Fixes
+
+* clear npm audit vulnerabilities across all workspaces ([#258](https://github.com/dynatrace-oss/dt-evals/issues/258)) ([fac0f92](https://github.com/dynatrace-oss/dt-evals/commit/fac0f92a932597392ef054a42459eeca02ca7daa))
+
 ## [0.0.21-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.20-alpha...dt-eval-lib-v0.0.21-alpha) (2026-10-23)
 
 
