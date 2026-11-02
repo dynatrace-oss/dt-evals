@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.5-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.3.4-alpha...v0.3.5-alpha) (2026-11-02)
+
+
+### 🐛 Bug Fixes
+
+* clear npm audit vulnerabilities across all workspaces ([#258](https://github.com/dynatrace-oss/dt-evals/issues/258)) ([fac0f92](https://github.com/dynatrace-oss/dt-evals/commit/fac0f92a932597392ef054a42459eeca02ca7daa))
+
 ## [0.3.4-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.3.3-alpha...v0.3.4-alpha) (2026-10-23)
 
 
