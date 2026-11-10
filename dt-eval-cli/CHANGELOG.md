@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.7-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.3.6-alpha...v0.3.7-alpha) (2026-11-10)
+
+
+### 🐛 Bug Fixes
+
+* clear npm audit vulnerabilities across all workspaces ([#258](https://github.com/dynatrace-oss/dt-evals/issues/258)) ([fac0f92](https://github.com/dynatrace-oss/dt-evals/commit/fac0f92a932597392ef054a42459eeca02ca7daa))
+* require Node.js patched for Brotli RCE (CVE-2026-111497) ([#251](https://github.com/dynatrace-oss/dt-evals/issues/251)) ([d7379de](https://github.com/dynatrace-oss/dt-evals/commit/d7379de87bf9d194ad810e28506d862056cf03a4))
+
+
+### 🧹 Chore
+
+* release 0.3.4-alpha ([#252](https://github.com/dynatrace-oss/dt-evals/issues/252)) ([8f05d9c](https://github.com/dynatrace-oss/dt-evals/commit/8f05d9c55182f5a42bba5073522b38285daaec1f))
+* release 0.3.5-alpha ([#259](https://github.com/dynatrace-oss/dt-evals/issues/259)) ([ce688d4](https://github.com/dynatrace-oss/dt-evals/commit/ce688d418726964c0c012d8ca852f92232ea835f))
+
 ## [0.3.5-alpha](https://github.com/dynatrace-oss/dt-evals/compare/v0.3.4-alpha...v0.3.5-alpha) (2026-11-02)
 
 
