@@ -57,13 +57,16 @@ export async function createProvider(options: ProviderOptions): Promise<LLMProvi
     // If key-based auth is explicitly desired, set provider.apiKey in config. Empty string
     // signals "no key" to GoogleProvider, which then lets the SDK resolve ADC.
     const apiKey = options.apiKey ?? "";
+    const { GoogleProvider } = await import("./google");
+    // API key (express mode) is exclusive with project/location in @google/genai: the SDK
+    // throws on both, so send only the key and resolve project/location for ADC alone.
+    if (apiKey) return new GoogleProvider({ apiKey, model, timeout, vertexai: true });
     const project =
       options.project ??
       process.env["GOOGLE_CLOUD_PROJECT"] ??
       process.env["GCLOUD_PROJECT"] ??
       process.env["GCP_PROJECT_ID"];
     const location = options.location ?? process.env["GOOGLE_CLOUD_LOCATION"] ?? "global";
-    const { GoogleProvider } = await import("./google");
     return new GoogleProvider({ apiKey, model, timeout, vertexai: true, project, location });
   }
 
