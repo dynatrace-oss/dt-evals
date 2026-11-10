@@ -60,6 +60,7 @@ vi.mock("@google/genai", () => {
   };
 });
 
+import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
 import { evaluate } from "../src/engine/index";
 import { AnthropicProvider } from "../src/engine/providers/anthropic";
@@ -572,6 +573,42 @@ describe("provider factory — vertex", () => {
       maxRetries: 2,
     });
     expect(provider).toBeInstanceOf(GoogleProvider);
+  });
+
+  it("sends only the API key to the SDK when apiKey is set (no project/location)", async () => {
+    const origLocation = process.env.GOOGLE_CLOUD_LOCATION;
+    process.env.GOOGLE_CLOUD_LOCATION = "us-central1";
+    try {
+      await createProvider({
+        provider: "vertex",
+        apiKey: "test-key",
+        project: "test-project",
+        location: "europe-west4",
+        timeout: 30000,
+        maxRetries: 2,
+      });
+      expect(vi.mocked(GoogleGenAI)).toHaveBeenLastCalledWith({
+        vertexai: true,
+        apiKey: "test-key",
+      });
+    } finally {
+      if (origLocation !== undefined) process.env.GOOGLE_CLOUD_LOCATION = origLocation;
+      else delete process.env.GOOGLE_CLOUD_LOCATION;
+    }
+  });
+
+  it("resolves project/location for ADC when no apiKey is set", async () => {
+    await createProvider({
+      provider: "vertex",
+      project: "test-project",
+      timeout: 30000,
+      maxRetries: 2,
+    });
+    expect(vi.mocked(GoogleGenAI)).toHaveBeenLastCalledWith({
+      vertexai: true,
+      project: "test-project",
+      location: process.env.GOOGLE_CLOUD_LOCATION ?? "global",
+    });
   });
 
   it("creates Vertex provider via ADC without an API key (project from options)", async () => {
