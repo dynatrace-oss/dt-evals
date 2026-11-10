@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.23-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.22-alpha...dt-eval-lib-v0.0.23-alpha) (2026-11-10)
+
+
+### 🐛 Bug Fixes
+
+* **dt-eval-lib:** send only the API key to Vertex AI ([#261](https://github.com/dynatrace-oss/dt-evals/issues/261)) ([917d25f](https://github.com/dynatrace-oss/dt-evals/commit/917d25f1624ad6d218ff3042b8cb24eff5401a80))
+
 ## [0.0.22-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.21-alpha...dt-eval-lib-v0.0.22-alpha) (2026-11-02)
 
 
