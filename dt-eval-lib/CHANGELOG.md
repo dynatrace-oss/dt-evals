@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.24-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.23-alpha...dt-eval-lib-v0.0.24-alpha) (2026-11-16)
+
+
+### 🐛 Bug Fixes
+
+* bump @aws-sdk/xml-builder to drop vulnerable fast-xml-parser ([#265](https://github.com/dynatrace-oss/dt-evals/issues/265)) ([47366e1](https://github.com/dynatrace-oss/dt-evals/commit/47366e18ab922173ff419f925132bcf70161c229))
+
 ## [0.0.23-alpha](https://github.com/dynatrace-oss/dt-evals/compare/dt-eval-lib-v0.0.22-alpha...dt-eval-lib-v0.0.23-alpha) (2026-11-10)
 
 
